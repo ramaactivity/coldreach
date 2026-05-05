@@ -1,9 +1,17 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/signout"];
+
+function isPublicPath(pathname: string) {
+  return PUBLIC_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(p + "/"),
+  );
+}
+
 /**
- * Refreshes the user's session on every request. Use this in middleware.ts
- * at the project root to keep auth state fresh across server/client.
+ * Refreshes the user's session on every request and redirects unauthenticated
+ * users to /login when they hit a protected route. Used in proxy.ts at root.
  */
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -31,7 +39,25 @@ export async function updateSession(request: NextRequest) {
 
   // IMPORTANT: getUser must be called to refresh the session.
   // Don't add code between createServerClient and getUser.
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+
+  if (!user && !isPublicPath(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  if (user && pathname === "/login") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    url.searchParams.delete("redirect");
+    return NextResponse.redirect(url);
+  }
 
   return supabaseResponse;
 }
