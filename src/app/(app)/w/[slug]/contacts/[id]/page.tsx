@@ -1,10 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft, Mail, Building2 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { getContactById } from "@/lib/contacts";
 import { createClient } from "@/lib/supabase/server";
 import { ContactForm } from "../contact-form";
 import { updateContact, deleteContact, type ContactFormState } from "../actions";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 export default async function ContactDetailPage({
   params,
@@ -18,11 +21,12 @@ export default async function ContactDetailPage({
   const contact = await getContactById(id);
   if (!contact) notFound();
 
-  // Fetch workspace-specific data
   const supabase = await createClient();
   const { data: workspaceData } = await supabase
     .from("contact_workspace_data")
-    .select("lead_stage_id, workspace_notes")
+    .select(
+      "lead_stage_id, workspace_notes, total_emails_sent, total_emails_opened, total_replies",
+    )
     .eq("contact_id", id)
     .eq("workspace_id", workspace.id)
     .maybeSingle();
@@ -38,44 +42,66 @@ export default async function ContactDetailPage({
     redirect(`/w/${slug}/contacts`);
   }
 
+  const fullName =
+    [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
+    contact.email;
+
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
       <Link
         href={`/w/${slug}/contacts`}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
-        ← Back to contacts
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to contacts
       </Link>
-      <div className="flex items-start justify-between">
+
+      {/* Hero */}
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-            {[contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
-              contact.email}
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl dark:text-zinc-50">
+            {fullName}
           </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            {contact.email}
-            {contact.company && ` · ${contact.company}`}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <span className="inline-flex items-center gap-1.5">
+              <Mail className="h-3.5 w-3.5" />
+              {contact.email}
+            </span>
+            {contact.company && (
+              <span className="inline-flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5" />
+                {contact.company}
+              </span>
+            )}
+          </div>
         </div>
         <form action={deleteAction}>
-          <button
-            type="submit"
-            className="rounded-md border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-700 transition hover:bg-red-50 dark:border-red-900/50 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-950/30"
-          >
+          <Button variant="destructive" size="sm" type="submit">
             Delete
-          </button>
+          </Button>
         </form>
       </div>
 
       {/* Stats */}
-      <div className="mt-6 grid grid-cols-3 gap-3 text-sm">
-        <Stat label="Sent (this workspace)" value="0" />
-        <Stat label="Opened" value="0" />
-        <Stat label="Replies" value="0" />
+      <div className="mb-6 grid grid-cols-3 gap-3">
+        <MiniStat
+          label="Sent"
+          value={workspaceData?.total_emails_sent ?? 0}
+        />
+        <MiniStat
+          label="Opened"
+          value={workspaceData?.total_emails_opened ?? 0}
+          accent="emerald"
+        />
+        <MiniStat
+          label="Replies"
+          value={workspaceData?.total_replies ?? 0}
+          accent="blue"
+        />
       </div>
 
       {/* Edit form */}
-      <div className="mt-8 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+      <Card className="p-6">
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-100">
           Edit
         </h2>
@@ -86,17 +112,38 @@ export default async function ContactDetailPage({
           action={updateAction}
           submitLabel="Save Changes"
         />
-      </div>
+      </Card>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function MiniStat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: number;
+  accent?: "emerald" | "blue";
+}) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-      <p className="text-xs uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-        {value}
+    <div className="rounded-xl border border-zinc-200/80 bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        {label}
+      </p>
+      <p
+        className={`mt-1.5 text-2xl font-semibold tabular-nums tracking-tight ${
+          accent === "emerald"
+            ? "text-emerald-600 dark:text-emerald-400"
+            : accent === "blue"
+              ? "text-blue-600 dark:text-blue-400"
+              : "text-zinc-900 dark:text-zinc-100"
+        }`}
+      >
+        {value.toLocaleString("id-ID")}
+      </p>
+      <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">
+        in this workspace
       </p>
     </div>
   );

@@ -1,8 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { TemplateForm } from "../template-form";
 import { createTemplate, type TemplateFormState } from "../actions";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
 
 export default async function NewTemplatePage({
   params,
@@ -26,19 +29,18 @@ export default async function NewTemplatePage({
     <div className="mx-auto max-w-7xl px-6 py-8">
       <Link
         href={`/w/${slug}/templates`}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
-        ← Back to templates
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to templates
       </Link>
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-        New Template
-      </h1>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Buat template email untuk workspace {workspace.name}. Attachment bisa di-upload setelah save.
-      </p>
-      <div className="mt-6">
+      <PageHeader
+        title="New Template"
+        description={`Buat template email untuk workspace ${workspace.name}. Attachment bisa di-upload setelah save.`}
+      />
+      <Card className="p-6">
         <TemplateForm action={action} submitLabel="Save Template" />
-      </div>
+      </Card>
     </div>
   );
 }

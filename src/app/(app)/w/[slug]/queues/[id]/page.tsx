@@ -1,14 +1,21 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  Target,
+  Sparkles,
+  Mail,
+  AlertCircle,
+} from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { getQueueById, getQueueStats } from "@/lib/queues";
 import { createClient } from "@/lib/supabase/server";
-import {
-  formatDays,
-  formatTime,
-  progressPercent,
-} from "@/lib/queue-helpers";
+import { formatDays, formatTime, progressPercent } from "@/lib/queue-helpers";
 import { QueueActionsBar } from "./queue-actions-bar";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default async function QueueDetailPage({
   params,
@@ -25,7 +32,6 @@ export default async function QueueDetailPage({
   const stats = await getQueueStats(id);
   const pct = progressPercent(queue);
 
-  // Fetch template name
   const supabase = await createClient();
   const { data: template } = queue.template_id
     ? await supabase
@@ -35,7 +41,6 @@ export default async function QueueDetailPage({
         .maybeSingle()
     : { data: null };
 
-  // Fetch connected Gmail account info
   const { data: account } = await supabase
     .from("email_accounts")
     .select("email, daily_quota, emails_sent_today")
@@ -43,85 +48,149 @@ export default async function QueueDetailPage({
     .eq("is_active", true)
     .maybeSingle();
 
-  const remainingQuota = account ? account.daily_quota - account.emails_sent_today : 0;
+  const remainingQuota = account
+    ? account.daily_quota - account.emails_sent_today
+    : 0;
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
       <Link
         href={`/w/${slug}/queues`}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
-        ← Back to queues
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to queues
       </Link>
 
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <span
-              className={`inline-block h-2.5 w-2.5 rounded-full ${
-                queue.is_active ? "bg-emerald-500" : "bg-zinc-400"
-              }`}
-            />
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+      {/* Hero header */}
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center gap-2.5">
+            {queue.is_active ? (
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              </span>
+            ) : (
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-zinc-400" />
+            )}
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl dark:text-zinc-50">
               {queue.name}
             </h1>
             {!queue.is_active && (
-              <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                Paused
-              </span>
+              <Badge variant="secondary">Paused</Badge>
             )}
           </div>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Template: {template?.name ?? "—"} ·{" "}
-            {formatDays(queue.schedule_days)} ·{" "}
-            {formatTime(queue.schedule_start_time)} – {formatTime(queue.schedule_end_time)} WIB ·{" "}
-            {queue.daily_target}/hari
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+            {template?.name && (
+              <span className="inline-flex items-center gap-1">
+                <Sparkles className="h-3 w-3" />
+                Template: <strong className="font-medium text-zinc-900 dark:text-zinc-100">{template.name}</strong>
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1">
+              <Calendar className="h-3 w-3" />
+              {formatDays(queue.schedule_days)}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              {formatTime(queue.schedule_start_time)}–{formatTime(queue.schedule_end_time)} WIB
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Target className="h-3 w-3" />
+              {queue.daily_target}/hari
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex items-center justify-between text-sm">
-          <p className="font-medium text-zinc-900 dark:text-zinc-100">
-            Progress
-          </p>
-          <p className="text-zinc-600 dark:text-zinc-400">
-            {queue.total_sent} / {queue.total_in_queue} sent ({pct}%)
-          </p>
+      {/* Progress card */}
+      <Card className="overflow-hidden p-0">
+        <div className="border-b border-zinc-100 p-5 dark:border-zinc-800">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Progress
+            </p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="text-base font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                {queue.total_sent.toLocaleString("id-ID")}
+              </span>
+              <span className="mx-1">/</span>
+              {queue.total_in_queue.toLocaleString("id-ID")} sent ({pct}%)
+            </p>
+          </div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+            <div
+              className={`h-full rounded-full transition-all ${
+                queue.is_active
+                  ? "bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500"
+                  : "bg-zinc-400 dark:bg-zinc-600"
+              }`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
         </div>
-        <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-          <div
-            className="h-full rounded-full bg-emerald-500 transition-all"
-            style={{ width: `${pct}%` }}
+        <div className="grid grid-cols-2 divide-zinc-100 sm:grid-cols-4 sm:divide-x dark:divide-zinc-800">
+          <MiniStat label="Pending" value={stats.pending} />
+          <MiniStat label="Sent" value={stats.sent} accent="emerald" />
+          <MiniStat label="Replied" value={stats.replied} accent="blue" />
+          <MiniStat
+            label="Skipped/Bounced"
+            value={stats.skipped + stats.bounced}
           />
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
-          <Stat label="Pending" value={stats.pending.toLocaleString("id-ID")} />
-          <Stat label="Sent" value={stats.sent.toLocaleString("id-ID")} color="emerald" />
-          <Stat label="Replied" value={stats.replied.toLocaleString("id-ID")} color="blue" />
-          <Stat label="Skipped/Bounced" value={(stats.skipped + stats.bounced).toLocaleString("id-ID")} />
-        </div>
-      </div>
+      </Card>
 
-      {/* Today's quota */}
-      <div className="mt-4 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-          Today's Gmail quota
-        </p>
+      {/* Quota card */}
+      <Card className="mt-4 p-5">
+        <div className="flex items-center gap-2">
+          <Mail className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Today's Gmail quota
+          </p>
+        </div>
         {account ? (
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            <strong>{account.email}</strong>:{" "}
-            {account.emails_sent_today} / {account.daily_quota} sent today ·{" "}
-            {remainingQuota} remaining
-          </p>
+          <div className="mt-3">
+            <p className="text-sm text-zinc-700 dark:text-zinc-300">
+              <strong>{account.email}</strong>
+            </p>
+            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
+              {account.emails_sent_today} / {account.daily_quota} sent today ·{" "}
+              <span
+                className={
+                  remainingQuota === 0
+                    ? "text-red-600 dark:text-red-400 font-medium"
+                    : ""
+                }
+              >
+                {remainingQuota} remaining
+              </span>
+            </p>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
+                style={{
+                  width: `${Math.min(100, (account.emails_sent_today / Math.max(1, account.daily_quota)) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
         ) : (
-          <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
-            ⚠ Belum ada Gmail terhubung. Connect Gmail di{" "}
-            <Link href={`/w/${slug}/settings`} className="underline">Settings</Link> sebelum kirim.
-          </p>
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-400">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <p>
+              Belum ada Gmail terhubung. Connect Gmail di{" "}
+              <Link
+                href={`/w/${slug}/settings`}
+                className="font-medium underline hover:no-underline"
+              >
+                Settings
+              </Link>{" "}
+              sebelum kirim.
+            </p>
+          </div>
         )}
-      </div>
+      </Card>
 
       {/* Actions */}
       <QueueActionsBar
@@ -132,69 +201,106 @@ export default async function QueueDetailPage({
         pendingCount={stats.pending}
       />
 
-      {/* Settings detail */}
-      <div className="mt-6 rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          Settings
-        </h3>
-        <dl className="mt-3 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+      {/* Settings */}
+      <Card className="mt-4 p-0">
+        <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Configuration
+          </h3>
+        </div>
+        <dl className="grid grid-cols-1 divide-y divide-zinc-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-zinc-800">
           <DetailRow
             label="AI personalization"
-            value={queue.use_ai_opener ? "On (Fase 7 pending)" : "Off"}
+            value={
+              queue.use_ai_opener ? (
+                <Badge variant="info">On</Badge>
+              ) : (
+                <Badge variant="secondary">Off</Badge>
+              )
+            }
           />
           <DetailRow
             label="Auto follow-up"
             value={
-              queue.followup_enabled
-                ? `${queue.followup_after_days} hari`
-                : "Off"
+              queue.followup_enabled ? (
+                <Badge variant="info">{queue.followup_after_days} hari</Badge>
+              ) : (
+                <Badge variant="secondary">Off</Badge>
+              )
             }
           />
           <DetailRow
             label="Created"
-            value={new Date(queue.created_at).toLocaleString("id-ID")}
+            value={
+              <span className="text-xs text-zinc-700 dark:text-zinc-300">
+                {new Date(queue.created_at).toLocaleString("id-ID", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
+              </span>
+            }
           />
           <DetailRow
             label="Last run"
             value={
-              queue.last_run_at
-                ? new Date(queue.last_run_at).toLocaleString("id-ID")
-                : "—"
+              <span className="text-xs text-zinc-700 dark:text-zinc-300">
+                {queue.last_run_at
+                  ? new Date(queue.last_run_at).toLocaleString("id-ID", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })
+                  : "—"}
+              </span>
             }
           />
         </dl>
-      </div>
+      </Card>
     </div>
   );
 }
 
-function Stat({
+function MiniStat({
   label,
   value,
-  color = "zinc",
+  accent,
 }: {
   label: string;
-  value: string;
-  color?: "zinc" | "emerald" | "blue";
+  value: number;
+  accent?: "emerald" | "blue";
 }) {
-  const colors = {
-    zinc: "text-zinc-700 dark:text-zinc-300",
-    emerald: "text-emerald-700 dark:text-emerald-400",
-    blue: "text-blue-700 dark:text-blue-400",
-  };
   return (
-    <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/50">
-      <p className="text-xs uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className={`mt-0.5 text-lg font-semibold ${colors[color]}`}>{value}</p>
+    <div className="p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        {label}
+      </p>
+      <p
+        className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${
+          accent === "emerald"
+            ? "text-emerald-600 dark:text-emerald-400"
+            : accent === "blue"
+              ? "text-blue-600 dark:text-blue-400"
+              : "text-zinc-900 dark:text-zinc-100"
+        }`}
+      >
+        {value.toLocaleString("id-ID")}
+      </p>
     </div>
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
-    <div>
-      <dt className="text-xs uppercase tracking-wide text-zinc-500">{label}</dt>
-      <dd className="mt-0.5 text-zinc-900 dark:text-zinc-100">{value}</dd>
+    <div className="px-5 py-3.5">
+      <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        {label}
+      </dt>
+      <dd className="mt-1.5">{value}</dd>
     </div>
   );
 }

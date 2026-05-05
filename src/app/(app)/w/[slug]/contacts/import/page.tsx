@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { ImportForm } from "./import-form";
+import { PageHeader } from "@/components/ui/page-header";
 
 export default async function ImportContactsPage({
   params,
@@ -16,20 +18,16 @@ export default async function ImportContactsPage({
     <div className="mx-auto max-w-4xl px-6 py-8">
       <Link
         href={`/w/${slug}/contacts`}
-        className="mb-4 inline-flex items-center gap-1 text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
-        ← Back to contacts
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Back to contacts
       </Link>
-      <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-        Import Contacts dari CSV
-      </h1>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-        Import database existing dari Google Sheet atau Excel. Email yang sudah ada akan di-skip otomatis (deduplikasi).
-      </p>
-
-      <div className="mt-6">
-        <ImportForm slug={slug} />
-      </div>
+      <PageHeader
+        title="Import Contacts dari CSV"
+        description="Import database existing dari Google Sheet atau Excel. Email yang sudah ada akan di-skip otomatis (deduplikasi)."
+      />
+      <ImportForm slug={slug} />
     </div>
   );
 }
