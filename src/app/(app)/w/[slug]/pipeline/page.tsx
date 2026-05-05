@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { createClient } from "@/lib/supabase/server";
 import { PipelineColumn } from "./pipeline-column";
+import { PageHeader } from "@/components/ui/page-header";
 
 const MAX_CARDS_PER_COLUMN = 50;
 
@@ -40,7 +41,6 @@ export default async function PipelinePage({
     )
     .eq("workspace_id", workspace.id);
 
-  // Group by stage
   const grouped = new Map<string, PipelineContact[]>();
   for (const stage of workspace.pipeline_stages) {
     grouped.set(stage.id, []);
@@ -71,15 +71,11 @@ export default async function PipelinePage({
   }
 
   return (
-    <div className="px-6 py-6">
-      <div className="mb-4">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-          Pipeline — {workspace.name}
-        </h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          {workspace.pipeline_stages.length} stages · klik kontak buat ganti stage. Stage definitions custom per workspace.
-        </p>
-      </div>
+    <div className="px-6 py-8">
+      <PageHeader
+        title="Pipeline"
+        description={`${workspace.pipeline_stages.length} stages · klik kontak buat ganti stage. Stages custom per workspace.`}
+      />
 
       <div className="flex gap-3 overflow-x-auto pb-4">
         {workspace.pipeline_stages.map((stage) => {

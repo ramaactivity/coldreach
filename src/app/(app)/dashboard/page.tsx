@@ -1,9 +1,23 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import {
+  Send,
+  TrendingUp,
+  MessageCircle,
+  Inbox,
+  ArrowUpRight,
+  Plus,
+  ExternalLink,
+  Sparkles,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getUserWorkspaces } from "@/lib/workspaces";
 import { SimpleTopbar } from "@/components/simple-topbar";
 import { getWorkspaceStats, getRecentReplies } from "@/lib/stats";
+import { StatCard } from "@/components/ui/stat-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -14,17 +28,13 @@ export default async function DashboardPage() {
 
   const workspaces = await getUserWorkspaces();
 
-  // First-time user: redirect to onboarding
   if (workspaces.length === 0) {
     redirect("/onboarding/workspace");
   }
-
-  // Single workspace: skip the cross-workspace dashboard, go straight to it
   if (workspaces.length === 1) {
     redirect(`/w/${workspaces[0].slug}/dashboard`);
   }
 
-  // Multi-workspace: aggregate
   const [allStats, recentReplies] = await Promise.all([
     Promise.all(workspaces.map((w) => getWorkspaceStats(w.id))),
     getRecentReplies(null, 10),
@@ -36,84 +46,112 @@ export default async function DashboardPage() {
       sent_7d: acc.sent_7d + s.sent_7d,
       replied_7d: acc.replied_7d + s.replied_7d,
       pending_replies: acc.pending_replies + s.pending_replies,
-      contacts_total: acc.contacts_total + s.contacts_total,
-      queues_active: acc.queues_active + s.queues_active,
     }),
-    {
-      sent_today: 0,
-      sent_7d: 0,
-      replied_7d: 0,
-      pending_replies: 0,
-      contacts_total: 0,
-      queues_active: 0,
-    },
+    { sent_today: 0, sent_7d: 0, replied_7d: 0, pending_replies: 0 },
   );
+
+  const replyRate7d =
+    totals.sent_7d > 0
+      ? Math.round((totals.replied_7d / totals.sent_7d) * 100)
+      : 0;
 
   return (
     <>
       <SimpleTopbar email={user.email ?? ""} />
-      <main className="mx-auto max-w-6xl px-6 py-8">
-        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-          Semua Workspace
-        </h1>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-          Aggregate view dari {workspaces.length} workspace.
-        </p>
+      <main className="mx-auto max-w-6xl px-6 py-10">
+        <PageHeader
+          eyebrow={
+            <>
+              <Sparkles className="h-3 w-3 text-amber-500" />
+              <span>{workspaces.length} workspaces</span>
+            </>
+          }
+          title="Semua Workspace"
+          description="Aggregate view dari semua bisnis lu. Klik workspace untuk masuk lebih detail."
+        />
 
         {/* Aggregate KPIs */}
-        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Kpi label="Sent today" value={totals.sent_today} />
-          <Kpi label="Sent (7d)" value={totals.sent_7d} />
-          <Kpi
-            label="Replied (7d)"
-            value={totals.replied_7d}
-            color="blue"
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard
+            label="Sent today"
+            value={totals.sent_today.toLocaleString("id-ID")}
+            icon={Send}
+            tone="default"
           />
-          <Kpi
+          <StatCard
+            label="Sent (7d)"
+            value={totals.sent_7d.toLocaleString("id-ID")}
+            icon={TrendingUp}
+          />
+          <StatCard
+            label="Replied (7d)"
+            value={totals.replied_7d.toLocaleString("id-ID")}
+            icon={MessageCircle}
+            tone="blue"
+            hint={replyRate7d > 0 ? `${replyRate7d}% reply rate` : undefined}
+          />
+          <StatCard
             label="Pending replies"
-            value={totals.pending_replies}
-            color={totals.pending_replies > 0 ? "blue" : "zinc"}
+            value={totals.pending_replies.toLocaleString("id-ID")}
+            icon={Inbox}
+            tone={totals.pending_replies > 0 ? "blue" : "default"}
+            hint={totals.pending_replies > 0 ? "butuh tindakan" : undefined}
           />
         </div>
 
-        {/* Per-workspace cards with mini stats */}
-        <h2 className="mt-8 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        {/* Workspaces grid */}
+        <h2 className="mt-10 mb-3 text-base font-semibold text-zinc-900 dark:text-zinc-100">
           Workspaces
         </h2>
-        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {workspaces.map((ws, i) => {
             const s = allStats[i];
             return (
               <Link
                 key={ws.id}
                 href={`/w/${ws.slug}/dashboard`}
-                className="group rounded-lg border border-zinc-200 bg-white p-5 transition hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
+                className="group relative overflow-hidden rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_8px_20px_-4px_rgb(0_0_0/0.08)] dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700"
               >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="inline-block h-3 w-3 rounded-full"
-                    style={{ backgroundColor: ws.color_theme }}
-                  />
-                  <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                    {ws.business_type ?? "—"}
-                  </span>
+                {/* Color accent strip */}
+                <div
+                  className="absolute inset-x-0 top-0 h-0.5 opacity-80"
+                  style={{ backgroundColor: ws.color_theme }}
+                />
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{ backgroundColor: ws.color_theme }}
+                    />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      {ws.business_type ?? "—"}
+                    </span>
+                  </div>
+                  <ArrowUpRight className="h-4 w-4 text-zinc-300 transition-all group-hover:text-zinc-700 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 dark:text-zinc-700 dark:group-hover:text-zinc-300" />
                 </div>
-                <h3 className="mt-2 text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+
+                <h3 className="mt-3 text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
                   {ws.name}
                 </h3>
-                <p className="mt-1 text-xs text-zinc-500">
+                <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
                   {ws.schedule_start_time.slice(0, 5)} – {ws.schedule_end_time.slice(0, 5)} WIB · {ws.daily_target}/hari
                 </p>
-                <dl className="mt-4 grid grid-cols-3 gap-2 text-xs">
+
+                <div className="mt-5 grid grid-cols-3 gap-3 border-t border-zinc-100 pt-4 text-sm dark:border-zinc-800">
                   <Mini label="Today" value={s.sent_today} />
                   <Mini label="7d sent" value={s.sent_7d} />
-                  <Mini label="Replied" value={s.replied_7d} color="blue" />
-                </dl>
+                  <Mini label="Replied" value={s.replied_7d} accent="blue" />
+                </div>
+
                 {s.queues_active > 0 && (
-                  <p className="mt-3 inline-flex items-center gap-1 text-xs text-emerald-700 dark:text-emerald-400">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    </span>
                     {s.queues_active} active queue{s.queues_active > 1 ? "s" : ""}
-                  </p>
+                  </div>
                 )}
               </Link>
             );
@@ -121,105 +159,105 @@ export default async function DashboardPage() {
 
           <Link
             href="/onboarding/workspace"
-            className="flex items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600 transition hover:border-zinc-500 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400"
+            className="group flex items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-5 transition-all hover:-translate-y-0.5 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/30 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
           >
-            + Tambah Workspace
+            <div className="flex flex-col items-center gap-2 text-zinc-500 transition-colors group-hover:text-zinc-900 dark:text-zinc-400 dark:group-hover:text-zinc-100">
+              <Plus className="h-5 w-5" />
+              <span className="text-sm font-medium">Tambah Workspace</span>
+            </div>
           </Link>
         </div>
 
-        {/* Cross-workspace recent replies */}
-        <h2 className="mt-10 text-base font-semibold text-zinc-900 dark:text-zinc-100">
-          💬 Recent Replies (semua workspace)
-        </h2>
+        {/* Recent replies */}
+        <div className="mt-10 mb-3 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+            Recent Replies
+          </h2>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+            {recentReplies.length > 0 ? `${recentReplies.length} terbaru` : "—"}
+          </span>
+        </div>
+
         {recentReplies.length === 0 ? (
-          <p className="mt-3 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/50">
-            Belum ada balasan. Setelah lu kirim email pertama dan ada yang reply, tampak di sini.
-          </p>
+          <EmptyState
+            icon={MessageCircle}
+            title="Belum ada balasan"
+            description="Setelah lu kirim email pertama dan ada yang reply, mereka muncul di sini dengan link langsung ke Gmail thread."
+          />
         ) : (
-          <ul className="mt-3 divide-y divide-zinc-100 rounded-lg border border-zinc-200 bg-white dark:divide-zinc-800 dark:border-zinc-800 dark:bg-zinc-900">
-            {recentReplies.map((r) => (
-              <li
-                key={r.id}
-                className="flex items-center justify-between gap-4 px-4 py-3 text-sm"
-              >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
-                    🟣 {r.contact_name ?? r.contact_email}
-                    {r.contact_company && (
-                      <span className="ml-1 font-normal text-zinc-500">
-                        · {r.contact_company}
-                      </span>
-                    )}
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    {r.workspace_name && `${r.workspace_name} · `}
-                    {new Date(r.replied_at).toLocaleString("id-ID")}
-                  </p>
-                </div>
-                {r.gmail_thread_id && (
-                  <a
-                    href={`https://mail.google.com/mail/u/0/#inbox/${r.gmail_thread_id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 rounded-md border border-zinc-300 bg-white px-3 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                  >
-                    📧 Open in Gmail
-                  </a>
-                )}
-              </li>
-            ))}
-          </ul>
+          <Card className="overflow-hidden p-0">
+            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              {recentReplies.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                >
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                      <MessageCircle className="h-3.5 w-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                        {r.contact_name ?? r.contact_email}
+                        {r.contact_company && (
+                          <span className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400">
+                            · {r.contact_company}
+                          </span>
+                        )}
+                      </p>
+                      <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                        {r.workspace_name && `${r.workspace_name} · `}
+                        {new Date(r.replied_at).toLocaleString("id-ID", {
+                          dateStyle: "medium",
+                          timeStyle: "short",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  {r.gmail_thread_id && (
+                    <a
+                      href={`https://mail.google.com/mail/u/0/#inbox/${r.gmail_thread_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      <span>Buka di Gmail</span>
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Card>
         )}
       </main>
     </>
   );
 }
 
-function Kpi({
-  label,
-  value,
-  color = "zinc",
-}: {
-  label: string;
-  value: number;
-  color?: "zinc" | "emerald" | "blue";
-}) {
-  const colors = {
-    zinc: "text-zinc-900 dark:text-zinc-100",
-    emerald: "text-emerald-700 dark:text-emerald-400",
-    blue: "text-blue-700 dark:text-blue-400",
-  };
-  return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-        {label}
-      </p>
-      <p className={`mt-1 text-2xl font-semibold ${colors[color]}`}>
-        {value.toLocaleString("id-ID")}
-      </p>
-    </div>
-  );
-}
-
 function Mini({
   label,
   value,
-  color = "zinc",
+  accent,
 }: {
   label: string;
   value: number;
-  color?: "zinc" | "blue";
+  accent?: "blue";
 }) {
-  const colors = {
-    zinc: "text-zinc-900 dark:text-zinc-100",
-    blue: "text-blue-700 dark:text-blue-400",
-  };
   return (
     <div>
-      <dt className="text-zinc-500 dark:text-zinc-500">{label}</dt>
-      <dd className={`mt-0.5 font-semibold ${colors[color]}`}>
+      <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        {label}
+      </p>
+      <p
+        className={`mt-1 text-lg font-semibold tabular-nums tracking-tight ${
+          accent === "blue"
+            ? "text-blue-600 dark:text-blue-400"
+            : "text-zinc-900 dark:text-zinc-100"
+        }`}
+      >
         {value.toLocaleString("id-ID")}
-      </dd>
+      </p>
     </div>
   );
 }

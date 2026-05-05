@@ -1,7 +1,21 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import {
+  Plus,
+  Upload,
+  Search,
+  Users,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { listContacts } from "@/lib/contacts";
+import { PageHeader } from "@/components/ui/page-header";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 const PAGE_SIZE = 50;
 
@@ -35,53 +49,52 @@ export default async function ContactsPage({
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-            Contacts
-          </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            {total.toLocaleString("id-ID")} contacts · shared antar workspace,
-            tampak status workspace ini ({workspace.name})
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/w/${slug}/contacts/import`}
-            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-          >
-            Import CSV
-          </Link>
-          <Link
-            href={`/w/${slug}/contacts/new`}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-50 transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            + New Contact
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        title="Contacts"
+        description={`${total.toLocaleString("id-ID")} contacts · shared antar workspace, status untuk ${workspace.name}`}
+        actions={
+          <>
+            <ButtonLink
+              href={`/w/${slug}/contacts/import`}
+              variant="outline"
+              size="md"
+            >
+              <Upload className="h-4 w-4" />
+              Import CSV
+            </ButtonLink>
+            <ButtonLink href={`/w/${slug}/contacts/new`} size="md">
+              <Plus className="h-4 w-4" />
+              New Contact
+            </ButtonLink>
+          </>
+        }
+      />
 
       {/* Search bar */}
       <form action={`/w/${slug}/contacts`} method="get" className="mb-4">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            name="q"
-            defaultValue={sp.q ?? ""}
-            placeholder="Cari nama, email, company..."
-            className="flex-1 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-zinc-100"
-          />
+        <div className="relative flex gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="text"
+              name="q"
+              defaultValue={sp.q ?? ""}
+              placeholder="Cari nama, email, atau company..."
+              className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-3 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-zinc-100"
+            />
+          </div>
           <button
             type="submit"
-            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             Search
           </button>
           {sp.q && (
             <Link
               href={`/w/${slug}/contacts`}
-              className="rounded-md px-4 py-2 text-sm font-medium text-zinc-500 transition hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100"
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-100"
             >
+              <X className="h-3.5 w-3.5" />
               Clear
             </Link>
           )}
@@ -89,149 +102,155 @@ export default async function ContactsPage({
       </form>
 
       {/* Empty state */}
-      {contacts.length === 0 && (
-        <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-6 py-16 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
-          <p className="text-base font-medium text-zinc-900 dark:text-zinc-100">
-            {sp.q || sp.tag
+      {contacts.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title={
+            sp.q || sp.tag
               ? "Gak ada kontak yang match filter"
-              : "Belum ada kontak"}
-          </p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            {sp.q || sp.tag
-              ? "Coba clear filter atau search yang lain"
-              : "Mulai dengan import CSV atau tambah satu kontak manual"}
-          </p>
-          {!sp.q && !sp.tag && (
-            <div className="mt-4 flex gap-2">
-              <Link
-                href={`/w/${slug}/contacts/import`}
-                className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
-              >
+              : "Belum ada kontak di workspace ini"
+          }
+          description={
+            sp.q || sp.tag
+              ? "Coba clear filter atau search yang lain."
+              : "Mulai dengan import CSV dari Google Sheet existing, atau tambah satu kontak manual."
+          }
+          action={
+            !sp.q && !sp.tag ? (
+              <ButtonLink href={`/w/${slug}/contacts/import`} variant="outline">
+                <Upload className="h-4 w-4" />
                 Import CSV
-              </Link>
-              <Link
-                href={`/w/${slug}/contacts/new`}
-                className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-50 transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-              >
-                + New Contact
-              </Link>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Contacts list */}
-      {contacts.length > 0 && (
+              </ButtonLink>
+            ) : undefined
+          }
+          secondaryAction={
+            !sp.q && !sp.tag ? (
+              <ButtonLink href={`/w/${slug}/contacts/new`}>
+                <Plus className="h-4 w-4" />
+                New Contact
+              </ButtonLink>
+            ) : undefined
+          }
+        />
+      ) : (
         <>
-          <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-            <table className="w-full text-sm">
-              <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-500">
-                <tr>
-                  <th className="px-4 py-2 font-medium">Name</th>
-                  <th className="px-4 py-2 font-medium">Company</th>
-                  <th className="px-4 py-2 font-medium">Stage</th>
-                  <th className="px-4 py-2 font-medium">Tags</th>
-                  <th className="px-4 py-2 font-medium">Last Contacted</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contacts.map((c) => {
-                  const fullName = [c.first_name, c.last_name]
-                    .filter(Boolean)
-                    .join(" ");
-                  const stage = c.workspace_data?.lead_stage_id
-                    ? stageById.get(c.workspace_data.lead_stage_id)
-                    : null;
-                  const lastContacted = c.workspace_data?.last_contacted_at;
-                  return (
-                    <tr
-                      key={c.id}
-                      className="border-b border-zinc-100 transition hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900/50"
-                    >
-                      <td className="px-4 py-3">
-                        <Link
-                          href={`/w/${slug}/contacts/${c.id}`}
-                          className="block"
-                        >
-                          <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {fullName || c.email}
+          <Card className="overflow-hidden p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200/80 bg-zinc-50/60 text-left text-[11px] uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400">
+                    <th className="px-5 py-3 font-semibold">Name</th>
+                    <th className="px-5 py-3 font-semibold">Company</th>
+                    <th className="px-5 py-3 font-semibold">Stage</th>
+                    <th className="px-5 py-3 font-semibold">Tags</th>
+                    <th className="px-5 py-3 font-semibold">Last Contacted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {contacts.map((c) => {
+                    const fullName = [c.first_name, c.last_name]
+                      .filter(Boolean)
+                      .join(" ");
+                    const stage = c.workspace_data?.lead_stage_id
+                      ? stageById.get(c.workspace_data.lead_stage_id)
+                      : null;
+                    const lastContacted = c.workspace_data?.last_contacted_at;
+                    return (
+                      <tr
+                        key={c.id}
+                        className="group border-b border-zinc-100 transition-colors last:border-0 hover:bg-zinc-50/80 dark:border-zinc-800/60 dark:hover:bg-zinc-800/40"
+                      >
+                        <td className="px-5 py-3.5">
+                          <Link
+                            href={`/w/${slug}/contacts/${c.id}`}
+                            className="block min-w-0"
+                          >
+                            <div className="font-medium text-zinc-900 transition-colors group-hover:text-zinc-950 dark:text-zinc-100">
+                              {fullName || c.email}
+                            </div>
+                            {fullName && (
+                              <div className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                                {c.email}
+                              </div>
+                            )}
+                          </Link>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="text-zinc-900 dark:text-zinc-100">
+                            {c.company ?? <span className="text-zinc-400">—</span>}
                           </div>
-                          {fullName && (
-                            <div className="text-xs text-zinc-500">{c.email}</div>
+                          {c.position && (
+                            <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                              {c.position}
+                            </div>
                           )}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">
-                        {c.company ?? "—"}
-                        {c.position && (
-                          <div className="text-xs text-zinc-500">{c.position}</div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {stage ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 px-2 py-0.5 text-xs dark:border-zinc-800">
-                            <span
-                              className="inline-block h-1.5 w-1.5 rounded-full"
-                              style={{ backgroundColor: stage.color }}
-                            />
-                            <span className="text-zinc-700 dark:text-zinc-300">
-                              {stage.name}
-                            </span>
-                          </span>
-                        ) : (
-                          <span className="text-xs text-zinc-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {c.tags.slice(0, 3).map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {stage ? (
+                            <Badge
+                              variant="outline"
+                              dotColor={stage.color}
+                              className="font-normal"
                             >
-                              {tag}
-                            </span>
-                          ))}
-                          {c.tags.length > 3 && (
-                            <span className="text-xs text-zinc-500">
-                              +{c.tags.length - 3}
-                            </span>
+                              {stage.name}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-zinc-400">—</span>
                           )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-zinc-500">
-                        {lastContacted
-                          ? new Date(lastContacted).toLocaleDateString("id-ID")
-                          : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <div className="flex flex-wrap gap-1">
+                            {c.tags.slice(0, 3).map((tag) => (
+                              <Badge key={tag} variant="secondary" className="font-normal">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {c.tags.length > 3 && (
+                              <span className="text-xs text-zinc-400">
+                                +{c.tags.length - 3}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-zinc-500 dark:text-zinc-400">
+                          {lastContacted
+                            ? new Date(lastContacted).toLocaleDateString("id-ID", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between">
-              <p className="text-xs text-zinc-500">
-                Page {page + 1} of {totalPages}
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Page {page + 1} of {totalPages} · {total.toLocaleString("id-ID")} contacts
               </p>
               <div className="flex gap-2">
                 {page > 0 && (
                   <Link
                     href={`/w/${slug}/contacts?${new URLSearchParams({ ...sp, page: String(page - 1) }).toString()}`}
-                    className="rounded-md border border-zinc-300 bg-white px-3 py-1 text-xs text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                   >
+                    <ChevronLeft className="h-3 w-3" />
                     Previous
                   </Link>
                 )}
                 {page + 1 < totalPages && (
                   <Link
                     href={`/w/${slug}/contacts?${new URLSearchParams({ ...sp, page: String(page + 1) }).toString()}`}
-                    className="rounded-md border border-zinc-300 bg-white px-3 py-1 text-xs text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
                   >
                     Next
+                    <ChevronRight className="h-3 w-3" />
                   </Link>
                 )}
               </div>

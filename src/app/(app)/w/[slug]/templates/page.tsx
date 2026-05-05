@@ -1,7 +1,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { Plus, FileText, Paperclip, ArrowUpRight } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { listTemplates } from "@/lib/templates";
+import { PageHeader } from "@/components/ui/page-header";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export default async function TemplatesPage({
   params,
@@ -16,79 +20,87 @@ export default async function TemplatesPage({
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
-            Templates
-          </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            {templates.length} templates · workspace-specific ({workspace.name})
-          </p>
-        </div>
-        <Link
-          href={`/w/${slug}/templates/new`}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-50 transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-        >
-          + New Template
-        </Link>
-      </div>
+      <PageHeader
+        title="Templates"
+        description={`${templates.length} template${templates.length === 1 ? "" : "s"} · workspace-specific (${workspace.name})`}
+        actions={
+          <ButtonLink href={`/w/${slug}/templates/new`}>
+            <Plus className="h-4 w-4" />
+            New Template
+          </ButtonLink>
+        }
+      />
 
       {templates.length === 0 ? (
-        <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-6 py-16 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
-          <p className="text-base font-medium text-zinc-900 dark:text-zinc-100">
-            Belum ada template
-          </p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Bikin template email pertama lu untuk workspace ini.
-          </p>
-          <Link
-            href={`/w/${slug}/templates/new`}
-            className="mt-4 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-50 transition hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-          >
-            + New Template
-          </Link>
-        </div>
+        <EmptyState
+          icon={FileText}
+          title="Belum ada template"
+          description="Bikin template email pertama lu untuk workspace ini. Gunakan {first_name}, {company}, {ai_opener} sebagai variable yang otomatis di-fill saat kirim."
+          action={
+            <ButtonLink href={`/w/${slug}/templates/new`}>
+              <Plus className="h-4 w-4" />
+              New Template
+            </ButtonLink>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {templates.map((t) => (
             <Link
               key={t.id}
               href={`/w/${slug}/templates/${t.id}`}
-              className="group rounded-lg border border-zinc-200 bg-white p-5 transition hover:border-zinc-400 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-600"
+              className="group relative overflow-hidden rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700"
             >
-              <div className="flex items-start justify-between">
+              <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-base font-semibold text-zinc-900 group-hover:text-zinc-950 dark:text-zinc-100">
-                    {t.name}
-                  </h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                      {t.name}
+                    </h2>
+                    {t.attachments.length > 0 && (
+                      <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                        <Paperclip className="h-2.5 w-2.5" />
+                        {t.attachments.length}
+                      </span>
+                    )}
+                  </div>
                   {t.category && (
-                    <p className="mt-0.5 text-xs text-zinc-500">{t.category}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                      {t.category}
+                    </p>
                   )}
                 </div>
-                {t.attachments.length > 0 && (
-                  <span className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                    📎 {t.attachments.length}
-                  </span>
-                )}
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-zinc-300 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-zinc-700 dark:text-zinc-700 dark:group-hover:text-zinc-300" />
               </div>
-              <p className="mt-3 line-clamp-2 text-xs text-zinc-600 dark:text-zinc-400">
+
+              <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
                 {t.subject_lines[0] ?? "(no subject)"}
               </p>
-              <div className="mt-3 flex flex-wrap gap-1">
-                {t.variables_used.slice(0, 4).map((v) => (
-                  <code
-                    key={v}
-                    className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-                  >
-                    {`{${v}}`}
-                  </code>
-                ))}
-                {t.variables_used.length > 4 && (
-                  <span className="text-xs text-zinc-500">+{t.variables_used.length - 4}</span>
-                )}
-              </div>
-              <div className="mt-3 text-xs text-zinc-500">
-                {t.subject_lines.length} subject {t.subject_lines.length > 1 ? "variants" : "variant"} · {t.times_used} times used
+
+              {t.variables_used.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {t.variables_used.slice(0, 4).map((v) => (
+                    <code
+                      key={v}
+                      className="rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                    >
+                      {`{${v}}`}
+                    </code>
+                  ))}
+                  {t.variables_used.length > 4 && (
+                    <span className="text-[10px] text-zinc-500">
+                      +{t.variables_used.length - 4}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                <span>
+                  {t.subject_lines.length} subject{" "}
+                  {t.subject_lines.length > 1 ? "variants" : "variant"}
+                </span>
+                <span>{t.times_used} times used</span>
               </div>
             </Link>
           ))}

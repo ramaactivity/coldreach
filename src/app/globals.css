@@ -1,26 +1,167 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  --background: 250 250 250;
+  --background-elevated: 255 255 255;
+  --foreground: 9 9 11;
+  --foreground-muted: 113 113 122;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --border: 228 228 231;
+  --border-subtle: 244 244 245;
+  --ring: 24 24 27;
+
+  --primary: 24 24 27;
+  --primary-fg: 250 250 250;
+
+  --accent-emerald: 16 185 129;
+  --accent-amber: 245 158 11;
+  --accent-red: 239 68 68;
+  --accent-blue: 59 130 246;
+
+  --shadow-card:
+    0 1px 2px 0 rgb(0 0 0 / 0.04),
+    0 1px 3px 0 rgb(0 0 0 / 0.06);
+  --shadow-card-hover:
+    0 4px 6px -1px rgb(0 0 0 / 0.08),
+    0 2px 4px -2px rgb(0 0 0 / 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: 9 9 11;
+    --background-elevated: 24 24 27;
+    --foreground: 250 250 250;
+    --foreground-muted: 161 161 170;
+
+    --border: 39 39 42;
+    --border-subtle: 24 24 27;
+    --ring: 244 244 245;
+
+    --primary: 244 244 245;
+    --primary-fg: 9 9 11;
+
+    --shadow-card:
+      0 1px 2px 0 rgb(0 0 0 / 0.5),
+      0 1px 3px 0 rgb(0 0 0 / 0.3);
+    --shadow-card-hover:
+      0 4px 12px -2px rgb(0 0 0 / 0.6),
+      0 2px 6px -2px rgb(0 0 0 / 0.4);
   }
 }
 
+@theme inline {
+  --color-background: rgb(var(--background));
+  --color-background-elevated: rgb(var(--background-elevated));
+  --color-foreground: rgb(var(--foreground));
+  --color-foreground-muted: rgb(var(--foreground-muted));
+  --color-border: rgb(var(--border));
+  --color-border-subtle: rgb(var(--border-subtle));
+  --color-ring: rgb(var(--ring));
+  --color-primary: rgb(var(--primary));
+  --color-primary-fg: rgb(var(--primary-fg));
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: rgb(var(--border));
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(
+      ellipse 1200px 600px at 50% -10%,
+      rgb(var(--foreground) / 0.03),
+      transparent 60%
+    ),
+    rgb(var(--background));
+  color: rgb(var(--foreground));
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Helvetica, Arial, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  min-height: 100vh;
+}
+
+/* Selection */
+::selection {
+  background: rgb(var(--foreground) / 0.12);
+  color: rgb(var(--foreground));
+}
+
+/* Smooth focus rings */
+:focus-visible {
+  outline: 2px solid rgb(var(--ring) / 0.6);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Hide focus on mouse, show on keyboard */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--border));
+  border-radius: 8px;
+  border: 2px solid rgb(var(--background));
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--foreground-muted) / 0.4);
+}
+
+/* Tabular numbers for stats */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Subtle pulse for "live" indicators */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Card lift on hover utility */
+.card-lift {
+  transition:
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 200ms ease;
+}
+.card-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--border-subtle)) 0%,
+    rgb(var(--border)) 50%,
+    rgb(var(--border-subtle)) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 6px;
 }
