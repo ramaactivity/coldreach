@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, type EmailAccount } from "@/lib/email-sender";
+import { generateOpener } from "@/lib/ai-opener";
 
 export type RunQueueResult = {
   queue_id: string;
@@ -105,6 +106,41 @@ export async function runQueue(
     return result;
   }
 
+  // Fetch workspace meta for AI opener prompt context
+  let workspaceMeta: { name: string; business_type: string | null } | null =
+    null;
+  if (queue.use_ai_opener) {
+    const { data: ws } = await admin
+      .from("workspaces")
+      .select("name, business_type")
+      .eq("id", queue.workspace_id)
+      .maybeSingle();
+    workspaceMeta = ws ?? null;
+  }
+
+  // Pre-fetch cached AI openers for all candidate contacts in this batch
+  const candidateContactIds = recipients
+    .map((r) => {
+      const c = (r as { contact: unknown }).contact;
+      if (Array.isArray(c)) return c[0]?.id;
+      return (c as { id?: string } | null)?.id;
+    })
+    .filter((id): id is string => typeof id === "string");
+
+  const openerCache = new Map<string, string>();
+  if (queue.use_ai_opener && candidateContactIds.length > 0) {
+    const { data: cached } = await admin
+      .from("contact_workspace_data")
+      .select("contact_id, ai_opener")
+      .eq("workspace_id", queue.workspace_id)
+      .in("contact_id", candidateContactIds)
+      .not("ai_opener", "is", null);
+    for (const row of cached ?? []) {
+      const r = row as { contact_id: string; ai_opener: string | null };
+      if (r.ai_opener) openerCache.set(r.contact_id, r.ai_opener);
+    }
+  }
+
   let queueTotalSent = queue.total_sent;
   let queuePending = queue.total_pending;
   let accountSentToday = account.emails_sent_today;
@@ -155,12 +191,42 @@ export async function runQueue(
       continue;
     }
 
+    // Resolve AI opener: cache → generate → fallback null
+    let aiOpener: string | null = null;
+    if (queue.use_ai_opener && workspaceMeta) {
+      aiOpener = openerCache.get(contact.id) ?? null;
+      if (!aiOpener) {
+        aiOpener = await generateOpener({
+          workspace_name: workspaceMeta.name,
+          workspace_business_type: workspaceMeta.business_type,
+          contact_first_name: contact.first_name,
+          contact_company: contact.company,
+          contact_position: contact.position,
+        });
+        if (aiOpener) {
+          // Cache for future runs (upsert into contact_workspace_data)
+          await admin
+            .from("contact_workspace_data")
+            .upsert(
+              {
+                contact_id: contact.id,
+                workspace_id: queue.workspace_id,
+                user_id: queue.user_id,
+                ai_opener: aiOpener,
+                ai_opener_generated_at: new Date().toISOString(),
+              },
+              { onConflict: "contact_id,workspace_id" },
+            );
+        }
+      }
+    }
+
     const sendResult = await sendEmail(admin, {
       account: account as EmailAccount,
       contact,
       template,
       attachments: attachments ?? [],
-      aiOpener: null, // Fase 7 will populate
+      aiOpener,
     });
 
     if (!sendResult.ok) {
