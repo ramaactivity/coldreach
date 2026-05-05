@@ -51,6 +51,7 @@ export default async function WorkspaceLayout({
           <NavLink href={`/w/${slug}/contacts`}>Contacts</NavLink>
           <NavLink href={`/w/${slug}/templates`}>Templates</NavLink>
           <NavLink href={`/w/${slug}/queues`}>Queues</NavLink>
+          <NavLink href={`/w/${slug}/pipeline`}>Pipeline</NavLink>
           <NavLink href={`/w/${slug}/settings`}>Settings</NavLink>
           <span className="ml-3 text-xs text-zinc-500 dark:text-zinc-500">
             {user.email}
