@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { disconnectGmail, toggleWarmupMode } from "./actions";
+import { QuotaForm } from "./quota-form";
 
 type EmailAccount = {
   id: string;
@@ -151,12 +152,14 @@ export function GmailConnectionCard({
             <Activity className="h-3 w-3" />
             <span>Today's quota</span>
           </div>
-          <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100">
-            {account.emails_sent_today}{" "}
-            <span className="text-base font-normal text-zinc-500">
-              / {account.daily_quota}
-            </span>
-          </p>
+          <div className="mt-2">
+            <QuotaForm
+              slug={slug}
+              accountId={account.id}
+              initialQuota={account.daily_quota}
+              emailsSentToday={account.emails_sent_today}
+            />
+          </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
             <div
               className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all"

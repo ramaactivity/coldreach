@@ -1,18 +1,20 @@
 import { notFound } from "next/navigation";
 import {
   Mail,
-  Calendar,
-  Clock,
-  Target,
   Layers,
   CheckCircle2,
   AlertCircle,
+  Calendar,
+  Building2,
+  Kanban,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { GmailConnectionCard } from "./gmail-connection-card";
+import { WorkspaceInfoForm } from "./workspace-info-form";
+import { ScheduleForm } from "./schedule-form";
+import { PipelineStagesEditor } from "./pipeline-stages-editor";
 import { PageHeader } from "@/components/ui/page-header";
-import { Card } from "@/components/ui/card";
 
 export default async function WorkspaceSettingsPage({
   params,
@@ -59,125 +61,96 @@ export default async function WorkspaceSettingsPage({
         </div>
       )}
 
-      {/* Gmail Account section */}
-      <section className="mb-10">
-        <div className="mb-3 flex items-center gap-2">
-          <Mail className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-            Gmail Account
-          </h2>
-        </div>
-        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
-          1 workspace = 1 Gmail. Email dikirim atas nama akun ini, masuk Sent
-          folder Gmail seperti biasa.
-        </p>
-        <GmailConnectionCard slug={slug} account={emailAccount} />
-      </section>
+      <div className="space-y-10">
+        {/* Gmail Account section */}
+        <section>
+          <SectionHeading
+            icon={Mail}
+            title="Gmail Account"
+            description="1 workspace = 1 Gmail. Email dikirim atas nama akun ini, masuk Sent folder Gmail seperti biasa."
+          />
+          <GmailConnectionCard slug={slug} account={emailAccount} />
+        </section>
 
-      {/* Workspace Info section */}
-      <section>
-        <div className="mb-3 flex items-center gap-2">
-          <Layers className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-            Workspace Info
-          </h2>
-        </div>
-        <Card className="p-0">
-          <dl className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            <Row label="Name" value={workspace.name} />
-            <Row label="Slug" value={workspace.slug} mono />
-            <Row
-              label="Business Type"
-              value={workspace.business_type ?? "—"}
-              capitalize
-            />
-            <Row
-              label="Color Theme"
-              value={
-                <span className="flex items-center gap-2">
-                  <span
-                    className="inline-block h-4 w-4 rounded-full ring-1 ring-zinc-200 dark:ring-zinc-700"
-                    style={{ backgroundColor: workspace.color_theme }}
-                  />
-                  <span className="font-mono text-xs">
-                    {workspace.color_theme}
-                  </span>
-                </span>
-              }
-            />
-            <Row
-              label="Default Schedule"
-              value={
-                <span className="inline-flex items-center gap-3">
-                  <span className="inline-flex items-center gap-1">
-                    <Calendar className="h-3 w-3 text-zinc-400" /> Sen-Jum
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Clock className="h-3 w-3 text-zinc-400" />
-                    {workspace.schedule_start_time.slice(0, 5)}–{workspace.schedule_end_time.slice(0, 5)} WIB
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Target className="h-3 w-3 text-zinc-400" />
-                    {workspace.daily_target}/hari
-                  </span>
-                </span>
-              }
-            />
-            <Row
-              label="Pipeline Stages"
-              value={
-                <div className="flex flex-wrap gap-1.5">
-                  {workspace.pipeline_stages.map((stage) => (
-                    <span
-                      key={stage.id}
-                      className="inline-flex items-center gap-1 rounded-full border border-zinc-200/80 bg-white px-2 py-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-800"
-                    >
-                      <span
-                        className="inline-block h-1.5 w-1.5 rounded-full"
-                        style={{ backgroundColor: stage.color }}
-                      />
-                      <span className="text-zinc-700 dark:text-zinc-300">
-                        {stage.name}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              }
-            />
-          </dl>
-        </Card>
-        <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
-          Edit workspace settings (nama, schedule, pipeline) — fitur ini
-          ditambah Phase 2 (post-MVP).
-        </p>
-      </section>
+        {/* Workspace Info */}
+        <section>
+          <SectionHeading
+            icon={Building2}
+            title="Workspace Info"
+            description="Nama, business type, dan warna theme yang tampil di sidebar dan dashboard."
+          />
+          <WorkspaceInfoForm
+            slug={slug}
+            initial={{
+              name: workspace.name,
+              business_type: workspace.business_type,
+              color_theme: workspace.color_theme,
+            }}
+          />
+          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+            Slug{" "}
+            <code className="rounded bg-zinc-100 px-1 font-mono text-[11px] dark:bg-zinc-800">
+              {workspace.slug}
+            </code>{" "}
+            tidak bisa diubah karena ini bagian URL workspace.
+          </p>
+        </section>
+
+        {/* Schedule */}
+        <section>
+          <SectionHeading
+            icon={Calendar}
+            title="Default Schedule"
+            description="Schedule default queue auto-send. Tiap queue baru akan pakai value ini sebagai starting point."
+          />
+          <ScheduleForm
+            slug={slug}
+            initial={{
+              schedule_days: workspace.schedule_days,
+              schedule_start_time: workspace.schedule_start_time,
+              schedule_end_time: workspace.schedule_end_time,
+              daily_target: workspace.daily_target,
+            }}
+          />
+        </section>
+
+        {/* Pipeline */}
+        <section>
+          <SectionHeading
+            icon={Kanban}
+            title="Pipeline Stages"
+            description="Stage lifecycle untuk kontak di workspace ini. Drag dengan tombol panah untuk reorder."
+          />
+          <PipelineStagesEditor
+            slug={slug}
+            initial={workspace.pipeline_stages}
+          />
+        </section>
+      </div>
     </div>
   );
 }
 
-function Row({
-  label,
-  value,
-  mono,
-  capitalize,
+function SectionHeading({
+  icon: Icon,
+  title,
+  description,
 }: {
-  label: string;
-  value: React.ReactNode;
-  mono?: boolean;
-  capitalize?: boolean;
+  icon: typeof Mail;
+  title: string;
+  description: string;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-1 px-5 py-3 sm:grid-cols-3 sm:gap-4">
-      <dt className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-        {label}
-      </dt>
-      <dd
-        className={`text-sm text-zinc-900 sm:col-span-2 dark:text-zinc-100 ${
-          mono ? "font-mono" : ""
-        } ${capitalize ? "capitalize" : ""}`}
-      >
-        {value}
-      </dd>
+    <div className="mb-3">
+      <div className="flex items-center gap-2">
+        <Icon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          {title}
+        </h2>
+      </div>
+      <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">
+        {description}
+      </p>
     </div>
   );
 }
