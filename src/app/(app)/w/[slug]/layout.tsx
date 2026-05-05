@@ -10,24 +10,28 @@ export default async function WorkspaceLayout({
   children: React.ReactNode;
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
-
-  const workspace = await getWorkspaceBySlug(slug);
-  if (!workspace) notFound();
-
+  // Resolve params and auth in parallel
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [{ slug }, userResult] = await Promise.all([
+    params,
+    supabase.auth.getUser(),
+  ]);
+  const { data: { user } } = userResult;
   if (!user) redirect("/login");
 
-  const allWorkspaces = await getUserWorkspaces();
+  // Fetch workspace + workspaces list in parallel (React.cache'd)
+  const [workspace, allWorkspaces] = await Promise.all([
+    getWorkspaceBySlug(slug),
+    getUserWorkspaces(),
+  ]);
+  if (!workspace) notFound();
 
-  // Update last_active_workspace_id (fire and forget)
-  await supabase
+  // Fire-and-forget: non-blocking write for last_active_workspace_id
+  void supabase
     .from("users")
     .update({ last_active_workspace_id: workspace.id })
-    .eq("id", user.id);
+    .eq("id", user.id)
+    .then(() => {}, () => {});
 
   return (
     <div className="flex h-screen overflow-hidden">

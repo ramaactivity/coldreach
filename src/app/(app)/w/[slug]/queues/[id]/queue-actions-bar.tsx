@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useOptimistic } from "react";
 import { useRouter } from "next/navigation";
 import { Play, Pause, Trash2, Zap, AlertTriangle } from "lucide-react";
 import {
@@ -29,6 +29,11 @@ export function QueueActionsBar({
   const [pending, startTransition] = useTransition();
   const [lastResult, setLastResult] = useState<string | null>(null);
   const [resultTone, setResultTone] = useState<"success" | "error" | "info">("info");
+  // Optimistic UI: flip immediately, server reconciles via revalidatePath
+  const [optimisticActive, setOptimisticActive] = useOptimistic(
+    isActive,
+    (_, newValue: boolean) => newValue,
+  );
 
   function handleRun(batchSize: number) {
     setLastResult(null);
@@ -55,7 +60,9 @@ export function QueueActionsBar({
 
   function handlePauseToggle() {
     startTransition(async () => {
-      if (isActive) {
+      // Flip optimistically — UI updates instantly, server reconciles
+      setOptimisticActive(!optimisticActive);
+      if (optimisticActive) {
         await pauseQueue(slug, queueId);
       } else {
         await resumeQueue(slug, queueId);
@@ -146,7 +153,7 @@ export function QueueActionsBar({
           onClick={handlePauseToggle}
           disabled={pending}
         >
-          {isActive ? (
+          {optimisticActive ? (
             <>
               <Pause className="h-3.5 w-3.5" /> Pause Queue
             </>

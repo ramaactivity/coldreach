@@ -24,30 +24,36 @@ export default async function QueueDetailPage({
   params: Promise<{ slug: string; id: string }>;
 }) {
   const { slug, id } = await params;
-  const workspace = await getWorkspaceBySlug(slug);
+
+  // Parallelize: workspace, queue, stats — all independent
+  const [workspace, queue, stats] = await Promise.all([
+    getWorkspaceBySlug(slug),
+    getQueueById(id),
+    getQueueStats(id),
+  ]);
   if (!workspace) notFound();
-
-  const queue = await getQueueById(id);
   if (!queue) notFound();
-
-  const stats = await getQueueStats(id);
   const pct = progressPercent(queue);
 
+  // Now parallelize template + account (depends on queue + workspace)
   const supabase = await createClient();
-  const { data: template } = queue.template_id
-    ? await supabase
-        .from("templates")
-        .select("name")
-        .eq("id", queue.template_id)
-        .maybeSingle()
-    : { data: null };
-
-  const { data: account } = await supabase
-    .from("email_accounts")
-    .select("email, daily_quota, emails_sent_today")
-    .eq("workspace_id", workspace.id)
-    .eq("is_active", true)
-    .maybeSingle();
+  const [templateResult, accountResult] = await Promise.all([
+    queue.template_id
+      ? supabase
+          .from("templates")
+          .select("name")
+          .eq("id", queue.template_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("email_accounts")
+      .select("email, daily_quota, emails_sent_today")
+      .eq("workspace_id", workspace.id)
+      .eq("is_active", true)
+      .maybeSingle(),
+  ]);
+  const template = templateResult.data;
+  const account = accountResult.data;
 
   const remainingQuota = account
     ? account.daily_quota - account.emails_sent_today
