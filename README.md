@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ColdReach
 
-## Getting Started
+Cold email automation untuk multi-workspace business. Built untuk handle 3 bisnis (Tiska Catering, Tetra Photobooth, Visual Tetra) dengan database kontak shared, schedule otomatis berbeda per workspace, dan AI personalization gratis.
 
-First, run the development server:
+> **Source of truth:** [`docs/14-Final-MVP-Decision.md`](./docs/14-Final-MVP-Decision.md)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Stack
+
+| Layer | Tool |
+|-------|------|
+| Frontend + Backend | Next.js 16 (App Router) di Vercel Hobby |
+| Database + Auth + Storage + Cron | Supabase Free |
+| Email Sending | Gmail API (per workspace) |
+| AI Personalization | Google Gemini Free (1500 req/day) |
+
+Cost target: **Rp 0/bulan**.
+
+## Setup Lokal
+
+### Prereq
+- Node.js 20+ (cek: `node --version`)
+- npm 10+
+
+### Step-by-step
+
+1. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+2. **Copy environment file**
+   ```bash
+   cp .env.local.example .env.local
+   ```
+
+3. **Isi `.env.local`** dengan kredensial dari:
+   - Supabase project: https://supabase.com/dashboard
+   - Google Cloud Console (OAuth): https://console.cloud.google.com/apis/credentials
+   - Google AI Studio (Gemini): https://aistudio.google.com/apikey
+
+4. **Run dev server**
+   ```bash
+   npm run dev
+   ```
+   Buka http://localhost:3000
+
+## Folder Structure
+
+```
+.
+├── src/
+│   ├── app/                # Next.js App Router pages
+│   ├── components/         # React components
+│   └── lib/
+│       ├── supabase/       # Supabase clients (server + browser)
+│       └── utils.ts        # cn() utility
+├── supabase/
+│   ├── migrations/         # SQL migration files (Fase 1+)
+│   └── functions/          # Edge Functions (queue runner, dll, Fase 6+)
+├── docs/                   # Spec & design docs (source of truth)
+└── public/                 # Static assets
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Roadmap
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Lihat [`docs/14-Final-MVP-Decision.md`](./docs/14-Final-MVP-Decision.md) untuk roadmap lengkap.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Fase | Status |
+|------|--------|
+| 0. Project setup | ✓ |
+| 1. Database schema + RLS | pending |
+| 2. Auth (Google OAuth) | pending |
+| 2.5. Multi-workspace foundation | pending |
+| 3. Contact CRUD + Import CSV | pending |
+| 4. Templates editor + PDF attachment | pending |
+| 5. Connect Gmail per workspace | pending |
+| 6. Send Queue + Schedule + Email Engine | pending |
+| 7. AI Opener (Gemini) | pending |
+| 8. Tracking (open + reply) | pending |
+| 9. Auto Follow-up | pending |
+| 10. Pipeline Kanban | pending |
+| 11. Dashboard + Notifications | pending |
+| 12. Polish + Production deploy | pending |
 
-## Learn More
+## Deploy
 
-To learn more about Next.js, take a look at the following resources:
+Production di Vercel — auto-deploy dari `main` branch.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Private project. All rights reserved.
