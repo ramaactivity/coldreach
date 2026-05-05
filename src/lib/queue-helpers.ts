@@ -16,6 +16,7 @@ export type SendQueue = {
   followup_template_id: string | null;
   followup_after_days: number;
   use_ai_opener: boolean;
+  test_mode: boolean;
   total_in_queue: number;
   total_sent: number;
   total_pending: number;

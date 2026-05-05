@@ -8,6 +8,7 @@ import {
   Sparkles,
   Mail,
   AlertCircle,
+  Shield,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { getQueueById, getQueueStats } from "@/lib/queues";
@@ -62,6 +63,29 @@ export default async function QueueDetailPage({
         Back to queues
       </Link>
 
+      {/* Test mode banner */}
+      {queue.test_mode && account && (
+        <div className="mb-4 flex items-start gap-3 overflow-hidden rounded-xl border border-blue-200/80 bg-gradient-to-br from-blue-50 to-indigo-50/60 p-4 dark:border-blue-900/50 dark:from-blue-950/30 dark:to-indigo-950/20">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+            <Shield className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+              Queue ini di Test Mode — semua email aman ke{" "}
+              <strong>{account.email}</strong>
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-blue-800 dark:text-blue-300">
+              Saat lu klik "Send", recipient asli di-override ke akun Gmail
+              terhubung dengan subject{" "}
+              <code className="rounded bg-blue-100 px-1 font-mono text-[10px] dark:bg-blue-900/50">
+                [TEST]
+              </code>
+              . Cron auto-run di-skip — cuma manual "Run Now" yang trigger.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Hero header */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
@@ -77,9 +101,13 @@ export default async function QueueDetailPage({
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl dark:text-zinc-50">
               {queue.name}
             </h1>
-            {!queue.is_active && (
-              <Badge variant="secondary">Paused</Badge>
+            {queue.test_mode && (
+              <Badge variant="info" className="font-semibold uppercase tracking-wide">
+                <Shield className="h-2.5 w-2.5" />
+                Test Mode
+              </Badge>
             )}
+            {!queue.is_active && <Badge variant="secondary">Paused</Badge>}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
             {template?.name && (

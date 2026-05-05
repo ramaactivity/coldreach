@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Loader2, Users, Tag, Sparkles, Check } from "lucide-react";
+import { Loader2, Users, Tag, Sparkles, Check, Shield } from "lucide-react";
 import {
   FieldLabel,
   FieldError,
@@ -190,6 +190,41 @@ export function CreateQueueForm({
                 {`{ai_opener}`}
               </code>{" "}
               di template otomatis di-fill.
+            </p>
+          </div>
+        </label>
+      </div>
+
+      {/* Test mode toggle */}
+      <div className="rounded-xl border border-blue-200/80 bg-gradient-to-br from-blue-50/80 to-indigo-50/60 p-4 dark:border-blue-900/50 dark:from-blue-950/30 dark:to-indigo-950/20">
+        <label className="flex cursor-pointer items-start gap-3">
+          <div className="relative mt-0.5">
+            <input
+              type="checkbox"
+              name="test_mode"
+              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-zinc-300 bg-white transition-colors checked:border-blue-600 checked:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 dark:border-zinc-600 dark:bg-zinc-800 dark:checked:border-blue-500 dark:checked:bg-blue-500"
+            />
+            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-white opacity-0 peer-checked:opacity-100" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5">
+              <Shield className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                Test mode
+              </p>
+              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+                Safe
+              </span>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+              Semua email <strong>redirect ke akun Gmail terhubung</strong> (gak
+              ke kontak asli). Subject prefixed{" "}
+              <code className="rounded bg-blue-100 px-1 font-mono text-[10px] dark:bg-blue-900/50">
+                [TEST]
+              </code>
+              . Cron auto-runner SKIP queue ini — cuma jalan via "Run Now"
+              manual. Cocok untuk verifikasi audience filter / template /
+              Gmail tanpa risk blast ke real customer.
             </p>
           </div>
         </label>

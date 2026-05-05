@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { Plus, Send, Pause, Calendar, Clock, Target } from "lucide-react";
+import { Plus, Send, Pause, Calendar, Clock, Target, Shield } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { listQueues } from "@/lib/queues";
 import { formatDays, formatTime, progressPercent } from "@/lib/queue-helpers";
@@ -68,6 +68,12 @@ export default async function QueuesPage({
                       <h2 className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">
                         {q.name}
                       </h2>
+                      {q.test_mode && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+                          <Shield className="h-2.5 w-2.5" />
+                          Test Mode
+                        </span>
+                      )}
                       {!q.is_active && (
                         <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
                           Paused

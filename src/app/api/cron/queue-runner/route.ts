@@ -32,10 +32,12 @@ export async function GET(request: NextRequest) {
   const mm = String(wibNow.getUTCMinutes()).padStart(2, "0");
   const currentTime = `${hh}:${mm}:00`;
 
+  // Skip test_mode queues — those only run via manual "Run Now"
   const { data: queues } = await admin
     .from("send_queues")
     .select("id, schedule_days, schedule_start_time, schedule_end_time, daily_target, total_pending")
     .eq("is_active", true)
+    .eq("test_mode", false)
     .gt("total_pending", 0);
 
   const results: Array<{ id: string; sent: number; failed: number }> = [];

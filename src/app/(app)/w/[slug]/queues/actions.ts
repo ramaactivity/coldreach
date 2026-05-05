@@ -16,6 +16,7 @@ const CreateQueueSchema = z.object({
   schedule_end_time: z.string().regex(/^\d{2}:\d{2}$/),
   daily_target: z.coerce.number().int().min(1).max(500),
   use_ai_opener: z.coerce.boolean().optional().default(true),
+  test_mode: z.coerce.boolean().optional().default(false),
 });
 
 export type CreateQueueState = {
@@ -42,6 +43,7 @@ export async function createQueue(
   const raw = {
     ...Object.fromEntries(formData),
     use_ai_opener: formData.get("use_ai_opener") === "on",
+    test_mode: formData.get("test_mode") === "on",
   };
   const parsed = CreateQueueSchema.safeParse(raw);
 
@@ -90,6 +92,7 @@ export async function createQueue(
       schedule_end_time: `${data.schedule_end_time}:00`,
       daily_target: data.daily_target,
       use_ai_opener: data.use_ai_opener,
+      test_mode: data.test_mode,
       total_in_queue: contacts.length,
       total_pending: contacts.length,
     })

@@ -239,13 +239,27 @@ export async function runQueue(
       ? `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/track/open/${campaignRecipient.id}`
       : null;
 
+    // TEST MODE safety: redirect to connected Gmail account so we never
+    // accidentally blast real recipients while iterating. Subject prefixed
+    // with [TEST] so it's obvious in inbox.
+    const testModeContact = queue.test_mode
+      ? {
+          ...contact,
+          email: account.email,
+          first_name: contact.first_name
+            ? `[TEST → ${contact.email}] ${contact.first_name}`
+            : contact.first_name,
+        }
+      : contact;
+
     const sendResult = await sendEmail(admin, {
       account: account as EmailAccount,
-      contact,
+      contact: testModeContact,
       template,
       attachments: attachments ?? [],
       aiOpener,
       trackingUrl,
+      subjectPrefix: queue.test_mode ? "[TEST]" : null,
     });
 
     if (!sendResult.ok) {

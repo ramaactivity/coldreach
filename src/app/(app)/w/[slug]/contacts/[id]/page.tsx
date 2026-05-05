@@ -3,9 +3,11 @@ import Link from "next/link";
 import { ArrowLeft, Mail, Building2 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { getContactById } from "@/lib/contacts";
+import { listTemplates } from "@/lib/templates";
 import { createClient } from "@/lib/supabase/server";
 import { ContactForm } from "../contact-form";
 import { updateContact, deleteContact, type ContactFormState } from "../actions";
+import { SendEmailPanel } from "./send-email-panel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -22,14 +24,24 @@ export default async function ContactDetailPage({
   if (!contact) notFound();
 
   const supabase = await createClient();
-  const { data: workspaceData } = await supabase
-    .from("contact_workspace_data")
-    .select(
-      "lead_stage_id, workspace_notes, total_emails_sent, total_emails_opened, total_replies",
-    )
-    .eq("contact_id", id)
-    .eq("workspace_id", workspace.id)
-    .maybeSingle();
+  const [{ data: workspaceData }, { data: account }, templates] =
+    await Promise.all([
+      supabase
+        .from("contact_workspace_data")
+        .select(
+          "lead_stage_id, workspace_notes, total_emails_sent, total_emails_opened, total_replies",
+        )
+        .eq("contact_id", id)
+        .eq("workspace_id", workspace.id)
+        .maybeSingle(),
+      supabase
+        .from("email_accounts")
+        .select("email, daily_quota, emails_sent_today")
+        .eq("workspace_id", workspace.id)
+        .eq("is_active", true)
+        .maybeSingle(),
+      listTemplates(workspace.id),
+    ]);
 
   async function updateAction(_prev: ContactFormState, formData: FormData) {
     "use server";
@@ -100,10 +112,25 @@ export default async function ContactDetailPage({
         />
       </div>
 
+      {/* Send email panel */}
+      <div className="mb-6">
+        <SendEmailPanel
+          slug={slug}
+          contactId={contact.id}
+          contactEmail={contact.email}
+          templates={templates.map((t) => ({
+            id: t.id,
+            name: t.name,
+            attachmentCount: t.attachments.length,
+          }))}
+          account={account}
+        />
+      </div>
+
       {/* Edit form */}
       <Card className="p-6">
         <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-100">
-          Edit
+          Edit Contact
         </h2>
         <ContactForm
           pipelineStages={workspace.pipeline_stages}
