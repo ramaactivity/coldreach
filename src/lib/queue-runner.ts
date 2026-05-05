@@ -1,0 +1,254 @@
+import { createAdminClient } from "@/lib/supabase/admin";
+import { sendEmail, type EmailAccount } from "@/lib/email-sender";
+
+export type RunQueueResult = {
+  queue_id: string;
+  attempted: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  errors: string[];
+};
+
+const DEFAULT_BATCH_SIZE = 5;
+const DELAY_MIN_MS = 30_000;
+const DELAY_MAX_MS = 90_000;
+
+/**
+ * Process up to `batchSize` pending recipients in a queue.
+ * Used by manual "Run Now" and the cron job.
+ *
+ * Uses admin client because cron has no auth user context.
+ */
+export async function runQueue(
+  queueId: string,
+  batchSize: number = DEFAULT_BATCH_SIZE,
+  applyDelay: boolean = true,
+): Promise<RunQueueResult> {
+  const admin = createAdminClient();
+  const result: RunQueueResult = {
+    queue_id: queueId,
+    attempted: 0,
+    sent: 0,
+    failed: 0,
+    skipped: 0,
+    errors: [],
+  };
+
+  const { data: queue } = await admin
+    .from("send_queues")
+    .select("*")
+    .eq("id", queueId)
+    .maybeSingle();
+  if (!queue) {
+    result.errors.push("Queue not found");
+    return result;
+  }
+  if (!queue.is_active) {
+    result.errors.push("Queue is paused");
+    return result;
+  }
+  if (!queue.template_id) {
+    result.errors.push("Queue has no template");
+    return result;
+  }
+
+  const { data: account } = await admin
+    .from("email_accounts")
+    .select(
+      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today",
+    )
+    .eq("workspace_id", queue.workspace_id)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!account) {
+    result.errors.push("No connected Gmail for this workspace");
+    return result;
+  }
+
+  const remainingQuota = account.daily_quota - account.emails_sent_today;
+  if (remainingQuota <= 0) {
+    result.errors.push("Daily quota exhausted");
+    return result;
+  }
+
+  const { data: template } = await admin
+    .from("templates")
+    .select("id, subject_lines, body_plain")
+    .eq("id", queue.template_id)
+    .maybeSingle();
+  if (!template) {
+    result.errors.push("Template not found");
+    return result;
+  }
+  const { data: attachments } = await admin
+    .from("template_attachments")
+    .select("filename, storage_path, mime_type")
+    .eq("template_id", queue.template_id);
+
+  const limit = Math.min(batchSize, remainingQuota);
+  const { data: recipients } = await admin
+    .from("queue_recipients")
+    .select(
+      `id, priority,
+       contact:contacts!inner(
+         id, email, first_name, last_name, company, position, status,
+         total_emails_sent_all_workspaces
+       )`,
+    )
+    .eq("queue_id", queueId)
+    .eq("status", "pending")
+    .order("priority", { ascending: false })
+    .limit(limit);
+
+  if (!recipients || recipients.length === 0) {
+    return result;
+  }
+
+  let queueTotalSent = queue.total_sent;
+  let queuePending = queue.total_pending;
+  let accountSentToday = account.emails_sent_today;
+
+  for (let i = 0; i < recipients.length; i++) {
+    const recipient = recipients[i] as unknown as {
+      id: string;
+      contact:
+        | {
+            id: string;
+            email: string;
+            first_name: string | null;
+            last_name: string | null;
+            company: string | null;
+            position: string | null;
+            status: string;
+            total_emails_sent_all_workspaces: number;
+          }
+        | Array<{
+            id: string;
+            email: string;
+            first_name: string | null;
+            last_name: string | null;
+            company: string | null;
+            position: string | null;
+            status: string;
+            total_emails_sent_all_workspaces: number;
+          }>
+        | null;
+    };
+    result.attempted++;
+
+    // Supabase may return the inner-joined relation as either an object
+    // (for many-to-one) or an array. Normalize to a single object.
+    const contact = Array.isArray(recipient.contact)
+      ? (recipient.contact[0] ?? null)
+      : recipient.contact;
+    if (!contact) {
+      result.skipped++;
+      continue;
+    }
+    if (contact.status !== "active") {
+      await admin
+        .from("queue_recipients")
+        .update({ status: "skipped" })
+        .eq("id", recipient.id);
+      result.skipped++;
+      continue;
+    }
+
+    const sendResult = await sendEmail(admin, {
+      account: account as EmailAccount,
+      contact,
+      template,
+      attachments: attachments ?? [],
+      aiOpener: null, // Fase 7 will populate
+    });
+
+    if (!sendResult.ok) {
+      result.failed++;
+      result.errors.push(`${contact.email}: ${sendResult.error}`);
+      continue;
+    }
+
+    // Track via campaign_recipients (queue-driven, no campaign)
+    const { data: campaignRecipient } = await admin
+      .from("campaign_recipients")
+      .insert({
+        campaign_id: null,
+        contact_id: contact.id,
+        user_id: queue.user_id,
+        workspace_id: queue.workspace_id,
+        contact_email: contact.email,
+        status: "sent",
+        sent_at: new Date().toISOString(),
+        gmail_message_id: sendResult.gmail_message_id,
+        gmail_thread_id: sendResult.gmail_thread_id,
+        gmail_subject_used: sendResult.subject_used,
+      })
+      .select("id")
+      .maybeSingle();
+
+    await admin
+      .from("queue_recipients")
+      .update({
+        status: "sent",
+        sent_at: new Date().toISOString(),
+        campaign_recipient_id: campaignRecipient?.id ?? null,
+      })
+      .eq("id", recipient.id);
+
+    // Workspace contact data
+    await admin
+      .from("contact_workspace_data")
+      .upsert(
+        {
+          contact_id: contact.id,
+          workspace_id: queue.workspace_id,
+          user_id: queue.user_id,
+          last_contacted_at: new Date().toISOString(),
+        },
+        { onConflict: "contact_id,workspace_id" },
+      );
+
+    // Aggregate contact stats
+    await admin
+      .from("contacts")
+      .update({
+        total_emails_sent_all_workspaces:
+          contact.total_emails_sent_all_workspaces + 1,
+        last_contacted_at_any: new Date().toISOString(),
+      })
+      .eq("id", contact.id);
+
+    // Counter bookkeeping
+    queueTotalSent++;
+    queuePending = Math.max(0, queuePending - 1);
+    accountSentToday++;
+
+    await admin
+      .from("send_queues")
+      .update({
+        total_sent: queueTotalSent,
+        total_pending: queuePending,
+        last_run_at: new Date().toISOString(),
+      })
+      .eq("id", queueId);
+
+    await admin
+      .from("email_accounts")
+      .update({
+        emails_sent_today: accountSentToday,
+        last_used_at: new Date().toISOString(),
+      })
+      .eq("id", account.id);
+
+    result.sent++;
+
+    // Delay before next send (skip last)
+    if (applyDelay && i < recipients.length - 1) {
+      const delay = DELAY_MIN_MS + Math.random() * (DELAY_MAX_MS - DELAY_MIN_MS);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  return result;
+}

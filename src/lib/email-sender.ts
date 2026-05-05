@@ -1,0 +1,290 @@
+import { google } from "googleapis";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { decryptToken, encryptToken, refreshAccessToken } from "@/lib/gmail";
+import { renderPreview } from "@/lib/template-helpers";
+
+export type EmailContact = {
+  id: string;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
+  position: string | null;
+};
+
+export type EmailTemplate = {
+  id: string;
+  subject_lines: string[];
+  body_plain: string;
+};
+
+export type EmailAttachment = {
+  filename: string;
+  storage_path: string;
+  mime_type: string;
+};
+
+export type EmailAccount = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  access_token_encrypted: string;
+  refresh_token_encrypted: string;
+  token_expires_at: string;
+};
+
+export type SendResult = {
+  ok: true;
+  gmail_message_id: string;
+  gmail_thread_id: string;
+  subject_used: string;
+} | {
+  ok: false;
+  error: string;
+};
+
+function buildContactValues(
+  contact: EmailContact,
+  aiOpener: string | null,
+): Record<string, string> {
+  return {
+    first_name: contact.first_name ?? "",
+    last_name: contact.last_name ?? "",
+    full_name: [contact.first_name, contact.last_name].filter(Boolean).join(" "),
+    email: contact.email,
+    company: contact.company ?? "",
+    position: contact.position ?? "",
+    ai_opener: aiOpener ?? "",
+  };
+}
+
+function pickRandomSubject(subjects: string[]): string {
+  if (subjects.length === 0) return "(no subject)";
+  return subjects[Math.floor(Math.random() * subjects.length)];
+}
+
+function encodeRFC2047(str: string): string {
+  // For non-ASCII characters in headers — use UTF-8 base64 encoding
+  if (/^[\x20-\x7E]*$/.test(str)) return str;
+  return `=?UTF-8?B?${Buffer.from(str, "utf8").toString("base64")}?=`;
+}
+
+function buildMimeMessage(
+  fromName: string | null,
+  fromEmail: string,
+  toEmail: string,
+  subject: string,
+  bodyPlain: string,
+  attachments: Array<{ filename: string; mime_type: string; data: Buffer }>,
+): string {
+  const fromHeader = fromName
+    ? `${encodeRFC2047(fromName)} <${fromEmail}>`
+    : fromEmail;
+  const subjectHeader = encodeRFC2047(subject);
+  const messageId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@coldreach>`;
+
+  const baseHeaders = [
+    `From: ${fromHeader}`,
+    `To: ${toEmail}`,
+    `Subject: ${subjectHeader}`,
+    `Message-ID: ${messageId}`,
+    `MIME-Version: 1.0`,
+  ];
+
+  if (attachments.length === 0) {
+    // Simple text-only email
+    const headers = [
+      ...baseHeaders,
+      `Content-Type: text/plain; charset="UTF-8"`,
+      `Content-Transfer-Encoding: quoted-printable`,
+    ];
+    const body = quotedPrintable(bodyPlain);
+    return [headers.join("\r\n"), "", body].join("\r\n");
+  }
+
+  // Multipart with attachments
+  const boundary = `----coldreach-${Date.now().toString(36)}`;
+  const lines: string[] = [
+    ...baseHeaders,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    `Content-Type: text/plain; charset="UTF-8"`,
+    `Content-Transfer-Encoding: quoted-printable`,
+    "",
+    quotedPrintable(bodyPlain),
+    "",
+  ];
+
+  for (const att of attachments) {
+    const base64 = att.data.toString("base64");
+    const chunks = base64.match(/.{1,76}/g) ?? [];
+    lines.push(
+      `--${boundary}`,
+      `Content-Type: ${att.mime_type}; name="${att.filename}"`,
+      `Content-Transfer-Encoding: base64`,
+      `Content-Disposition: attachment; filename="${att.filename}"`,
+      "",
+      ...chunks,
+      "",
+    );
+  }
+
+  lines.push(`--${boundary}--`);
+  return lines.join("\r\n");
+}
+
+function quotedPrintable(input: string): string {
+  // Encode UTF-8 bytes; preserve printable ASCII except = and whitespace at line end.
+  const bytes = Buffer.from(input, "utf8");
+  let result = "";
+  let lineLength = 0;
+
+  for (const byte of bytes) {
+    let chunk: string;
+    if (byte === 0x3d) {
+      chunk = "=3D";
+    } else if (byte === 0x0a) {
+      result += "\r\n";
+      lineLength = 0;
+      continue;
+    } else if (byte === 0x0d) {
+      continue; // strip \r, we add \r\n on \n
+    } else if (byte >= 0x21 && byte <= 0x7e) {
+      chunk = String.fromCharCode(byte);
+    } else if (byte === 0x20 || byte === 0x09) {
+      chunk = String.fromCharCode(byte);
+    } else {
+      chunk = `=${byte.toString(16).toUpperCase().padStart(2, "0")}`;
+    }
+
+    // Soft line break at 75 chars
+    if (lineLength + chunk.length > 75) {
+      result += "=\r\n";
+      lineLength = 0;
+    }
+    result += chunk;
+    lineLength += chunk.length;
+  }
+
+  return result;
+}
+
+/**
+ * Get a fresh access token, refreshing if expired. Updates DB if refreshed.
+ */
+async function ensureFreshToken(
+  supabase: SupabaseClient,
+  account: EmailAccount,
+): Promise<string> {
+  const expiresAt = new Date(account.token_expires_at);
+  const now = new Date();
+  const buffer = 60 * 1000; // refresh if less than 60 sec until expiry
+
+  if (expiresAt.getTime() - now.getTime() > buffer) {
+    return decryptToken(account.access_token_encrypted);
+  }
+
+  const refreshed = await refreshAccessToken(account.refresh_token_encrypted);
+  await supabase
+    .from("email_accounts")
+    .update({
+      access_token_encrypted: encryptToken(refreshed.access_token),
+      token_expires_at: refreshed.expires_at.toISOString(),
+    })
+    .eq("id", account.id);
+
+  return refreshed.access_token;
+}
+
+async function downloadAttachment(
+  supabase: SupabaseClient,
+  storagePath: string,
+): Promise<Buffer | null> {
+  const { data, error } = await supabase.storage
+    .from("template-attachments")
+    .download(storagePath);
+  if (error || !data) {
+    console.error("downloadAttachment error:", error);
+    return null;
+  }
+  const arrayBuffer = await data.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
+export type SendEmailParams = {
+  account: EmailAccount;
+  contact: EmailContact;
+  template: EmailTemplate;
+  attachments: EmailAttachment[];
+  aiOpener: string | null;
+};
+
+export async function sendEmail(
+  supabase: SupabaseClient,
+  params: SendEmailParams,
+): Promise<SendResult> {
+  const { account, contact, template, attachments, aiOpener } = params;
+
+  try {
+    const accessToken = await ensureFreshToken(supabase, account);
+    const oauth = new google.auth.OAuth2();
+    oauth.setCredentials({ access_token: accessToken });
+
+    // Render variables
+    const values = buildContactValues(contact, aiOpener);
+    const subject = renderPreview(pickRandomSubject(template.subject_lines), values);
+    const body = renderPreview(template.body_plain, values);
+
+    // Download attachment files
+    const attachmentBuffers: Array<{
+      filename: string;
+      mime_type: string;
+      data: Buffer;
+    }> = [];
+    for (const att of attachments) {
+      const data = await downloadAttachment(supabase, att.storage_path);
+      if (data) {
+        attachmentBuffers.push({
+          filename: att.filename,
+          mime_type: att.mime_type,
+          data,
+        });
+      }
+    }
+
+    // Build MIME
+    const mime = buildMimeMessage(
+      account.display_name,
+      account.email,
+      contact.email,
+      subject,
+      body,
+      attachmentBuffers,
+    );
+
+    // Encode as base64url
+    const raw = Buffer.from(mime, "utf8")
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    // Send via Gmail API
+    const gmail = google.gmail({ version: "v1", auth: oauth });
+    const result = await gmail.users.messages.send({
+      userId: "me",
+      requestBody: { raw },
+    });
+
+    return {
+      ok: true,
+      gmail_message_id: result.data.id ?? "",
+      gmail_thread_id: result.data.threadId ?? "",
+      subject_used: subject,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return { ok: false, error: message };
+  }
+}
