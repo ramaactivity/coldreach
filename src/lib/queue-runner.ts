@@ -221,21 +221,7 @@ export async function runQueue(
       }
     }
 
-    const sendResult = await sendEmail(admin, {
-      account: account as EmailAccount,
-      contact,
-      template,
-      attachments: attachments ?? [],
-      aiOpener,
-    });
-
-    if (!sendResult.ok) {
-      result.failed++;
-      result.errors.push(`${contact.email}: ${sendResult.error}`);
-      continue;
-    }
-
-    // Track via campaign_recipients (queue-driven, no campaign)
+    // Pre-create campaign_recipient row so we can embed its ID as tracking pixel URL
     const { data: campaignRecipient } = await admin
       .from("campaign_recipients")
       .insert({
@@ -244,14 +230,54 @@ export async function runQueue(
         user_id: queue.user_id,
         workspace_id: queue.workspace_id,
         contact_email: contact.email,
-        status: "sent",
-        sent_at: new Date().toISOString(),
-        gmail_message_id: sendResult.gmail_message_id,
-        gmail_thread_id: sendResult.gmail_thread_id,
-        gmail_subject_used: sendResult.subject_used,
+        status: "sending",
       })
       .select("id")
       .maybeSingle();
+
+    const trackingUrl = campaignRecipient?.id
+      ? `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/track/open/${campaignRecipient.id}`
+      : null;
+
+    const sendResult = await sendEmail(admin, {
+      account: account as EmailAccount,
+      contact,
+      template,
+      attachments: attachments ?? [],
+      aiOpener,
+      trackingUrl,
+    });
+
+    if (!sendResult.ok) {
+      result.failed++;
+      result.errors.push(`${contact.email}: ${sendResult.error}`);
+      // Mark the pre-created campaign_recipient as failed so we don't leave orphans
+      if (campaignRecipient?.id) {
+        await admin
+          .from("campaign_recipients")
+          .update({
+            status: "failed",
+            failed_at: new Date().toISOString(),
+            error_message: sendResult.error,
+          })
+          .eq("id", campaignRecipient.id);
+      }
+      continue;
+    }
+
+    // Update campaign_recipient with sent metadata
+    if (campaignRecipient?.id) {
+      await admin
+        .from("campaign_recipients")
+        .update({
+          status: "sent",
+          sent_at: new Date().toISOString(),
+          gmail_message_id: sendResult.gmail_message_id,
+          gmail_thread_id: sendResult.gmail_thread_id,
+          gmail_subject_used: sendResult.subject_used,
+        })
+        .eq("id", campaignRecipient.id);
+    }
 
     await admin
       .from("queue_recipients")

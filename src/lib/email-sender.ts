@@ -1,7 +1,7 @@
 import { google } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken, refreshAccessToken } from "@/lib/gmail";
-import { renderPreview } from "@/lib/template-helpers";
+import { plainToHtml, renderPreview } from "@/lib/template-helpers";
 
 export type EmailContact = {
   id: string;
@@ -69,6 +69,11 @@ function encodeRFC2047(str: string): string {
   return `=?UTF-8?B?${Buffer.from(str, "utf8").toString("base64")}?=`;
 }
 
+function buildTrackingPixelHtml(trackingUrl: string | null): string {
+  if (!trackingUrl) return "";
+  return `<img src="${trackingUrl}" width="1" height="1" alt="" border="0" style="display:block;border:0;outline:none;text-decoration:none;height:1px;width:1px;" />`;
+}
+
 function buildMimeMessage(
   fromName: string | null,
   fromEmail: string,
@@ -76,6 +81,7 @@ function buildMimeMessage(
   subject: string,
   bodyPlain: string,
   attachments: Array<{ filename: string; mime_type: string; data: Buffer }>,
+  trackingUrl: string | null,
 ): string {
   const fromHeader = fromName
     ? `${encodeRFC2047(fromName)} <${fromEmail}>`
@@ -91,28 +97,41 @@ function buildMimeMessage(
     `MIME-Version: 1.0`,
   ];
 
-  if (attachments.length === 0) {
-    // Simple text-only email
-    const headers = [
-      ...baseHeaders,
-      `Content-Type: text/plain; charset="UTF-8"`,
-      `Content-Transfer-Encoding: quoted-printable`,
-    ];
-    const body = quotedPrintable(bodyPlain);
-    return [headers.join("\r\n"), "", body].join("\r\n");
-  }
+  // Build the bodies. HTML version contains tracking pixel; plain version does not.
+  const bodyHtml = `${plainToHtml(bodyPlain)}${buildTrackingPixelHtml(trackingUrl)}`;
 
-  // Multipart with attachments
-  const boundary = `----coldreach-${Date.now().toString(36)}`;
-  const lines: string[] = [
-    ...baseHeaders,
-    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+  // Outer boundary (only used if attachments)
+  const altBoundary = `----coldreach-alt-${Date.now().toString(36)}`;
+  const altPart = [
+    `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
     "",
-    `--${boundary}`,
+    `--${altBoundary}`,
     `Content-Type: text/plain; charset="UTF-8"`,
     `Content-Transfer-Encoding: quoted-printable`,
     "",
     quotedPrintable(bodyPlain),
+    "",
+    `--${altBoundary}`,
+    `Content-Type: text/html; charset="UTF-8"`,
+    `Content-Transfer-Encoding: quoted-printable`,
+    "",
+    quotedPrintable(bodyHtml),
+    "",
+    `--${altBoundary}--`,
+  ];
+
+  if (attachments.length === 0) {
+    return [...baseHeaders, ...altPart].join("\r\n");
+  }
+
+  // Multipart with attachments wrapping the alternative section
+  const mixedBoundary = `----coldreach-mixed-${Date.now().toString(36)}`;
+  const lines: string[] = [
+    ...baseHeaders,
+    `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
+    "",
+    `--${mixedBoundary}`,
+    ...altPart,
     "",
   ];
 
@@ -120,7 +139,7 @@ function buildMimeMessage(
     const base64 = att.data.toString("base64");
     const chunks = base64.match(/.{1,76}/g) ?? [];
     lines.push(
-      `--${boundary}`,
+      `--${mixedBoundary}`,
       `Content-Type: ${att.mime_type}; name="${att.filename}"`,
       `Content-Transfer-Encoding: base64`,
       `Content-Disposition: attachment; filename="${att.filename}"`,
@@ -130,7 +149,7 @@ function buildMimeMessage(
     );
   }
 
-  lines.push(`--${boundary}--`);
+  lines.push(`--${mixedBoundary}--`);
   return lines.join("\r\n");
 }
 
@@ -218,13 +237,16 @@ export type SendEmailParams = {
   template: EmailTemplate;
   attachments: EmailAttachment[];
   aiOpener: string | null;
+  /** When set, embeds an open-tracking pixel pointing to this URL in HTML body. */
+  trackingUrl: string | null;
 };
 
 export async function sendEmail(
   supabase: SupabaseClient,
   params: SendEmailParams,
 ): Promise<SendResult> {
-  const { account, contact, template, attachments, aiOpener } = params;
+  const { account, contact, template, attachments, aiOpener, trackingUrl } =
+    params;
 
   try {
     const accessToken = await ensureFreshToken(supabase, account);
@@ -253,7 +275,7 @@ export async function sendEmail(
       }
     }
 
-    // Build MIME
+    // Build MIME (with tracking pixel if URL provided)
     const mime = buildMimeMessage(
       account.display_name,
       account.email,
@@ -261,6 +283,7 @@ export async function sendEmail(
       subject,
       body,
       attachmentBuffers,
+      trackingUrl,
     );
 
     // Encode as base64url
