@@ -82,6 +82,7 @@ function buildMimeMessage(
   bodyPlain: string,
   attachments: Array<{ filename: string; mime_type: string; data: Buffer }>,
   trackingUrl: string | null,
+  inReplyToMessageId: string | null,
 ): string {
   const fromHeader = fromName
     ? `${encodeRFC2047(fromName)} <${fromEmail}>`
@@ -96,6 +97,14 @@ function buildMimeMessage(
     `Message-ID: ${messageId}`,
     `MIME-Version: 1.0`,
   ];
+
+  // Threading headers — when replying to a previous message, include
+  // both In-Reply-To and References so email clients display the
+  // follow-up as part of the original thread.
+  if (inReplyToMessageId) {
+    baseHeaders.push(`In-Reply-To: ${inReplyToMessageId}`);
+    baseHeaders.push(`References: ${inReplyToMessageId}`);
+  }
 
   // Build the bodies. HTML version contains tracking pixel; plain version does not.
   const bodyHtml = `${plainToHtml(bodyPlain)}${buildTrackingPixelHtml(trackingUrl)}`;
@@ -239,14 +248,32 @@ export type SendEmailParams = {
   aiOpener: string | null;
   /** When set, embeds an open-tracking pixel pointing to this URL in HTML body. */
   trackingUrl: string | null;
+  /** When set, threads this email under the given Gmail thread (for follow-ups). */
+  gmailThreadId?: string | null;
+  /** Original Gmail Message-ID (with angle brackets) for In-Reply-To header. */
+  inReplyToMessageId?: string | null;
+  /** Subject prefix override — e.g., "Re:" for follow-ups. */
+  subjectPrefix?: string | null;
+  /** Override the subject (e.g., for follow-ups, reuse original subject). */
+  forcedSubject?: string | null;
 };
 
 export async function sendEmail(
   supabase: SupabaseClient,
   params: SendEmailParams,
 ): Promise<SendResult> {
-  const { account, contact, template, attachments, aiOpener, trackingUrl } =
-    params;
+  const {
+    account,
+    contact,
+    template,
+    attachments,
+    aiOpener,
+    trackingUrl,
+    gmailThreadId,
+    inReplyToMessageId,
+    subjectPrefix,
+    forcedSubject,
+  } = params;
 
   try {
     const accessToken = await ensureFreshToken(supabase, account);
@@ -255,7 +282,12 @@ export async function sendEmail(
 
     // Render variables
     const values = buildContactValues(contact, aiOpener);
-    const subject = renderPreview(pickRandomSubject(template.subject_lines), values);
+    const baseSubject =
+      forcedSubject ?? pickRandomSubject(template.subject_lines);
+    const renderedSubject = renderPreview(baseSubject, values);
+    const subject = subjectPrefix
+      ? `${subjectPrefix} ${renderedSubject}`
+      : renderedSubject;
     const body = renderPreview(template.body_plain, values);
 
     // Download attachment files
@@ -275,7 +307,7 @@ export async function sendEmail(
       }
     }
 
-    // Build MIME (with tracking pixel if URL provided)
+    // Build MIME (with tracking pixel if URL provided, threading if reply)
     const mime = buildMimeMessage(
       account.display_name,
       account.email,
@@ -284,6 +316,7 @@ export async function sendEmail(
       body,
       attachmentBuffers,
       trackingUrl,
+      inReplyToMessageId ?? null,
     );
 
     // Encode as base64url
@@ -297,7 +330,9 @@ export async function sendEmail(
     const gmail = google.gmail({ version: "v1", auth: oauth });
     const result = await gmail.users.messages.send({
       userId: "me",
-      requestBody: { raw },
+      requestBody: gmailThreadId
+        ? { raw, threadId: gmailThreadId }
+        : { raw },
     });
 
     return {
