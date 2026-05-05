@@ -11,7 +11,7 @@ Cold email automation untuk multi-workspace business. Built untuk handle 3 bisni
 | Frontend + Backend | Next.js 16 (App Router) di Vercel Hobby |
 | Database + Auth + Storage + Cron | Supabase Free |
 | Email Sending | Gmail API (per workspace) |
-| AI Personalization | Google Gemini Free (1500 req/day) |
+| AI Personalization | Google Gemini 2.5 Flash (1500 req/day free) |
 
 Cost target: **Rp 0/bulan**.
 
@@ -34,11 +34,17 @@ Cost target: **Rp 0/bulan**.
    ```
 
 3. **Isi `.env.local`** dengan kredensial dari:
-   - Supabase project: https://supabase.com/dashboard
-   - Google Cloud Console (OAuth): https://console.cloud.google.com/apis/credentials
-   - Google AI Studio (Gemini): https://aistudio.google.com/apikey
+   - Supabase project → URL + anon key + service role key
+   - Google Cloud Console (OAuth): client ID + secret
+   - Google AI Studio: Gemini API key
+   - Generate `CRON_SECRET` dan `ENCRYPTION_KEY`: `openssl rand -hex 32`
 
-4. **Run dev server**
+4. **Apply DB migrations** ke Supabase via SQL Editor, dalam urutan:
+   - `supabase/migrations/0001_initial_schema.sql` — 17 tables, RLS, triggers
+   - `supabase/migrations/0002_storage.sql` — attachment bucket
+   - `supabase/migrations/0003_ai_opener.sql` — AI opener cache columns
+
+5. **Run dev server**
    ```bash
    npm run dev
    ```
@@ -49,42 +55,75 @@ Cost target: **Rp 0/bulan**.
 ```
 .
 ├── src/
-│   ├── app/                # Next.js App Router pages
-│   ├── components/         # React components
+│   ├── app/
+│   │   ├── (app)/            # Protected pages (auth required)
+│   │   │   ├── dashboard/    # Cross-workspace dashboard
+│   │   │   ├── onboarding/   # First-time + add workspace
+│   │   │   └── w/[slug]/     # Per-workspace section
+│   │   │       ├── dashboard/, contacts/, templates/, queues/,
+│   │   │       │   pipeline/, settings/
+│   │   │       └── layout.tsx + sidebar.tsx + workspace-switcher.tsx
+│   │   ├── api/
+│   │   │   ├── cron/         # Scheduled jobs (queue, reply, followup)
+│   │   │   ├── gmail/connect # OAuth flow
+│   │   │   └── track/open    # Email open pixel
+│   │   ├── auth/             # Login/signout/callbacks
+│   │   └── login/
+│   ├── components/           # Shared components
 │   └── lib/
-│       ├── supabase/       # Supabase clients (server + browser)
-│       └── utils.ts        # cn() utility
+│       ├── supabase/         # client.ts, server.ts, admin.ts, session.ts
+│       ├── ai-opener.ts      # Gemini personalization
+│       ├── crypto.ts         # AES-256-GCM for OAuth tokens
+│       ├── email-sender.ts   # MIME compose + Gmail API send
+│       ├── followup-runner.ts
+│       ├── gmail.ts          # OAuth helpers
+│       ├── queue-runner.ts   # The "kerja sendiri" core
+│       ├── reply-detector.ts
+│       ├── stats.ts
+│       ├── templates.ts, queues.ts, workspaces.ts, contacts.ts
+│       └── *-helpers.ts      # Client-safe types/constants
 ├── supabase/
-│   ├── migrations/         # SQL migration files (Fase 1+)
-│   └── functions/          # Edge Functions (queue runner, dll, Fase 6+)
-├── docs/                   # Spec & design docs (source of truth)
-└── public/                 # Static assets
+│   └── migrations/           # 4 SQL migrations
+├── docs/                     # Spec docs (source of truth)
+└── proxy.ts                  # Auth gate (Next.js 16 middleware convention)
 ```
 
 ## Roadmap
 
-Lihat [`docs/14-Final-MVP-Decision.md`](./docs/14-Final-MVP-Decision.md) untuk roadmap lengkap.
+| Fase | Deliverable | Status |
+|------|-------------|--------|
+| 0 | Project setup (Next.js scaffold, Supabase + Google OAuth + Gemini accounts, env) | ✓ |
+| 1 | Database schema (17 tables) + RLS + Supabase client lib | ✓ |
+| 2 | Auth (Google OAuth via Supabase) + login flow + protected layout | ✓ |
+| 2.5 | Multi-workspace foundation (table, switcher, /w/[slug] routing) | ✓ |
+| 3A | Contact CRUD (list, create, edit, soft-delete) | ✓ |
+| 3B | CSV import (papaparse, 3-step wizard, bulk insert with dedup) | ✓ |
+| 4 | Templates editor (subject variants, plain body, variable detection, PDF attachment) | ✓ |
+| 5 | Connect Gmail per workspace (OAuth + AES-256-GCM token encryption) | ✓ |
+| 6 | Send Queue + Email Engine (compose MIME, send via Gmail API, run-now button) | ✓ |
+| 7 | AI Opener (Gemini 2.5 Flash with per-contact-per-workspace cache) | ✓ |
+| 8 | Tracking (open pixel + Gmail thread poller for replies) | ✓ |
+| 9 | Auto Follow-up (threaded replies via In-Reply-To header) | ✓ |
+| 10 | Pipeline Kanban view per workspace | ✓ |
+| 11 | Dashboard + Notifications (real KPIs, recent replies, activity feed) | ✓ |
+| 12 | Polish (sidebar nav, lucide icons, deploy guide) | ✓ |
 
-| Fase | Status |
-|------|--------|
-| 0. Project setup | ✓ |
-| 1. Database schema + RLS | pending |
-| 2. Auth (Google OAuth) | pending |
-| 2.5. Multi-workspace foundation | pending |
-| 3. Contact CRUD + Import CSV | pending |
-| 4. Templates editor + PDF attachment | pending |
-| 5. Connect Gmail per workspace | pending |
-| 6. Send Queue + Schedule + Email Engine | pending |
-| 7. AI Opener (Gemini) | pending |
-| 8. Tracking (open + reply) | pending |
-| 9. Auto Follow-up | pending |
-| 10. Pipeline Kanban | pending |
-| 11. Dashboard + Notifications | pending |
-| 12. Polish + Production deploy | pending |
+## Cron Jobs (Production)
+
+Setelah deploy, pasang pg_cron schedules dari [`supabase/migrations/0004_production_cron.sql`](./supabase/migrations/0004_production_cron.sql):
+
+| Job | Schedule | Endpoint |
+|-----|----------|----------|
+| queue-runner | Every 30 min, Mon-Fri 08-18 WIB | `/api/cron/queue-runner` |
+| reply-poller | Every 15 min, 24/7 | `/api/cron/reply-poller` |
+| followup-runner | Every hour, Mon-Fri 08-18 WIB | `/api/cron/followup-runner` |
+| quota-reset | Daily 00:00 WIB | `public.reset_daily_quotas()` |
+
+All HTTP endpoints require `X-Cron-Secret` header matching `CRON_SECRET` env.
 
 ## Deploy
 
-Production di Vercel — auto-deploy dari `main` branch.
+Lihat **[DEPLOY.md](./DEPLOY.md)** untuk panduan deploy ke Vercel + production cron setup.
 
 ## License
 
