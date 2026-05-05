@@ -17,6 +17,8 @@ export type SendQueue = {
   followup_after_days: number;
   use_ai_opener: boolean;
   test_mode: boolean;
+  is_one_shot: boolean;
+  scheduled_start_at: string | null;
   total_in_queue: number;
   total_sent: number;
   total_pending: number;

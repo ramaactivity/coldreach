@@ -7,6 +7,7 @@ import {
   Users,
   FileText,
   Send,
+  Rocket,
   Kanban,
   Settings as SettingsIcon,
   LogOut,
@@ -38,6 +39,7 @@ export function Sidebar({
     { href: `/w/${slug}/contacts`, label: "Contacts", icon: Users },
     { href: `/w/${slug}/templates`, label: "Templates", icon: FileText },
     { href: `/w/${slug}/queues`, label: "Queues", icon: Send },
+    { href: `/w/${slug}/campaigns`, label: "Campaigns", icon: Rocket },
     { href: `/w/${slug}/pipeline`, label: "Pipeline", icon: Kanban },
     { href: `/w/${slug}/settings`, label: "Settings", icon: SettingsIcon },
   ];

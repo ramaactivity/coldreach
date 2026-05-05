@@ -5,10 +5,12 @@ export type { SendQueue, AudienceFilter } from "@/lib/queue-helpers";
 
 export async function listQueues(workspaceId: string): Promise<SendQueue[]> {
   const supabase = await createClient();
+  // Only show recurring queues here. One-shot campaigns live at /campaigns.
   const { data, error } = await supabase
     .from("send_queues")
     .select("*")
     .eq("workspace_id", workspaceId)
+    .eq("is_one_shot", false)
     .order("created_at", { ascending: false });
 
   if (error) {

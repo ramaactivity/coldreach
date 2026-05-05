@@ -3,16 +3,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { runQueue } from "@/lib/queue-runner";
 
 /**
- * Cron-triggered queue runner. Called via pg_cron + pg_net every 30 minutes
- * during business hours (08:00-18:00 WIB = 01:00-11:00 UTC) in production.
+ * Cron-triggered queue runner. Called by pg_cron + pg_net every 30 minutes
+ * during business hours in production.
  *
- * Authentication: requires X-Cron-Secret header matching CRON_SECRET env var.
+ * Two modes processed:
+ *   - Recurring queues: filter by schedule_days + start/end time window
+ *   - One-shot campaigns: ignore recurring window, respect scheduled_start_at
  *
- * Logic:
- * 1. Find all is_active queues whose schedule_days/schedule_*_time matches now
- * 2. For each, call runQueue() with batch limited by per-queue daily target
+ * Test-mode queues are always skipped — those run only via manual "Run Now".
  *
- * In dev, you can trigger manually:
+ * Manual trigger:
  *   curl -H "X-Cron-Secret: $CRON_SECRET" http://localhost:3000/api/cron/queue-runner
  */
 export async function GET(request: NextRequest) {
@@ -27,39 +27,76 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const wibNow = new Date(now.getTime() + 7 * 3600 * 1000);
   const dow = wibNow.getUTCDay(); // 0=Sun .. 6=Sat
-  const dowIso = dow === 0 ? 7 : dow; // we use 1=Mon..7=Sun convention in schedule_days
+  const dowIso = dow === 0 ? 7 : dow; // 1=Mon..7=Sun
   const hh = String(wibNow.getUTCHours()).padStart(2, "0");
   const mm = String(wibNow.getUTCMinutes()).padStart(2, "0");
   const currentTime = `${hh}:${mm}:00`;
 
-  // Skip test_mode queues — those only run via manual "Run Now"
+  // Active queues that aren't in test mode and have pending recipients
   const { data: queues } = await admin
     .from("send_queues")
-    .select("id, schedule_days, schedule_start_time, schedule_end_time, daily_target, total_pending")
+    .select(
+      "id, schedule_days, schedule_start_time, schedule_end_time, daily_target, total_pending, is_one_shot, scheduled_start_at",
+    )
     .eq("is_active", true)
     .eq("test_mode", false)
     .gt("total_pending", 0);
 
-  const results: Array<{ id: string; sent: number; failed: number }> = [];
+  const results: Array<{ id: string; sent: number; failed: number; mode: string }> = [];
+
   for (const q of queues ?? []) {
-    const days = (q as { schedule_days: number[] }).schedule_days ?? [];
-    if (!days.includes(dowIso)) continue;
-    const startT = (q as { schedule_start_time: string }).schedule_start_time;
-    const endT = (q as { schedule_end_time: string }).schedule_end_time;
-    if (currentTime < startT || currentTime > endT) continue;
+    const queue = q as {
+      id: string;
+      schedule_days: number[];
+      schedule_start_time: string;
+      schedule_end_time: string;
+      daily_target: number;
+      total_pending: number;
+      is_one_shot: boolean;
+      scheduled_start_at: string | null;
+    };
 
-    // Batch size: spread daily_target across remaining 30-min ticks until end_time
-    const minutesLeft = parseTimeMinutes(endT) - parseTimeMinutes(currentTime);
-    const ticksLeft = Math.max(1, Math.ceil(minutesLeft / 30));
-    const dailyTarget = (q as { daily_target: number }).daily_target;
-    const batchSize = Math.max(1, Math.ceil(dailyTarget / ticksLeft));
+    if (queue.is_one_shot) {
+      // One-shot: only check scheduled_start_at (if set, must have passed)
+      if (
+        queue.scheduled_start_at &&
+        new Date(queue.scheduled_start_at) > now
+      ) {
+        continue;
+      }
 
-    const result = await runQueue((q as { id: string }).id, batchSize, true);
-    results.push({
-      id: result.queue_id,
-      sent: result.sent,
-      failed: result.failed,
-    });
+      // Send up to daily_target this tick (rate limit). For one-shot we want
+      // it to drain fast, so use full daily_target as batch size each run.
+      // Cron is every 30min, so daily_target/run is acceptable rate.
+      const batchSize = Math.max(1, queue.daily_target);
+      const result = await runQueue(queue.id, batchSize, true);
+      results.push({
+        id: result.queue_id,
+        sent: result.sent,
+        failed: result.failed,
+        mode: "one_shot",
+      });
+    } else {
+      // Recurring: respect schedule_days + window
+      const days = queue.schedule_days ?? [];
+      if (!days.includes(dowIso)) continue;
+      const startT = queue.schedule_start_time;
+      const endT = queue.schedule_end_time;
+      if (currentTime < startT || currentTime > endT) continue;
+
+      // Spread daily_target across remaining 30-min ticks until end_time
+      const minutesLeft = parseTimeMinutes(endT) - parseTimeMinutes(currentTime);
+      const ticksLeft = Math.max(1, Math.ceil(minutesLeft / 30));
+      const batchSize = Math.max(1, Math.ceil(queue.daily_target / ticksLeft));
+
+      const result = await runQueue(queue.id, batchSize, true);
+      results.push({
+        id: result.queue_id,
+        sent: result.sent,
+        failed: result.failed,
+        mode: "recurring",
+      });
+    }
   }
 
   return NextResponse.json({

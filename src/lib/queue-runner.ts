@@ -356,5 +356,14 @@ export async function runQueue(
     }
   }
 
+  // One-shot campaigns: auto-deactivate when fully sent so dashboard
+  // surfaces them as "completed" and cron stops picking them up.
+  if (queue.is_one_shot && queuePending === 0 && result.sent > 0) {
+    await admin
+      .from("send_queues")
+      .update({ is_active: false })
+      .eq("id", queueId);
+  }
+
   return result;
 }
