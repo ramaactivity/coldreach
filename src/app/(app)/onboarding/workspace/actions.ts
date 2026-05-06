@@ -1,12 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { updateTag } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import {
   getDefaultPipelineForBusinessType,
   getDefaultScheduleForBusinessType,
 } from "@/lib/workspace-constants";
+import { WORKSPACE_CACHE_TAG } from "@/lib/workspaces";
 import { slugify } from "@/lib/slug";
 
 const CreateWorkspaceSchema = z.object({
@@ -99,5 +101,6 @@ export async function createWorkspace(
     .update({ last_active_workspace_id: workspace.id })
     .eq("id", user.id);
 
+  updateTag(WORKSPACE_CACHE_TAG);
   redirect(`/w/${workspace.slug}/dashboard`);
 }

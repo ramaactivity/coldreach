@@ -1,10 +1,10 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { getWorkspaceBySlug } from "@/lib/workspaces";
+import { getWorkspaceBySlug, WORKSPACE_CACHE_TAG } from "@/lib/workspaces";
 import type { PipelineStage } from "@/lib/workspace-constants";
 
 export async function disconnectGmail(slug: string, accountId: string) {
@@ -113,6 +113,7 @@ export async function updateWorkspaceInfo(
 
   revalidatePath(`/w/${slug}/settings`);
   revalidatePath(`/w/${slug}/dashboard`);
+  updateTag(WORKSPACE_CACHE_TAG);
   return { success: true };
 }
 
@@ -182,6 +183,7 @@ export async function updateWorkspaceSchedule(
   if (error) return { error: error.message };
 
   revalidatePath(`/w/${slug}/settings`);
+  updateTag(WORKSPACE_CACHE_TAG);
   return { success: true };
 }
 
@@ -280,5 +282,6 @@ export async function updatePipelineStages(
 
   revalidatePath(`/w/${slug}/settings`);
   revalidatePath(`/w/${slug}/pipeline`);
+  updateTag(WORKSPACE_CACHE_TAG);
   return { success: true };
 }

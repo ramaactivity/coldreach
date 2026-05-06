@@ -1,5 +1,6 @@
-import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { notFound } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { requireCurrentUser } from "@/lib/supabase/session-helpers";
 import { getUserWorkspaces, getWorkspaceBySlug } from "@/lib/workspaces";
 import { Sidebar } from "./sidebar";
 
@@ -10,16 +11,12 @@ export default async function WorkspaceLayout({
   children: React.ReactNode;
   params: Promise<{ slug: string }>;
 }) {
-  // Resolve params and auth in parallel
-  const supabase = await createClient();
-  const [{ slug }, userResult] = await Promise.all([
-    params,
-    supabase.auth.getUser(),
-  ]);
-  const { data: { user } } = userResult;
-  if (!user) redirect("/login");
+  // Resolve params + auth in parallel; getCurrentUser is cached so any
+  // downstream component that calls it again hits the same promise.
+  const [{ slug }, user] = await Promise.all([params, requireCurrentUser()]);
 
-  // Fetch workspace + workspaces list in parallel (React.cache'd)
+  // Fetch workspace + workspaces list in parallel
+  // (both backed by unstable_cache: 10 min TTL, tag-invalidated on edit)
   const [workspace, allWorkspaces] = await Promise.all([
     getWorkspaceBySlug(slug),
     getUserWorkspaces(),
@@ -27,7 +24,8 @@ export default async function WorkspaceLayout({
   if (!workspace) notFound();
 
   // Fire-and-forget: non-blocking write for last_active_workspace_id
-  void supabase
+  // (use admin client so this doesn't go through the auth round-trip)
+  void createAdminClient()
     .from("users")
     .update({ last_active_workspace_id: workspace.id })
     .eq("id", user.id)

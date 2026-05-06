@@ -1,5 +1,4 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireCurrentUser } from "@/lib/supabase/session-helpers";
 
 /**
  * Minimal auth gate for all (app) pages. No topbar here — each section
@@ -11,12 +10,6 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/login");
-
+  await requireCurrentUser();
   return <div className="flex min-h-full flex-col">{children}</div>;
 }

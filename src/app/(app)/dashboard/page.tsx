@@ -10,7 +10,7 @@ import {
   ExternalLink,
   Sparkles,
 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { requireCurrentUser } from "@/lib/supabase/session-helpers";
 import { getUserWorkspaces } from "@/lib/workspaces";
 import { SimpleTopbar } from "@/components/simple-topbar";
 import { getWorkspaceStats, getRecentReplies } from "@/lib/stats";
@@ -20,12 +20,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 
 export default async function DashboardPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
+  const user = await requireCurrentUser();
   const workspaces = await getUserWorkspaces();
 
   if (workspaces.length === 0) {

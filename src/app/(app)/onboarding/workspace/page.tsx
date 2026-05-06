@@ -1,15 +1,14 @@
 import { Sparkles, Plus } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/session-helpers";
 import { getUserWorkspaces } from "@/lib/workspaces";
 import { SimpleTopbar } from "@/components/simple-topbar";
 import { CreateWorkspaceForm } from "./create-workspace-form";
 
 export default async function OnboardingWorkspacePage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const workspaces = await getUserWorkspaces();
+  const [user, workspaces] = await Promise.all([
+    getCurrentUser(),
+    getUserWorkspaces(),
+  ]);
   const isFirstTime = workspaces.length === 0;
 
   return (

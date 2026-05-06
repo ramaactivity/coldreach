@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Inbox, MessageCircle, AlarmClock, CheckCircle2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { requireCurrentUser } from "@/lib/supabase/session-helpers";
 import { getUserWorkspaces } from "@/lib/workspaces";
 import { getInboxReplies, getInboxCounts, type InboxTab } from "@/lib/inbox";
 import { PageHeader } from "@/components/ui/page-header";
@@ -21,12 +21,7 @@ export default async function GlobalInboxPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
-
+  const user = await requireCurrentUser();
   const sp = await searchParams;
   const tab: InboxTab =
     sp.tab === "snoozed" || sp.tab === "handled" ? sp.tab : "pending";
