@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireCurrentUser } from "@/lib/supabase/session-helpers";
 import { getUserWorkspaces, getWorkspaceBySlug } from "@/lib/workspaces";
 import { Sidebar } from "./sidebar";
+import { WorkspaceShell } from "./workspace-shell";
 
 export default async function WorkspaceLayout({
   children,
@@ -32,14 +33,18 @@ export default async function WorkspaceLayout({
     .then(() => {}, () => {});
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar
-        slug={slug}
-        workspace={workspace}
-        workspaces={allWorkspaces}
-        userEmail={user.email ?? ""}
-      />
-      <main className="flex-1 overflow-y-auto">{children}</main>
-    </div>
+    <WorkspaceShell
+      workspace={workspace}
+      sidebar={
+        <Sidebar
+          slug={slug}
+          workspace={workspace}
+          workspaces={allWorkspaces}
+          userEmail={user.email ?? ""}
+        />
+      }
+    >
+      {children}
+    </WorkspaceShell>
   );
 }
