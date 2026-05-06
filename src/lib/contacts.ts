@@ -37,6 +37,10 @@ export type ContactWithWorkspaceData = Contact & {
   } | null;
 };
 
+export type { ContactsSort } from "@/lib/contacts-constants";
+export { CONTACTS_SORT_OPTIONS } from "@/lib/contacts-constants";
+import type { ContactsSort } from "@/lib/contacts-constants";
+
 export type ContactsFilter = {
   search?: string;
   tags?: string[];
@@ -45,6 +49,7 @@ export type ContactsFilter = {
   lead_stage_id?: string;
   has_replied?: boolean;
   never_contacted?: boolean;
+  sort_by?: ContactsSort;
 };
 
 export type ContactsListResult = {
@@ -60,7 +65,9 @@ export async function listContacts(
 ): Promise<ContactsListResult> {
   const supabase = await createClient();
 
-  let query = supabase
+  // Build with `any` to keep Supabase's chained-builder type-depth manageable.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = supabase
     .from("contacts")
     .select(
       `
@@ -93,10 +100,50 @@ export async function listContacts(
   if (filter.priority) {
     query = query.eq("priority", filter.priority);
   }
+  if (filter.lead_stage_id) {
+    query = query.eq(
+      "contact_workspace_data.lead_stage_id",
+      filter.lead_stage_id,
+    );
+  }
 
-  query = query
-    .order("created_at", { ascending: false })
-    .range(page * pageSize, (page + 1) * pageSize - 1);
+  switch (filter.sort_by ?? "created_desc") {
+    case "created_asc":
+      query = query.order("created_at", { ascending: true });
+      break;
+    case "name_asc":
+      query = query
+        .order("first_name", { ascending: true, nullsFirst: false })
+        .order("last_name", { ascending: true, nullsFirst: false });
+      break;
+    case "name_desc":
+      query = query
+        .order("first_name", { ascending: false, nullsFirst: false })
+        .order("last_name", { ascending: false, nullsFirst: false });
+      break;
+    case "company_asc":
+      query = query.order("company", { ascending: true, nullsFirst: false });
+      break;
+    case "last_contacted_desc":
+      query = query.order("last_contacted_at", {
+        ascending: false,
+        nullsFirst: false,
+        foreignTable: "contact_workspace_data",
+      });
+      break;
+    case "last_contacted_asc":
+      query = query.order("last_contacted_at", {
+        ascending: true,
+        nullsFirst: true,
+        foreignTable: "contact_workspace_data",
+      });
+      break;
+    case "created_desc":
+    default:
+      query = query.order("created_at", { ascending: false });
+  }
+
+  query = query.range(page * pageSize, (page + 1) * pageSize - 1);
 
   const { data, count, error } = await query;
 
