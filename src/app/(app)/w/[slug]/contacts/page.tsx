@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
+  Tag,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
@@ -91,6 +92,14 @@ export default async function ContactsPage({
         description={`${total.toLocaleString("id-ID")} contacts · shared antar workspace, status untuk ${workspace.name}`}
         actions={
           <>
+            <ButtonLink
+              href={`/w/${slug}/contacts/tags`}
+              variant="outline"
+              size="md"
+            >
+              <Tag className="h-4 w-4" />
+              Tags
+            </ButtonLink>
             <ButtonLink
               href={`/w/${slug}/contacts/duplicates`}
               variant="outline"
