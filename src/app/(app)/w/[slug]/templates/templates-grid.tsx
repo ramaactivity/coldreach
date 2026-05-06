@@ -9,11 +9,11 @@ import {
   Eye,
   MessageCircle,
   Sparkles,
-  ArrowDownWideNarrow,
   Clock,
 } from "lucide-react";
 import type { TemplateWithAttachments } from "@/lib/templates";
 import type { TemplateStats } from "@/lib/templates";
+import { Select, SelectItem } from "@/components/ui/select";
 
 type SortKey =
   | "recently_used"
@@ -164,19 +164,18 @@ export function TemplatesGrid({
 
       {/* Sort */}
       <div className="mb-4 flex items-center justify-end">
-        <div className="relative">
-          <ArrowDownWideNarrow className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-          <select
+        <div className="w-[220px]">
+          <Select
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortKey)}
-            className="h-9 rounded-lg border border-zinc-200 bg-white pl-8 pr-7 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+            onValueChange={(v) => setSortBy(v as SortKey)}
+            size="sm"
           >
             {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                Sort: {o.label}
-              </option>
+              <SelectItem key={o.value} value={o.value}>
+                {o.label}
+              </SelectItem>
             ))}
-          </select>
+          </Select>
         </div>
       </div>
 

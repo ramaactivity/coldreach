@@ -23,7 +23,8 @@ import {
 } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Select, Input } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
+import { Select, SelectItem } from "@/components/ui/select";
 import { analyzeImport, importContactsChunk } from "./import-actions";
 import {
   SKIPPED_REASON_LABEL,
@@ -517,19 +518,21 @@ function MapStep({
               </div>
               <ArrowRight className="hidden h-4 w-4 text-zinc-400 sm:block" />
               <Select
-                value={mapping[h] ?? ""}
-                onChange={(e) =>
+                value={(mapping[h] || "__skip__") as string}
+                onValueChange={(v) =>
                   setMapping((m) => ({
                     ...m,
-                    [h]: e.target.value as FieldKey,
+                    [h]: (v === "__skip__" ? "" : v) as FieldKey,
                   }))
                 }
-                className="h-9"
               >
                 {FIELD_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
+                  <SelectItem
+                    key={opt.value || "__skip__"}
+                    value={opt.value || "__skip__"}
+                  >
                     {opt.label}
-                  </option>
+                  </SelectItem>
                 ))}
               </Select>
             </div>

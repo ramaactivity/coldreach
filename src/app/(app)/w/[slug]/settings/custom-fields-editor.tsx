@@ -18,6 +18,7 @@ import {
   type CustomFieldType,
 } from "@/lib/workspace-constants";
 import { Card } from "@/components/ui/card";
+import { Select, SelectItem } from "@/components/ui/select";
 import { updateCustomFieldsSchema } from "./actions";
 
 function slugify(label: string): string {
@@ -264,21 +265,23 @@ function FieldRow({
             className="h-8 rounded-md border border-zinc-200 bg-white px-2.5 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           />
 
-          <select
-            value={field.type}
-            onChange={(e) => {
-              const newType = e.target.value as CustomFieldType;
-              onChange({ type: newType });
-              if (newType === "select") setShowOptions(true);
-            }}
-            className="h-8 rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          >
-            {CUSTOM_FIELD_TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
-          </select>
+          <div className="w-[140px]">
+            <Select
+              value={field.type}
+              onValueChange={(v) => {
+                const newType = v as CustomFieldType;
+                onChange({ type: newType });
+                if (newType === "select") setShowOptions(true);
+              }}
+              size="sm"
+            >
+              {CUSTOM_FIELD_TYPES.map((t) => (
+                <SelectItem key={t.value} value={t.value}>
+                  {t.label}
+                </SelectItem>
+              ))}
+            </Select>
+          </div>
 
           <label className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
             <input

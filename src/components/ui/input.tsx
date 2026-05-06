@@ -1,4 +1,4 @@
-import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes, type SelectHTMLAttributes } from "react";
+import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 const baseFieldClasses =
@@ -30,24 +30,8 @@ export const Textarea = forwardRef<
   );
 });
 
-export const Select = forwardRef<
-  HTMLSelectElement,
-  SelectHTMLAttributes<HTMLSelectElement>
->(function Select({ className, children, ...props }, ref) {
-  return (
-    <select
-      ref={ref}
-      className={cn(
-        baseFieldClasses,
-        "h-9 cursor-pointer appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 fill=%22none%22 viewBox=%220 0 24 24%22><path stroke=%22%2371717a%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22 stroke-width=%222%22 d=%22m6 9 6 6 6-6%22/></svg>')] bg-[right_0.5rem_center] bg-no-repeat pr-8",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-    </select>
-  );
-});
+// Custom Select primitive lives at @/components/ui/select.
+// Native <select> shouldn't be used in this app — replace with Radix-based Select.
 
 export function FieldLabel({
   htmlFor,

@@ -10,6 +10,7 @@ import {
   FieldDescription,
   Input,
 } from "@/components/ui/input";
+import { TimePicker } from "@/components/ui/time-picker";
 import { updateWorkspaceSchedule, type FormState } from "./actions";
 
 const INITIAL: FormState = {};
@@ -92,31 +93,29 @@ export function ScheduleForm({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
-            <FieldLabel htmlFor="ws-start">
+            <FieldLabel>
               <span className="inline-flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-zinc-500" /> Mulai jam
               </span>
             </FieldLabel>
-            <Input
-              id="ws-start"
+            <TimePicker
               name="schedule_start_time"
-              type="time"
-              defaultValue={initial.schedule_start_time.slice(0, 5)}
+              value={initial.schedule_start_time.slice(0, 5)}
               required
+              step={30}
             />
           </div>
           <div>
-            <FieldLabel htmlFor="ws-end">
+            <FieldLabel>
               <span className="inline-flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5 text-zinc-500" /> Sampai jam
               </span>
             </FieldLabel>
-            <Input
-              id="ws-end"
+            <TimePicker
               name="schedule_end_time"
-              type="time"
-              defaultValue={initial.schedule_end_time.slice(0, 5)}
+              value={initial.schedule_end_time.slice(0, 5)}
               required
+              step={30}
             />
             <FieldError>{state.fieldErrors?.schedule_end_time}</FieldError>
           </div>

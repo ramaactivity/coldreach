@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   X,
-  ArrowDownWideNarrow,
   Star,
   Bookmark,
   Plus,
@@ -23,6 +22,7 @@ import {
   type ContactsSort,
 } from "@/lib/contacts-constants";
 import type { PipelineStage } from "@/lib/workspace-constants";
+import { Select, SelectItem } from "@/components/ui/select";
 import {
   createSavedFilter,
   deleteSavedFilter,
@@ -206,33 +206,39 @@ export function FiltersBar({
 
       {/* Sort + filters */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <ArrowDownWideNarrow className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-          <select
+        <div className="w-[200px]">
+          <Select
             value={sort}
-            onChange={(e) => pushWith({ sort: e.target.value })}
-            className="h-9 rounded-lg border border-zinc-200 bg-white pl-8 pr-7 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            onValueChange={(v) => pushWith({ sort: v })}
+            size="sm"
           >
             {CONTACTS_SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+              <SelectItem key={opt.value} value={opt.value}>
                 {opt.label}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+          </Select>
         </div>
 
-        <select
-          value={stage}
-          onChange={(e) => pushWith({ stage: e.target.value || null })}
-          className="h-9 rounded-lg border border-zinc-200 bg-white px-3 pr-7 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-        >
-          <option value="">Semua stage</option>
-          {stages.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+        <div className="w-[160px]">
+          <Select
+            value={stage || "__all__"}
+            onValueChange={(v) =>
+              pushWith({ stage: v === "__all__" ? null : v })
+            }
+            size="sm"
+            dotColor={
+              stage ? stages.find((s) => s.id === stage)?.color : undefined
+            }
+          >
+            <SelectItem value="__all__">Semua stage</SelectItem>
+            {stages.map((s) => (
+              <SelectItem key={s.id} value={s.id} dotColor={s.color}>
+                {s.name}
+              </SelectItem>
+            ))}
+          </Select>
+        </div>
 
         <input
           type="text"

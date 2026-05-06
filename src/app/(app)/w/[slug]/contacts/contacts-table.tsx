@@ -14,6 +14,7 @@ import {
 import type { ContactWithWorkspaceData } from "@/lib/contacts";
 import type { PipelineStage } from "@/lib/workspace-constants";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectItem } from "@/components/ui/select";
 import { bulkAddTags, bulkChangeStage, bulkDelete } from "./bulk-actions";
 
 type Props = {
@@ -288,18 +289,25 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
 
             {mode === "stage" && (
               <div className="flex items-center gap-2 border-t border-zinc-100 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40">
-                <select
-                  value={stageInput}
-                  onChange={(e) => setStageInput(e.target.value)}
-                  className="h-8 flex-1 rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                >
-                  <option value="">Pilih stage...</option>
-                  {stages.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex-1">
+                  <Select
+                    value={stageInput}
+                    onValueChange={setStageInput}
+                    placeholder="Pilih stage..."
+                    size="sm"
+                    dotColor={
+                      stageInput
+                        ? stageById.get(stageInput)?.color
+                        : undefined
+                    }
+                  >
+                    {stages.map((s) => (
+                      <SelectItem key={s.id} value={s.id} dotColor={s.color}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                </div>
                 <button
                   type="button"
                   disabled={pending || !stageInput}

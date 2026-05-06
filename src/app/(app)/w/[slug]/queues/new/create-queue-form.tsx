@@ -7,8 +7,9 @@ import {
   FieldError,
   FieldDescription,
   Input,
-  Select,
 } from "@/components/ui/input";
+import { Select, SelectItem } from "@/components/ui/select";
+import { TimePicker } from "@/components/ui/time-picker";
 import { Button } from "@/components/ui/button";
 import type { CreateQueueState } from "../actions";
 
@@ -54,15 +55,21 @@ export function CreateQueueForm({
 
       {/* Template */}
       <div>
-        <FieldLabel htmlFor="template_id" required>
-          Template Email
-        </FieldLabel>
-        <Select id="template_id" name="template_id" required>
+        <FieldLabel required>Template Email</FieldLabel>
+        <Select
+          name="template_id"
+          required
+          defaultValue={templates[0]?.id}
+          placeholder="Pilih template..."
+        >
           {templates.map((t) => (
-            <option key={t.id} value={t.id}>
+            <SelectItem
+              key={t.id}
+              value={t.id}
+              hint={t.attachmentCount > 0 ? `📎 ${t.attachmentCount}` : undefined}
+            >
               {t.name}
-              {t.attachmentCount > 0 ? ` (📎 ${t.attachmentCount})` : ""}
-            </option>
+            </SelectItem>
           ))}
         </Select>
         <FieldError>{state.fieldErrors?.template_id}</FieldError>
@@ -91,19 +98,21 @@ export function CreateQueueForm({
               radioName="audience_type"
               radioValue="tag"
               extra={
-                <Select
-                  name="audience_tag"
-                  value={selectedTag}
-                  onChange={(e) => setSelectedTag(e.target.value)}
-                  disabled={audienceType !== "tag"}
-                  className="mt-2.5 h-8 text-xs"
-                >
-                  {tags.map((tag) => (
-                    <option key={tag} value={tag}>
-                      {tag}
-                    </option>
-                  ))}
-                </Select>
+                <div className="mt-2.5">
+                  <Select
+                    name="audience_tag"
+                    value={selectedTag}
+                    onValueChange={setSelectedTag}
+                    disabled={audienceType !== "tag"}
+                    size="sm"
+                  >
+                    {tags.map((tag) => (
+                      <SelectItem key={tag} value={tag}>
+                        {tag}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                </div>
               }
             />
           )}
@@ -115,33 +124,25 @@ export function CreateQueueForm({
         <FieldLabel>Schedule</FieldLabel>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
-            <label
-              htmlFor="schedule_start_time"
-              className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400"
-            >
+            <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400">
               Mulai jam
             </label>
-            <Input
-              id="schedule_start_time"
+            <TimePicker
               name="schedule_start_time"
-              type="time"
-              defaultValue={workspaceDefaults.schedule_start_time}
+              value={workspaceDefaults.schedule_start_time.slice(0, 5)}
               required
+              step={30}
             />
           </div>
           <div>
-            <label
-              htmlFor="schedule_end_time"
-              className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400"
-            >
+            <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400">
               Sampai jam
             </label>
-            <Input
-              id="schedule_end_time"
+            <TimePicker
               name="schedule_end_time"
-              type="time"
-              defaultValue={workspaceDefaults.schedule_end_time}
+              value={workspaceDefaults.schedule_end_time.slice(0, 5)}
               required
+              step={30}
             />
           </div>
           <div>

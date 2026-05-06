@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { InboxItem, InboxTab } from "@/lib/inbox";
 import type { PipelineStage } from "@/lib/workspace-constants";
+import { Select, SelectItem } from "@/components/ui/select";
 import {
   markHandled,
   unmarkHandled,
@@ -178,30 +179,21 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
 
           {/* Stage selector + actions row */}
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <div className="relative inline-flex items-center">
-              {stage && (
-                <span
-                  className="pointer-events-none absolute left-2.5 inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: stage.color }}
-                />
-              )}
-              <select
+            <div className="w-[160px]">
+              <Select
                 value={stageId}
-                onChange={(e) => onStageChange(e.target.value)}
+                onValueChange={onStageChange}
                 disabled={pending || stages.length === 0}
-                className={`h-7 rounded-md border border-zinc-200 bg-white text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 ${
-                  stage ? "pl-6 pr-2" : "px-2"
-                }`}
+                size="sm"
+                placeholder="Pilih stage"
+                dotColor={stage?.color}
               >
-                <option value="" disabled>
-                  Pilih stage
-                </option>
                 {stages.map((s) => (
-                  <option key={s.id} value={s.id}>
+                  <SelectItem key={s.id} value={s.id} dotColor={s.color}>
                     {s.name}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
+              </Select>
             </div>
 
             {/* View contact */}

@@ -5,12 +5,8 @@ import { Check } from "lucide-react";
 import { BUSINESS_TYPES, COLOR_THEMES } from "@/lib/workspace-constants";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  FieldLabel,
-  FieldError,
-  Input,
-  Select,
-} from "@/components/ui/input";
+import { FieldLabel, FieldError, Input } from "@/components/ui/input";
+import { Select, SelectItem } from "@/components/ui/select";
 import { updateWorkspaceInfo, type FormState } from "./actions";
 
 const INITIAL: FormState = {};
@@ -55,16 +51,15 @@ export function WorkspaceInfoForm({
             <FieldError>{state.fieldErrors?.name}</FieldError>
           </div>
           <div>
-            <FieldLabel htmlFor="ws-bt">Business Type</FieldLabel>
+            <FieldLabel>Business Type</FieldLabel>
             <Select
-              id="ws-bt"
               name="business_type"
               defaultValue={initial.business_type ?? "other"}
             >
               {BUSINESS_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
+                <SelectItem key={t.value} value={t.value}>
                   {t.emoji} {t.label}
-                </option>
+                </SelectItem>
               ))}
             </Select>
           </div>

@@ -7,19 +7,23 @@ import {
   FieldError,
   FieldDescription,
   Input,
-  Select,
 } from "@/components/ui/input";
+import { Select, SelectItem } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
+import { TimePicker } from "@/components/ui/time-picker";
 import { Button } from "@/components/ui/button";
 import type { CreateCampaignState } from "../actions";
 
 const INITIAL_STATE: CreateCampaignState = {};
 
-function defaultScheduledTime(): string {
+function defaultScheduledParts(): { date: string; time: string } {
   const d = new Date(Date.now() + 60 * 60 * 1000);
-  d.setMinutes(0, 0, 0); // round to next hour
-  // datetime-local format: YYYY-MM-DDTHH:MM
+  d.setMinutes(0, 0, 0);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return {
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  };
 }
 
 export function CreateCampaignForm({
@@ -37,6 +41,9 @@ export function CreateCampaignForm({
   const [audienceType, setAudienceType] = useState<"all" | "tag">("all");
   const [selectedTag, setSelectedTag] = useState(tags[0] ?? "");
   const [sendWhen, setSendWhen] = useState<"now" | "scheduled">("now");
+  const initParts = defaultScheduledParts();
+  const [scheduledDate, setScheduledDate] = useState(initParts.date);
+  const [scheduledTime, setScheduledTime] = useState(initParts.time);
 
   return (
     <form action={formAction} className="space-y-6">
@@ -56,15 +63,21 @@ export function CreateCampaignForm({
 
       {/* Template */}
       <div>
-        <FieldLabel htmlFor="template_id" required>
-          Template Email
-        </FieldLabel>
-        <Select id="template_id" name="template_id" required>
+        <FieldLabel required>Template Email</FieldLabel>
+        <Select
+          name="template_id"
+          required
+          defaultValue={templates[0]?.id}
+          placeholder="Pilih template..."
+        >
           {templates.map((t) => (
-            <option key={t.id} value={t.id}>
+            <SelectItem
+              key={t.id}
+              value={t.id}
+              hint={t.attachmentCount > 0 ? `📎 ${t.attachmentCount}` : undefined}
+            >
               {t.name}
-              {t.attachmentCount > 0 ? ` (📎 ${t.attachmentCount})` : ""}
-            </option>
+            </SelectItem>
           ))}
         </Select>
       </div>
@@ -92,19 +105,21 @@ export function CreateCampaignForm({
               title="Tag tertentu"
               description="Kontak dengan tag spesifik."
               extra={
-                <Select
-                  name="audience_tag"
-                  value={selectedTag}
-                  onChange={(e) => setSelectedTag(e.target.value)}
-                  disabled={audienceType !== "tag"}
-                  className="mt-2.5 h-8 text-xs"
-                >
-                  {tags.map((tag) => (
-                    <option key={tag} value={tag}>
-                      {tag}
-                    </option>
-                  ))}
-                </Select>
+                <div className="mt-2.5">
+                  <Select
+                    name="audience_tag"
+                    value={selectedTag}
+                    onValueChange={setSelectedTag}
+                    disabled={audienceType !== "tag"}
+                    size="sm"
+                  >
+                    {tags.map((tag) => (
+                      <SelectItem key={tag} value={tag}>
+                        {tag}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                </div>
               }
             />
           )}
@@ -133,13 +148,24 @@ export function CreateCampaignForm({
             title="Jadwalkan"
             description="Kirim di waktu tertentu (cth: Senin 09:00)."
             extra={
-              <input
-                type="datetime-local"
-                name="scheduled_start_at"
-                disabled={sendWhen !== "scheduled"}
-                defaultValue={defaultScheduledTime()}
-                className="mt-2.5 h-8 w-full rounded-md border border-zinc-200 bg-white px-2 text-xs disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800"
-              />
+              <div className="mt-2.5 space-y-2">
+                <input
+                  type="hidden"
+                  name="scheduled_start_at"
+                  value={`${scheduledDate}T${scheduledTime}`}
+                />
+                <DatePicker
+                  value={scheduledDate}
+                  onValueChange={setScheduledDate}
+                  disabled={sendWhen !== "scheduled"}
+                />
+                <TimePicker
+                  value={scheduledTime}
+                  onValueChange={setScheduledTime}
+                  disabled={sendWhen !== "scheduled"}
+                  step={15}
+                />
+              </div>
             }
           />
         </div>

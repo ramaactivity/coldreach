@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, FieldLabel, FieldDescription } from "@/components/ui/input";
+import { FieldLabel, FieldDescription } from "@/components/ui/input";
+import { Select, SelectItem } from "@/components/ui/select";
 import { sendOneEmailToContact, type SendOneEmailResult } from "./send-actions";
 
 type Template = {
@@ -136,17 +137,16 @@ export function SendEmailPanel({
       <div className="space-y-4 p-5">
         {/* Template */}
         <div>
-          <FieldLabel htmlFor="send-template">Template</FieldLabel>
-          <Select
-            id="send-template"
-            value={templateId}
-            onChange={(e) => setTemplateId(e.target.value)}
-          >
+          <FieldLabel>Template</FieldLabel>
+          <Select value={templateId} onValueChange={setTemplateId}>
             {templates.map((t) => (
-              <option key={t.id} value={t.id}>
+              <SelectItem
+                key={t.id}
+                value={t.id}
+                hint={t.attachmentCount > 0 ? `📎 ${t.attachmentCount}` : undefined}
+              >
                 {t.name}
-                {t.attachmentCount > 0 ? ` (📎 ${t.attachmentCount})` : ""}
-              </option>
+              </SelectItem>
             ))}
           </Select>
         </div>

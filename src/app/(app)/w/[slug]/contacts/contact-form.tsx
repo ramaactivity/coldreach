@@ -4,13 +4,9 @@ import { useActionState } from "react";
 import type { Contact } from "@/lib/contacts";
 import type { PipelineStage, CustomField } from "@/lib/workspace-constants";
 import { Button } from "@/components/ui/button";
-import {
-  FieldLabel,
-  FieldError,
-  Input,
-  Select,
-  Textarea,
-} from "@/components/ui/input";
+import { FieldLabel, FieldError, Input, Textarea } from "@/components/ui/input";
+import { Select, SelectItem } from "@/components/ui/select";
+import { DatePicker } from "@/components/ui/date-picker";
 import type { ContactFormState } from "./actions";
 
 type Props = {
@@ -125,15 +121,14 @@ export function ContactForm({
             />
           </div>
           <div>
-            <FieldLabel htmlFor="priority">Priority</FieldLabel>
+            <FieldLabel>Priority</FieldLabel>
             <Select
-              id="priority"
               name="priority"
               defaultValue={initialContact?.priority ?? "medium"}
             >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
+              <SelectItem value="low">Low</SelectItem>
+              <SelectItem value="medium">Medium</SelectItem>
+              <SelectItem value="high">High</SelectItem>
             </Select>
           </div>
         </div>
@@ -142,18 +137,15 @@ export function ContactForm({
       <Section title="Pipeline & tags">
         <div className="space-y-4">
           <div>
-            <FieldLabel htmlFor="lead_stage_id" hint="di workspace ini">
-              Lead Stage
-            </FieldLabel>
+            <FieldLabel hint="di workspace ini">Lead Stage</FieldLabel>
             <Select
-              id="lead_stage_id"
               name="lead_stage_id"
               defaultValue={initialLeadStageId ?? "new"}
             >
               {pipelineStages.map((s) => (
-                <option key={s.id} value={s.id}>
+                <SelectItem key={s.id} value={s.id} dotColor={s.color}>
                   {s.name}
-                </option>
+                </SelectItem>
               ))}
             </Select>
           </div>
@@ -212,29 +204,28 @@ export function ContactForm({
                     />
                   ) : f.type === "select" ? (
                     <Select
-                      id={inputId}
                       name={inputName}
-                      defaultValue={initialValue}
+                      defaultValue={initialValue || undefined}
+                      placeholder="— Pilih —"
                       required={f.required}
                     >
-                      <option value="">— Pilih —</option>
                       {(f.options ?? []).map((opt) => (
-                        <option key={opt} value={opt}>
+                        <SelectItem key={opt} value={opt}>
                           {opt}
-                        </option>
+                        </SelectItem>
                       ))}
                     </Select>
+                  ) : f.type === "date" ? (
+                    <DatePicker
+                      name={inputName}
+                      value={initialValue}
+                      required={f.required}
+                    />
                   ) : (
                     <Input
                       id={inputId}
                       name={inputName}
-                      type={
-                        f.type === "number"
-                          ? "number"
-                          : f.type === "date"
-                            ? "date"
-                            : "text"
-                      }
+                      type={f.type === "number" ? "number" : "text"}
                       defaultValue={initialValue}
                       required={f.required}
                     />

@@ -18,6 +18,7 @@ import {
   DEFAULT_FOLLOWUP_DAYS,
   type FollowupStep,
 } from "@/lib/queue-helpers";
+import { Select, SelectItem } from "@/components/ui/select";
 import { updateFollowupSequence } from "../actions";
 
 type TemplateLite = { id: string; name: string };
@@ -335,18 +336,20 @@ function FollowupRow({
 
           {editing ? (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <select
-                value={step.template_id}
-                onChange={(e) => onUpdate({ template_id: e.target.value })}
-                className="h-7 rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-              >
-                <option value="">— Pilih template —</option>
-                {templates.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-              </select>
+              <div className="w-[180px]">
+                <Select
+                  value={step.template_id}
+                  onValueChange={(v) => onUpdate({ template_id: v })}
+                  placeholder="— Pilih template —"
+                  size="sm"
+                >
+                  {templates.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
               <span className="text-xs text-zinc-500 dark:text-zinc-400">
                 kirim
               </span>
