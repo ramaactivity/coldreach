@@ -128,8 +128,15 @@ export async function updateContact(
 
   if (error) return { error: error.message };
 
-  // Upsert workspace data
+  // Upsert workspace data + log stage change if it actually changed
   if (lead_stage_id) {
+    const { data: prev } = await supabase
+      .from("contact_workspace_data")
+      .select("lead_stage_id")
+      .eq("contact_id", id)
+      .eq("workspace_id", workspace.id)
+      .maybeSingle();
+
     await supabase
       .from("contact_workspace_data")
       .upsert(
@@ -142,10 +149,61 @@ export async function updateContact(
         },
         { onConflict: "contact_id,workspace_id" },
       );
+
+    if (prev?.lead_stage_id !== lead_stage_id) {
+      const stage = workspace.pipeline_stages.find(
+        (s) => s.id === lead_stage_id,
+      );
+      await supabase.from("activity_log").insert({
+        user_id: user.id,
+        workspace_id: workspace.id,
+        activity_type: "stage_changed",
+        entity_type: "contact",
+        entity_id: id,
+        metadata: {
+          new_stage_id: lead_stage_id,
+          new_stage_name: stage?.name ?? lead_stage_id,
+          previous_stage_id: prev?.lead_stage_id ?? null,
+        },
+      });
+    }
   }
 
   revalidatePath(`/w/${slug}/contacts`);
+  revalidatePath(`/w/${slug}/contacts/${id}`);
   return { success: true };
+}
+
+export async function updateContactNotes(
+  contactId: string,
+  slug: string,
+  notes: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const workspace = await getWorkspaceBySlug(slug);
+  if (!workspace) return { ok: false, error: "Workspace not found" };
+
+  const { error } = await supabase
+    .from("contact_workspace_data")
+    .upsert(
+      {
+        contact_id: contactId,
+        workspace_id: workspace.id,
+        user_id: user.id,
+        workspace_notes: notes.length > 0 ? notes : null,
+      },
+      { onConflict: "contact_id,workspace_id" },
+    );
+
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/w/${slug}/contacts/${contactId}`);
+  return { ok: true };
 }
 
 export async function deleteContact(id: string, slug: string) {

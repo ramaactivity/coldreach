@@ -4,10 +4,13 @@ import { ArrowLeft, Mail, Building2 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { getContactById } from "@/lib/contacts";
 import { listTemplates } from "@/lib/templates";
+import { getContactTimeline } from "@/lib/contact-activity";
 import { createClient } from "@/lib/supabase/server";
 import { ContactForm } from "../contact-form";
 import { updateContact, deleteContact, type ContactFormState } from "../actions";
 import { SendEmailPanel } from "./send-email-panel";
+import { NotesEditor } from "./notes-editor";
+import { ActivityTimeline } from "./activity-timeline";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -24,7 +27,7 @@ export default async function ContactDetailPage({
   if (!contact) notFound();
 
   const supabase = await createClient();
-  const [{ data: workspaceData }, { data: account }, templates] =
+  const [{ data: workspaceData }, { data: account }, templates, timeline] =
     await Promise.all([
       supabase
         .from("contact_workspace_data")
@@ -41,6 +44,7 @@ export default async function ContactDetailPage({
         .eq("is_active", true)
         .maybeSingle(),
       listTemplates(workspace.id),
+      getContactTimeline(id, workspace.id),
     ]);
 
   async function updateAction(_prev: ContactFormState, formData: FormData) {
@@ -125,6 +129,20 @@ export default async function ContactDetailPage({
           }))}
           account={account}
         />
+      </div>
+
+      {/* Notes (workspace-scoped) */}
+      <div className="mb-6">
+        <NotesEditor
+          slug={slug}
+          contactId={contact.id}
+          initialNotes={workspaceData?.workspace_notes ?? null}
+        />
+      </div>
+
+      {/* Activity timeline */}
+      <div className="mb-6">
+        <ActivityTimeline events={timeline} />
       </div>
 
       {/* Edit form */}
