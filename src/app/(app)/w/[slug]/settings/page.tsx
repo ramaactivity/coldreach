@@ -8,6 +8,7 @@ import {
   Building2,
   Kanban,
   PenLine,
+  ListPlus,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
@@ -16,6 +17,7 @@ import { WorkspaceInfoForm } from "./workspace-info-form";
 import { ScheduleForm } from "./schedule-form";
 import { SignatureForm } from "./signature-form";
 import { PipelineStagesEditor } from "./pipeline-stages-editor";
+import { CustomFieldsEditor } from "./custom-fields-editor";
 import { PageHeader } from "@/components/ui/page-header";
 
 export default async function WorkspaceSettingsPage({
@@ -139,6 +141,19 @@ export default async function WorkspaceSettingsPage({
           <PipelineStagesEditor
             slug={slug}
             initial={workspace.pipeline_stages}
+          />
+        </section>
+
+        {/* Custom Fields */}
+        <section>
+          <SectionHeading
+            icon={ListPlus}
+            title="Custom Fields"
+            description="Field tambahan per workspace. Muncul di form contact (new + edit) dan detail page. Beda workspace bisa beda fields — value di-share di JSONB."
+          />
+          <CustomFieldsEditor
+            slug={slug}
+            initial={workspace.custom_fields_schema ?? []}
           />
         </section>
       </div>

@@ -51,6 +51,46 @@ export type ContactFormState = {
   success?: boolean;
 };
 
+/**
+ * Pull `cf_<id>` form fields, coerce by schema type, return a record.
+ * Skips empty values so they don't overwrite existing JSONB entries.
+ */
+function parseCustomFieldValues(
+  formData: FormData,
+  schema: Array<{ id: string; type: string }>,
+): Record<string, string | number> {
+  const out: Record<string, string | number> = {};
+  for (const f of schema) {
+    const raw = formData.get(`cf_${f.id}`);
+    if (raw === null) continue;
+    const str = String(raw).trim();
+    if (str === "") continue;
+    if (f.type === "number") {
+      const n = Number(str);
+      if (!Number.isNaN(n)) out[f.id] = n;
+    } else {
+      out[f.id] = str;
+    }
+  }
+  return out;
+}
+
+/**
+ * Merge custom field values into existing contact.custom_fields without
+ * touching keys defined by other workspaces' schemas. Workspace-defined
+ * keys are replaced (so clearing a field actually removes it).
+ */
+function mergeCustomFields(
+  current: Record<string, unknown>,
+  workspaceSchemaKeys: string[],
+  newValues: Record<string, string | number>,
+): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...current };
+  for (const k of workspaceSchemaKeys) delete next[k];
+  for (const [k, v] of Object.entries(newValues)) next[k] = v;
+  return next;
+}
+
 function parseTags(tagsStr: string | undefined): string[] {
   if (!tagsStr) return [];
   return tagsStr
@@ -93,6 +133,9 @@ export async function createContact(
     };
   }
 
+  const cfSchema = workspace.custom_fields_schema ?? [];
+  const cfValues = parseCustomFieldValues(formData, cfSchema);
+
   const { data: contact, error } = await supabase
     .from("contacts")
     .insert({
@@ -100,6 +143,7 @@ export async function createContact(
       ...rest,
       alt_emails: altParsed.ok,
       tags: tagsArray,
+      custom_fields: cfValues,
       source: "manual",
     })
     .select("id")
@@ -160,12 +204,31 @@ export async function updateContact(
     };
   }
 
+  // Merge custom fields without clobbering keys from other workspaces
+  const cfSchema = workspace.custom_fields_schema ?? [];
+  const cfValues = parseCustomFieldValues(formData, cfSchema);
+  const { data: existing } = await supabase
+    .from("contacts")
+    .select("custom_fields")
+    .eq("id", id)
+    .maybeSingle();
+  const currentCustom = (existing?.custom_fields ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const mergedCustom = mergeCustomFields(
+    currentCustom,
+    cfSchema.map((f) => f.id),
+    cfValues,
+  );
+
   const { error } = await supabase
     .from("contacts")
     .update({
       ...rest,
       alt_emails: altParsed.ok,
       tags: tagsArray,
+      custom_fields: mergedCustom,
     })
     .eq("id", id);
 

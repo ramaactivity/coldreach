@@ -41,6 +41,7 @@ export default async function NewContactPage({
       <Card className="p-6">
         <ContactForm
           pipelineStages={workspace.pipeline_stages}
+          customFields={workspace.custom_fields_schema ?? []}
           action={action}
           submitLabel="Buat Contact"
         />

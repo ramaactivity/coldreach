@@ -163,6 +163,7 @@ export default async function ContactDetailPage({
         </h2>
         <ContactForm
           pipelineStages={workspace.pipeline_stages}
+          customFields={workspace.custom_fields_schema ?? []}
           initialContact={contact}
           initialLeadStageId={workspaceData?.lead_stage_id ?? null}
           action={updateAction}

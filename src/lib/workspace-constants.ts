@@ -9,6 +9,25 @@ export type PipelineStage = {
   is_terminal?: boolean;
 };
 
+export type CustomFieldType = "text" | "number" | "date" | "select" | "textarea";
+
+export type CustomField = {
+  id: string; // stable key in contacts.custom_fields JSONB
+  label: string;
+  type: CustomFieldType;
+  options?: string[]; // for select
+  required?: boolean;
+  hint?: string;
+};
+
+export const CUSTOM_FIELD_TYPES: { value: CustomFieldType; label: string }[] = [
+  { value: "text", label: "Text" },
+  { value: "textarea", label: "Long text" },
+  { value: "number", label: "Number" },
+  { value: "date", label: "Date" },
+  { value: "select", label: "Select (dropdown)" },
+];
+
 export type Workspace = {
   id: string;
   user_id: string;
@@ -19,6 +38,7 @@ export type Workspace = {
   color_theme: string;
   business_type: string | null;
   pipeline_stages: PipelineStage[];
+  custom_fields_schema: CustomField[];
   schedule_days: number[];
   schedule_start_time: string;
   schedule_end_time: string;

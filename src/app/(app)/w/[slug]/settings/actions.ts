@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug, WORKSPACE_CACHE_TAG } from "@/lib/workspaces";
-import type { PipelineStage } from "@/lib/workspace-constants";
+import type { PipelineStage, CustomField } from "@/lib/workspace-constants";
 
 export async function disconnectGmail(slug: string, accountId: string) {
   const supabase = await createClient();
@@ -331,4 +331,70 @@ export async function updatePipelineStages(
   revalidatePath(`/w/${slug}/pipeline`);
   updateTag(WORKSPACE_CACHE_TAG);
   return { success: true };
+}
+
+// =============================================================================
+// Custom fields schema update
+// =============================================================================
+
+const FieldTypeEnum = z.enum(["text", "number", "date", "select", "textarea"]);
+
+const CustomFieldSchema = z.object({
+  id: z
+    .string()
+    .min(1)
+    .max(60)
+    .regex(/^[a-z0-9_]+$/, "id harus lowercase + underscore"),
+  label: z.string().min(1).max(60),
+  type: FieldTypeEnum,
+  options: z.array(z.string()).optional(),
+  required: z.boolean().optional(),
+  hint: z.string().max(200).optional(),
+});
+
+const CustomFieldsSchema = z.object({
+  fields: z.array(CustomFieldSchema).max(20),
+});
+
+export async function updateCustomFieldsSchema(
+  slug: string,
+  fields: CustomField[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const workspace = await getWorkspaceBySlug(slug);
+  if (!workspace) return { ok: false, error: "Workspace not found" };
+
+  const parsed = CustomFieldsSchema.safeParse({ fields });
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid" };
+  }
+
+  // Enforce unique ids
+  const ids = new Set<string>();
+  for (const f of parsed.data.fields) {
+    if (ids.has(f.id)) {
+      return { ok: false, error: `Duplicate field id: ${f.id}` };
+    }
+    ids.add(f.id);
+    if (f.type === "select" && (!f.options || f.options.length === 0)) {
+      return { ok: false, error: `Select "${f.label}" butuh minimal 1 option` };
+    }
+  }
+
+  const { error } = await supabase
+    .from("workspaces")
+    .update({ custom_fields_schema: parsed.data.fields })
+    .eq("id", workspace.id)
+    .eq("user_id", user.id);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/w/${slug}/settings`);
+  revalidatePath(`/w/${slug}/contacts`);
+  updateTag(WORKSPACE_CACHE_TAG);
+  return { ok: true };
 }

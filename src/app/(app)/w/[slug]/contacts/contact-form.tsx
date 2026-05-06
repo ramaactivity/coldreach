@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import type { Contact } from "@/lib/contacts";
-import type { PipelineStage } from "@/lib/workspace-constants";
+import type { PipelineStage, CustomField } from "@/lib/workspace-constants";
 import { Button } from "@/components/ui/button";
 import {
   FieldLabel,
@@ -15,6 +15,7 @@ import type { ContactFormState } from "./actions";
 
 type Props = {
   pipelineStages: PipelineStage[];
+  customFields?: CustomField[];
   initialContact?: Contact;
   initialLeadStageId?: string | null;
   action: (state: ContactFormState, formData: FormData) => Promise<ContactFormState>;
@@ -25,12 +26,17 @@ const INITIAL_STATE: ContactFormState = {};
 
 export function ContactForm({
   pipelineStages,
+  customFields = [],
   initialContact,
   initialLeadStageId,
   action,
   submitLabel,
 }: Props) {
   const [state, formAction, pending] = useActionState(action, INITIAL_STATE);
+  const cfValues = (initialContact?.custom_fields ?? {}) as Record<
+    string,
+    string | number | null
+  >;
 
   return (
     <form action={formAction} className="space-y-6">
@@ -173,6 +179,72 @@ export function ContactForm({
           </div>
         </div>
       </Section>
+
+      {customFields.length > 0 && (
+        <Section title="Custom fields">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {customFields.map((f) => {
+              const initialValue =
+                cfValues[f.id] !== undefined && cfValues[f.id] !== null
+                  ? String(cfValues[f.id])
+                  : "";
+              const inputName = `cf_${f.id}`;
+              const inputId = `cf_${f.id}`;
+              return (
+                <div
+                  key={f.id}
+                  className={f.type === "textarea" ? "sm:col-span-2" : ""}
+                >
+                  <FieldLabel
+                    htmlFor={inputId}
+                    required={f.required}
+                    hint={f.hint}
+                  >
+                    {f.label}
+                  </FieldLabel>
+                  {f.type === "textarea" ? (
+                    <Textarea
+                      id={inputId}
+                      name={inputName}
+                      rows={3}
+                      defaultValue={initialValue}
+                      required={f.required}
+                    />
+                  ) : f.type === "select" ? (
+                    <Select
+                      id={inputId}
+                      name={inputName}
+                      defaultValue={initialValue}
+                      required={f.required}
+                    >
+                      <option value="">— Pilih —</option>
+                      {(f.options ?? []).map((opt) => (
+                        <option key={opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </Select>
+                  ) : (
+                    <Input
+                      id={inputId}
+                      name={inputName}
+                      type={
+                        f.type === "number"
+                          ? "number"
+                          : f.type === "date"
+                            ? "date"
+                            : "text"
+                      }
+                      defaultValue={initialValue}
+                      required={f.required}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Section>
+      )}
 
       {state.error && (
         <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
