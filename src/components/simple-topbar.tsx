@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { Inbox, LogOut } from "lucide-react";
 
 export function SimpleTopbar({ email }: { email: string }) {
   return (
@@ -11,6 +11,13 @@ export function SimpleTopbar({ email }: { email: string }) {
         ColdReach
       </Link>
       <div className="flex items-center gap-3">
+        <Link
+          href="/inbox"
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+        >
+          <Inbox className="h-3 w-3" />
+          <span>Inbox</span>
+        </Link>
         <span className="hidden text-xs text-zinc-500 sm:block dark:text-zinc-400">
           {email}
         </span>

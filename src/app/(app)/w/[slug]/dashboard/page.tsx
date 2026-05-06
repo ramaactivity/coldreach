@@ -155,13 +155,17 @@ export default async function WorkspaceDashboardPage({
           icon={Sparkles}
           tone={stats.queues_active > 0 ? "emerald" : "default"}
         />
-        <StatCard
-          label="Pending replies"
-          value={stats.pending_replies.toString()}
-          icon={Inbox}
-          tone={stats.pending_replies > 0 ? "blue" : "default"}
-          hint={stats.pending_replies > 0 ? "butuh tindakan" : undefined}
-        />
+        <Link href={`/w/${slug}/inbox`} className="block">
+          <StatCard
+            label="Pending replies"
+            value={stats.pending_replies.toString()}
+            icon={Inbox}
+            tone={stats.pending_replies > 0 ? "blue" : "default"}
+            hint={
+              stats.pending_replies > 0 ? "buka inbox →" : "buka inbox"
+            }
+          />
+        </Link>
       </div>
 
       {/* Two column: Replies + Activity */}

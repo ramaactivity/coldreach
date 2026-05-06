@@ -90,13 +90,17 @@ export default async function DashboardPage() {
             tone="blue"
             hint={replyRate7d > 0 ? `${replyRate7d}% reply rate` : undefined}
           />
-          <StatCard
-            label="Pending replies"
-            value={totals.pending_replies.toLocaleString("id-ID")}
-            icon={Inbox}
-            tone={totals.pending_replies > 0 ? "blue" : "default"}
-            hint={totals.pending_replies > 0 ? "butuh tindakan" : undefined}
-          />
+          <Link href="/inbox" className="block">
+            <StatCard
+              label="Pending replies"
+              value={totals.pending_replies.toLocaleString("id-ID")}
+              icon={Inbox}
+              tone={totals.pending_replies > 0 ? "blue" : "default"}
+              hint={
+                totals.pending_replies > 0 ? "buka inbox →" : "buka inbox"
+              }
+            />
+          </Link>
         </div>
 
         {/* Workspaces grid */}

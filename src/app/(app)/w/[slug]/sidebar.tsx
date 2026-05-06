@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
+  Inbox,
   Users,
   FileText,
   Send,
@@ -36,6 +37,7 @@ export function Sidebar({
 
   const items: NavItem[] = [
     { href: `/w/${slug}/dashboard`, label: "Dashboard", icon: LayoutDashboard },
+    { href: `/w/${slug}/inbox`, label: "Inbox", icon: Inbox },
     { href: `/w/${slug}/contacts`, label: "Contacts", icon: Users },
     { href: `/w/${slug}/templates`, label: "Templates", icon: FileText },
     { href: `/w/${slug}/queues`, label: "Queues", icon: Send },

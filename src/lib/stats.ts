@@ -103,7 +103,8 @@ export async function getWorkspaceStats(
       .from("campaign_recipients")
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", workspaceId)
-      .eq("status", "replied"),
+      .eq("status", "replied")
+      .is("handled_at", null),
     supabase
       .from("email_accounts")
       .select("daily_quota, emails_sent_today")
