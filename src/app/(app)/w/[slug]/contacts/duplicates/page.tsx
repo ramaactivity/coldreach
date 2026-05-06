@@ -5,7 +5,6 @@ import {
   ShieldCheck,
   AtSign,
   Users,
-  ChevronRight,
   Sparkles,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
@@ -13,6 +12,8 @@ import { getDuplicateReport } from "@/lib/duplicates";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CrossLinkCard } from "./cross-link-card";
+import { ClusterCard } from "./cluster-card";
 
 export default async function DuplicatesPage({
   params,
@@ -84,37 +85,20 @@ export default async function DuplicatesPage({
               </h2>
               <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
                 Kontak A punya alt email yang juga jadi primary email kontak B.
-                Kemungkinan duplikat. Buka detail kedua kontak untuk verify dan
-                hapus salah satu (atau hapus alt email-nya kalau bukan dup).
+                Kemungkinan duplikat. Klik <strong>Merge jadi 1 kontak</strong>{" "}
+                untuk gabungin (pilih primary) atau buka detail buat verify
+                manual.
               </p>
               <Card className="overflow-hidden p-0">
                 <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
                   {report.crossLinks.map((link, i) => (
-                    <li
+                    <CrossLinkCard
                       key={`${link.email}-${i}`}
-                      className="px-5 py-4"
-                    >
-                      <div className="mb-2 flex items-center gap-2">
-                        <code className="rounded bg-zinc-100 px-2 py-0.5 text-xs font-mono text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100">
-                          {link.email}
-                        </code>
-                        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                          muncul di 2 kontak
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                        <ContactCard
-                          slug={slug}
-                          contact={link.primaryContact}
-                          role="Primary di sini"
-                        />
-                        <ContactCard
-                          slug={slug}
-                          contact={link.altOwnerContact}
-                          role="Alt di sini"
-                        />
-                      </div>
-                    </li>
+                      slug={slug}
+                      email={link.email}
+                      primaryContact={link.primaryContact}
+                      altOwnerContact={link.altOwnerContact}
+                    />
                   ))}
                 </ul>
               </Card>
@@ -133,54 +117,17 @@ export default async function DuplicatesPage({
               </h2>
               <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
                 Beberapa kontak punya nama + company sama tapi email beda.
-                Bisa jadi duplikat (orang yg sama dengan email kerja + personal),
-                atau memang 2 orang berbeda. Verify manual.
+                Bisa jadi 1 orang dengan email kerja + personal, atau 2 orang
+                beda. Klik <strong>Merge cluster</strong> untuk gabungin atau
+                verify manual dulu.
               </p>
               <div className="space-y-3">
                 {report.nameCompanyClusters.map((cluster) => (
-                  <Card key={cluster.key} className="overflow-hidden p-0">
-                    <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-                      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                        {cluster.contacts[0]?.full_name ?? "—"}
-                        {cluster.contacts[0]?.company && (
-                          <span className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400">
-                            · {cluster.contacts[0].company}
-                          </span>
-                        )}
-                      </p>
-                      <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                        {cluster.contacts.length} kontak
-                      </p>
-                    </div>
-                    <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                      {cluster.contacts.map((c) => (
-                        <li key={c.id}>
-                          <Link
-                            href={`/w/${slug}/contacts/${c.id}`}
-                            className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                {c.email}
-                              </p>
-                              <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
-                                {c.position ?? "—"} · ditambahkan{" "}
-                                {new Date(c.created_at).toLocaleDateString(
-                                  "id-ID",
-                                  {
-                                    day: "numeric",
-                                    month: "short",
-                                    year: "numeric",
-                                  },
-                                )}
-                              </p>
-                            </div>
-                            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </Card>
+                  <ClusterCard
+                    key={cluster.key}
+                    slug={slug}
+                    contacts={cluster.contacts}
+                  />
                 ))}
               </div>
             </section>
@@ -188,41 +135,6 @@ export default async function DuplicatesPage({
         </div>
       )}
     </div>
-  );
-}
-
-function ContactCard({
-  slug,
-  contact,
-  role,
-}: {
-  slug: string;
-  contact: {
-    id: string;
-    email: string;
-    full_name: string | null;
-    company: string | null;
-  };
-  role: string;
-}) {
-  return (
-    <Link
-      href={`/w/${slug}/contacts/${contact.id}`}
-      className="group flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 bg-white px-3 py-2.5 transition-all hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/40"
-    >
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
-          {contact.full_name ?? contact.email}
-        </p>
-        <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
-          {contact.company ?? contact.email}
-        </p>
-        <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
-          {role}
-        </p>
-      </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 transition-colors group-hover:text-zinc-600 dark:group-hover:text-zinc-300" />
-    </Link>
   );
 }
 
