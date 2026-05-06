@@ -24,16 +24,15 @@ import {
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, Input } from "@/components/ui/input";
+import { analyzeImport, importContactsChunk } from "./import-actions";
 import {
-  analyzeImport,
-  importContactsChunk,
   SKIPPED_REASON_LABEL,
   type ImportRow,
   type ImportRowWithIndex,
   type AnalysisResult,
   type SkippedDetail,
   type SkippedReason,
-} from "./import-actions";
+} from "./import-shared";
 
 const FIELD_OPTIONS = [
   { value: "", label: "— Skip —" },

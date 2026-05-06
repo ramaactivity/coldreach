@@ -5,63 +5,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
+import type {
+  AnalysisRow,
+  AnalysisResult,
+  ChunkResult,
+  ImportRowWithIndex,
+  SkippedDetail,
+} from "./import-shared";
 
 const EmailSchema = z.string().email();
-
-export type SkippedReason =
-  | "missing_email"
-  | "invalid_email"
-  | "duplicate_in_csv"
-  | "duplicate_primary"
-  | "duplicate_alt";
-
-export const SKIPPED_REASON_LABEL: Record<SkippedReason, string> = {
-  missing_email: "Email kosong",
-  invalid_email: "Format email invalid",
-  duplicate_in_csv: "Duplikat di CSV ini",
-  duplicate_primary: "Sudah ada di database (primary)",
-  duplicate_alt: "Sudah ada sebagai alt email kontak lain",
-};
-
-export type SkippedDetail = {
-  rowIndex: number;
-  email: string;
-  reason: SkippedReason;
-};
-
-export type ImportRow = {
-  email?: string;
-  alt_emails?: string[];
-  first_name?: string;
-  last_name?: string;
-  company?: string;
-  position?: string;
-  phone?: string;
-  website?: string;
-  notes?: string;
-  tags?: string;
-};
-
-export type ImportRowWithIndex = ImportRow & { rowIndex: number };
-
-export type AnalysisRow = {
-  rowIndex: number;
-  email?: string;
-  alt_emails?: string[];
-};
-
-export type AnalysisResult = {
-  totalRows: number;
-  willImport: number;
-  skipped: SkippedDetail[];
-};
-
-export type ChunkResult = {
-  imported: number;
-  skipped: SkippedDetail[];
-  failed: number;
-  errors: string[];
-};
 
 type EmailIndex = {
   primaries: Map<string, string>;
@@ -96,7 +48,6 @@ async function loadExistingEmailIndex(
 
 /**
  * Pre-import dry-run: classify each row without writing anything.
- * Used to show the user what's about to happen before they commit.
  */
 export async function analyzeImport(
   slug: string,
@@ -133,36 +84,20 @@ export async function analyzeImport(
       continue;
     }
     if (!EmailSchema.safeParse(raw).success) {
-      skipped.push({
-        rowIndex: r.rowIndex,
-        email: raw,
-        reason: "invalid_email",
-      });
+      skipped.push({ rowIndex: r.rowIndex, email: raw, reason: "invalid_email" });
       continue;
     }
     if (seenInCsv.has(raw)) {
-      skipped.push({
-        rowIndex: r.rowIndex,
-        email: raw,
-        reason: "duplicate_in_csv",
-      });
+      skipped.push({ rowIndex: r.rowIndex, email: raw, reason: "duplicate_in_csv" });
       continue;
     }
     seenInCsv.add(raw);
     if (primaries.has(raw)) {
-      skipped.push({
-        rowIndex: r.rowIndex,
-        email: raw,
-        reason: "duplicate_primary",
-      });
+      skipped.push({ rowIndex: r.rowIndex, email: raw, reason: "duplicate_primary" });
       continue;
     }
     if (altsToContact.has(raw)) {
-      skipped.push({
-        rowIndex: r.rowIndex,
-        email: raw,
-        reason: "duplicate_alt",
-      });
+      skipped.push({ rowIndex: r.rowIndex, email: raw, reason: "duplicate_alt" });
       continue;
     }
     willImport++;
@@ -218,28 +153,16 @@ export async function importContactsChunk(
       continue;
     }
     if (seenInChunk.has(raw)) {
-      skipped.push({
-        rowIndex: row.rowIndex,
-        email: raw,
-        reason: "duplicate_in_csv",
-      });
+      skipped.push({ rowIndex: row.rowIndex, email: raw, reason: "duplicate_in_csv" });
       continue;
     }
     seenInChunk.add(raw);
     if (primaries.has(raw)) {
-      skipped.push({
-        rowIndex: row.rowIndex,
-        email: raw,
-        reason: "duplicate_primary",
-      });
+      skipped.push({ rowIndex: row.rowIndex, email: raw, reason: "duplicate_primary" });
       continue;
     }
     if (altsToContact.has(raw)) {
-      skipped.push({
-        rowIndex: row.rowIndex,
-        email: raw,
-        reason: "duplicate_alt",
-      });
+      skipped.push({ rowIndex: row.rowIndex, email: raw, reason: "duplicate_alt" });
       continue;
     }
 
@@ -308,9 +231,7 @@ export async function importContactsChunk(
     errors.push(error.message);
   } else {
     imported = data?.length ?? 0;
-    // race-condition: anything not returned was a silent dup at DB level
     if (imported < toInsert.length) {
-      // we won't know which row exactly; emit a soft-warning skip
       const diff = toInsert.length - imported;
       for (let k = 0; k < diff; k++) {
         skipped.push({
