@@ -325,8 +325,12 @@ export async function runFollowupsForQueue(
       .select("id")
       .maybeSingle();
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const trackingUrl = followupCR?.id
-      ? `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/track/open/${followupCR.id}`
+      ? `${appUrl}/api/track/open/${followupCR.id}`
+      : null;
+    const clickTrackingBase = followupCR?.id
+      ? `${appUrl}/api/track/click/${followupCR.id}`
       : null;
 
     const sendResult = await sendEmail(admin, {
@@ -336,6 +340,7 @@ export async function runFollowupsForQueue(
       attachments: tmplAttachments,
       aiOpener,
       trackingUrl,
+      clickTrackingBase,
       gmailThreadId: c.cr.gmail_thread_id,
       inReplyToMessageId: c.cr.gmail_message_id,
       subjectPrefix: "Re:",

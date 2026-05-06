@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken, refreshAccessToken } from "@/lib/gmail";
 import { plainToHtml, renderPreview } from "@/lib/template-helpers";
+import { buildClickTrackingHref } from "@/lib/click-tracking";
 
 export type EmailContact = {
   id: string;
@@ -82,6 +83,7 @@ function buildMimeMessage(
   bodyPlain: string,
   attachments: Array<{ filename: string; mime_type: string; data: Buffer }>,
   trackingUrl: string | null,
+  clickTrackingBase: string | null,
   inReplyToMessageId: string | null,
 ): string {
   const fromHeader = fromName
@@ -106,8 +108,13 @@ function buildMimeMessage(
     baseHeaders.push(`References: ${inReplyToMessageId}`);
   }
 
-  // Build the bodies. HTML version contains tracking pixel; plain version does not.
-  const bodyHtml = `${plainToHtml(bodyPlain)}${buildTrackingPixelHtml(trackingUrl)}`;
+  // Build the bodies. HTML version: auto-links URLs (wrapped in click
+  // tracker when base is provided) + open-tracking pixel. Plain version
+  // keeps original URLs as-is so plain-text fallback stays clean.
+  const linkWrapper = clickTrackingBase
+    ? (url: string) => buildClickTrackingHref(clickTrackingBase, url)
+    : undefined;
+  const bodyHtml = `${plainToHtml(bodyPlain, linkWrapper)}${buildTrackingPixelHtml(trackingUrl)}`;
 
   // Outer boundary (only used if attachments)
   const altBoundary = `----coldreach-alt-${Date.now().toString(36)}`;
@@ -248,6 +255,9 @@ export type SendEmailParams = {
   aiOpener: string | null;
   /** When set, embeds an open-tracking pixel pointing to this URL in HTML body. */
   trackingUrl: string | null;
+  /** When set, every URL in the HTML body is wrapped with this tracker base
+   *  (e.g., `${APP}/api/track/click/{recipient_id}`) plus an HMAC signature. */
+  clickTrackingBase?: string | null;
   /** When set, threads this email under the given Gmail thread (for follow-ups). */
   gmailThreadId?: string | null;
   /** Original Gmail Message-ID (with angle brackets) for In-Reply-To header. */
@@ -271,6 +281,7 @@ export async function sendEmail(
     attachments,
     aiOpener,
     trackingUrl,
+    clickTrackingBase,
     gmailThreadId,
     inReplyToMessageId,
     subjectPrefix,
@@ -325,6 +336,7 @@ export async function sendEmail(
       body,
       attachmentBuffers,
       trackingUrl,
+      clickTrackingBase ?? null,
       inReplyToMessageId ?? null,
     );
 

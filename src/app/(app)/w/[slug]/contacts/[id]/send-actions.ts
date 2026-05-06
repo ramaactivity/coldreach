@@ -146,8 +146,12 @@ export async function sendOneEmailToContact(
     .select("id")
     .maybeSingle();
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
   const trackingUrl = campaignRecipient?.id
-    ? `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/track/open/${campaignRecipient.id}`
+    ? `${appUrl}/api/track/open/${campaignRecipient.id}`
+    : null;
+  const clickTrackingBase = campaignRecipient?.id
+    ? `${appUrl}/api/track/click/${campaignRecipient.id}`
     : null;
 
   // Test mode override
@@ -168,6 +172,7 @@ export async function sendOneEmailToContact(
     attachments: attachments ?? [],
     aiOpener,
     trackingUrl,
+    clickTrackingBase,
     subjectPrefix: opts.testMode ? "[TEST]" : null,
     signature: workspace.default_signature,
   });

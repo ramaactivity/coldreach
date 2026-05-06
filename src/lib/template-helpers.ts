@@ -58,14 +58,31 @@ export function extractVariables(body: string): string[] {
   return Array.from(found);
 }
 
-export function plainToHtml(plain: string): string {
+// URLs in plain-text bodies. Captures up to whitespace / quote / angle
+// bracket; trailing punctuation is stripped after the match so "see
+// google.com." doesn't include the period in the link.
+const URL_REGEX = /(https?:\/\/[^\s<>"]+)/g;
+
+export function plainToHtml(
+  plain: string,
+  linkWrapper?: (url: string) => string,
+): string {
   const escaped = plain
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-  const paragraphs = escaped
-    .split(/\n\n+/)
-    .map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`);
+  const paragraphs = escaped.split(/\n\n+/).map((p) => {
+    const withBr = p.replace(/\n/g, "<br>");
+    const linked = withBr.replace(URL_REGEX, (raw) => {
+      // peel trailing punctuation (.,;:!?)] which is rarely part of a URL
+      const trailingMatch = raw.match(/[.,;:!?)\]]+$/);
+      const trailing = trailingMatch ? trailingMatch[0] : "";
+      const url = trailing ? raw.slice(0, -trailing.length) : raw;
+      const href = linkWrapper ? linkWrapper(url) : url;
+      return `<a href="${href}" target="_blank" rel="noopener noreferrer">${url}</a>${trailing}`;
+    });
+    return `<p>${linked}</p>`;
+  });
   return paragraphs.join("\n");
 }
 

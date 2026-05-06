@@ -243,8 +243,12 @@ export async function runQueue(
       .select("id")
       .maybeSingle();
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const trackingUrl = campaignRecipient?.id
-      ? `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/api/track/open/${campaignRecipient.id}`
+      ? `${appUrl}/api/track/open/${campaignRecipient.id}`
+      : null;
+    const clickTrackingBase = campaignRecipient?.id
+      ? `${appUrl}/api/track/click/${campaignRecipient.id}`
       : null;
 
     // TEST MODE safety: redirect to connected Gmail account so we never
@@ -267,6 +271,7 @@ export async function runQueue(
       attachments: attachments ?? [],
       aiOpener,
       trackingUrl,
+      clickTrackingBase,
       subjectPrefix: queue.test_mode ? "[TEST]" : null,
       signature: workspaceSignature,
     });
