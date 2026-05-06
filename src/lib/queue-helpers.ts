@@ -15,6 +15,7 @@ export type SendQueue = {
   followup_enabled: boolean;
   followup_template_id: string | null;
   followup_after_days: number;
+  followup_steps: FollowupStep[];
   use_ai_opener: boolean;
   test_mode: boolean;
   is_one_shot: boolean;
@@ -36,6 +37,14 @@ export type AudienceFilter =
   | { type: "all" }
   | { type: "tag"; tag: string }
   | { type: "manual"; contact_ids: string[] };
+
+export type FollowupStep = {
+  template_id: string;
+  after_days: number;
+};
+
+export const MAX_FOLLOWUP_STEPS = 3;
+export const DEFAULT_FOLLOWUP_DAYS = [4, 7, 7] as const;
 
 export const DAY_NAMES = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
 

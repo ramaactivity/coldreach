@@ -15,8 +15,10 @@ import { getQueueById, getQueueStats } from "@/lib/queues";
 import { createClient } from "@/lib/supabase/server";
 import { formatDays, formatTime, progressPercent } from "@/lib/queue-helpers";
 import { QueueActionsBar } from "./queue-actions-bar";
+import { FollowupSequenceEditor } from "./followup-sequence-editor";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import type { FollowupStep } from "@/lib/queue-helpers";
 
 export default async function QueueDetailPage({
   params,
@@ -35,9 +37,9 @@ export default async function QueueDetailPage({
   if (!queue) notFound();
   const pct = progressPercent(queue);
 
-  // Now parallelize template + account (depends on queue + workspace)
+  // Now parallelize template + account + all-templates (depends on queue + workspace)
   const supabase = await createClient();
-  const [templateResult, accountResult] = await Promise.all([
+  const [templateResult, accountResult, allTemplatesResult] = await Promise.all([
     queue.template_id
       ? supabase
           .from("templates")
@@ -51,9 +53,36 @@ export default async function QueueDetailPage({
       .eq("workspace_id", workspace.id)
       .eq("is_active", true)
       .maybeSingle(),
+    supabase
+      .from("templates")
+      .select("id, name")
+      .eq("workspace_id", workspace.id)
+      .is("deleted_at", null)
+      .order("name"),
   ]);
   const template = templateResult.data;
   const account = accountResult.data;
+  const allTemplates = (allTemplatesResult.data ?? []) as Array<{
+    id: string;
+    name: string;
+  }>;
+
+  // Resolve effective followup steps (prefer new array, fallback to legacy)
+  let followupSteps: FollowupStep[] = Array.isArray(queue.followup_steps)
+    ? (queue.followup_steps as FollowupStep[])
+    : [];
+  if (
+    followupSteps.length === 0 &&
+    queue.followup_enabled &&
+    queue.followup_template_id
+  ) {
+    followupSteps = [
+      {
+        template_id: queue.followup_template_id,
+        after_days: queue.followup_after_days ?? 4,
+      },
+    ];
+  }
 
   const remainingQuota = account
     ? account.daily_quota - account.emails_sent_today
@@ -235,6 +264,17 @@ export default async function QueueDetailPage({
         pendingCount={stats.pending}
       />
 
+      {/* Follow-up sequence */}
+      <div className="mt-4">
+        <FollowupSequenceEditor
+          slug={slug}
+          queueId={queue.id}
+          templates={allTemplates}
+          initialSteps={followupSteps}
+          primaryTemplateName={template?.name ?? null}
+        />
+      </div>
+
       {/* Settings */}
       <Card className="mt-4 p-0">
         <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
@@ -254,10 +294,10 @@ export default async function QueueDetailPage({
             }
           />
           <DetailRow
-            label="Auto follow-up"
+            label="Follow-up steps"
             value={
-              queue.followup_enabled ? (
-                <Badge variant="info">{queue.followup_after_days} hari</Badge>
+              followupSteps.length > 0 ? (
+                <Badge variant="info">{followupSteps.length} step</Badge>
               ) : (
                 <Badge variant="secondary">Off</Badge>
               )

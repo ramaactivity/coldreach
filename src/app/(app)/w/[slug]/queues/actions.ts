@@ -6,6 +6,10 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { runQueue } from "@/lib/queue-runner";
+import {
+  MAX_FOLLOWUP_STEPS,
+  type FollowupStep,
+} from "@/lib/queue-helpers";
 
 const CreateQueueSchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter").max(100),
@@ -153,6 +157,63 @@ export async function deleteQueueAction(slug: string, queueId: string) {
   await supabase.from("send_queues").delete().eq("id", queueId);
   revalidatePath(`/w/${slug}/queues`);
   redirect(`/w/${slug}/queues`);
+}
+
+const FollowupStepSchema = z.object({
+  template_id: z.string().uuid(),
+  after_days: z.coerce.number().int().min(1).max(60),
+});
+
+export async function updateFollowupSequence(
+  slug: string,
+  queueId: string,
+  steps: FollowupStep[],
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const ws = await getWorkspaceBySlug(slug);
+  if (!ws) return { ok: false, error: "Workspace not found" };
+
+  if (steps.length > MAX_FOLLOWUP_STEPS) {
+    return { ok: false, error: `Maksimal ${MAX_FOLLOWUP_STEPS} step` };
+  }
+  const parsed = z.array(FollowupStepSchema).safeParse(steps);
+  if (!parsed.success) {
+    return { ok: false, error: "Step config invalid" };
+  }
+
+  const { data: queue } = await supabase
+    .from("send_queues")
+    .select("id, user_id")
+    .eq("id", queueId)
+    .maybeSingle();
+  if (!queue || queue.user_id !== user.id) {
+    return { ok: false, error: "Queue not found" };
+  }
+
+  // Sync legacy fields untuk compat: kalau steps ada, set followup_enabled+
+  // template+days dari step pertama
+  const first = parsed.data[0];
+  const update: Record<string, unknown> = {
+    followup_steps: parsed.data,
+    followup_enabled: parsed.data.length > 0,
+    followup_template_id: first?.template_id ?? null,
+    followup_after_days: first?.after_days ?? 4,
+  };
+
+  const { error } = await supabase
+    .from("send_queues")
+    .update(update)
+    .eq("id", queueId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/w/${slug}/queues/${queueId}`);
+  revalidatePath(`/w/${slug}/queues`);
+  return { ok: true };
 }
 
 export async function runNowAction(
