@@ -63,6 +63,7 @@ export function Sidebar({
       <div className="flex items-center gap-2 border-b border-zinc-200/80 px-4 py-3.5 dark:border-zinc-800/80">
         <Link
           href="/dashboard"
+          prefetch={true}
           className="flex items-center gap-1.5 text-base font-semibold tracking-tight text-zinc-900 transition-colors hover:text-zinc-700 dark:text-zinc-100 dark:hover:text-zinc-300"
         >
           <span
@@ -88,6 +89,7 @@ export function Sidebar({
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  prefetch={true}
                   className={`group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-all ${
                     active
                       ? "bg-zinc-100 font-medium text-zinc-900 dark:bg-zinc-800/60 dark:text-zinc-50"
