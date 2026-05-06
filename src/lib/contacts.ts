@@ -192,6 +192,105 @@ export async function listContacts(
   return { contacts, total: count ?? 0 };
 }
 
+export type ContactForExport = {
+  email: string;
+  alt_emails: string[];
+  first_name: string | null;
+  last_name: string | null;
+  company: string | null;
+  position: string | null;
+  phone: string | null;
+  website: string | null;
+  notes: string | null;
+  tags: string[];
+  status: string;
+  priority: string;
+  source: string | null;
+  created_at: string;
+  workspace_data: {
+    lead_stage_id: string | null;
+    workspace_notes: string | null;
+    total_emails_sent: number | null;
+    total_emails_opened: number | null;
+    total_replies: number | null;
+    last_contacted_at: string | null;
+  } | null;
+};
+
+/**
+ * Unpaginated fetch for CSV export. Mirrors listContacts filter logic
+ * but returns ALL matching contacts and only the columns the export
+ * needs (lighter payload).
+ */
+export async function listAllContactsForExport(
+  workspace: Workspace,
+  filter: ContactsFilter = {},
+): Promise<ContactForExport[]> {
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query: any = supabase
+    .from("contacts")
+    .select(
+      `email, alt_emails, first_name, last_name, company, position, phone,
+       website, notes, tags, status, priority, source, created_at,
+       workspace_data:contact_workspace_data!left(
+         lead_stage_id, workspace_notes, total_emails_sent,
+         total_emails_opened, total_replies, last_contacted_at
+       )`,
+    )
+    .is("deleted_at", null)
+    .eq("contact_workspace_data.workspace_id", workspace.id);
+
+  if (filter.search) {
+    const term = filter.search.trim();
+    query = query.or(
+      `email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,company.ilike.%${term}%,alt_emails::text.ilike.%${term}%`,
+    );
+  }
+  if (filter.tags && filter.tags.length > 0) {
+    query = query.contains("tags", filter.tags);
+  }
+  if (filter.status) query = query.eq("status", filter.status);
+  if (filter.priority) query = query.eq("priority", filter.priority);
+  if (filter.lead_stage_id) {
+    query = query.eq("contact_workspace_data.lead_stage_id", filter.lead_stage_id);
+  }
+  if (filter.segment) {
+    switch (filter.segment) {
+      case "never_contacted":
+        query = query.is("contact_workspace_data.last_contacted_at", null);
+        break;
+      case "replied":
+        query = query.gt("contact_workspace_data.total_replies", 0);
+        break;
+      case "bounced":
+        query = query.eq("status", "bounced");
+        break;
+      case "stale_30d": {
+        const cutoff = new Date(
+          Date.now() - 30 * 24 * 3600 * 1000,
+        ).toISOString();
+        query = query.lt("contact_workspace_data.last_contacted_at", cutoff);
+        break;
+      }
+    }
+  }
+  query = query.order("created_at", { ascending: false });
+
+  const { data, error } = await query;
+  if (error) {
+    console.error("listAllContactsForExport error:", error);
+    return [];
+  }
+
+  return (data ?? []).map((c: Record<string, unknown>) => ({
+    ...c,
+    workspace_data: Array.isArray(c.workspace_data)
+      ? (c.workspace_data[0] ?? null)
+      : (c.workspace_data ?? null),
+  })) as ContactForExport[];
+}
+
 export async function getContactById(
   id: string,
 ): Promise<Contact | null> {

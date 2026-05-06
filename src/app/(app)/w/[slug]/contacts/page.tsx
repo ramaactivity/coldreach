@@ -24,6 +24,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FiltersBar } from "./filters-bar";
 import { ContactsTable } from "./contacts-table";
+import { ExportButton } from "./export-button";
 
 const PAGE_SIZE = 50;
 
@@ -108,6 +109,7 @@ export default async function ContactsPage({
               <ShieldCheck className="h-4 w-4" />
               Duplicates
             </ButtonLink>
+            <ExportButton slug={slug} />
             <ButtonLink
               href={`/w/${slug}/contacts/import`}
               variant="outline"
