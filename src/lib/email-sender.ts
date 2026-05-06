@@ -256,6 +256,8 @@ export type SendEmailParams = {
   subjectPrefix?: string | null;
   /** Override the subject (e.g., for follow-ups, reuse original subject). */
   forcedSubject?: string | null;
+  /** Workspace plain-text signature appended to body. RFC-3676 separator. */
+  signature?: string | null;
 };
 
 export async function sendEmail(
@@ -273,6 +275,7 @@ export async function sendEmail(
     inReplyToMessageId,
     subjectPrefix,
     forcedSubject,
+    signature,
   } = params;
 
   try {
@@ -288,7 +291,13 @@ export async function sendEmail(
     const subject = subjectPrefix
       ? `${subjectPrefix} ${renderedSubject}`
       : renderedSubject;
-    const body = renderPreview(template.body_plain, values);
+    const renderedBody = renderPreview(template.body_plain, values);
+    // Append signature with RFC-3676 separator ("\n-- \n") so email
+    // clients can detect and collapse it. Skip when signature is empty.
+    const sigText = signature?.trim();
+    const body = sigText
+      ? `${renderedBody}\n\n-- \n${sigText}`
+      : renderedBody;
 
     // Download attachment files
     const attachmentBuffers: Array<{

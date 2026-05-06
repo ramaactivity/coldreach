@@ -23,6 +23,8 @@ export type Workspace = {
   schedule_start_time: string;
   schedule_end_time: string;
   daily_target: number;
+  default_signature: string | null;
+  default_signature_html: string | null;
   display_order: number;
   is_archived: boolean;
   created_at: string;

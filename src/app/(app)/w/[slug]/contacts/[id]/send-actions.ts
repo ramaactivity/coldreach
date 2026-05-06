@@ -169,6 +169,7 @@ export async function sendOneEmailToContact(
     aiOpener,
     trackingUrl,
     subjectPrefix: opts.testMode ? "[TEST]" : null,
+    signature: workspace.default_signature,
   });
 
   if (!sendResult.ok) {

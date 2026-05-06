@@ -118,6 +118,53 @@ export async function updateWorkspaceInfo(
 }
 
 // =============================================================================
+// Signature update
+// =============================================================================
+
+const SignatureSchema = z.object({
+  signature: z.string().max(2000, "Signature maksimal 2000 karakter"),
+});
+
+export async function updateWorkspaceSignature(
+  slug: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const workspace = await getWorkspaceBySlug(slug);
+  if (!workspace) return { error: "Workspace not found" };
+
+  const parsed = SignatureSchema.safeParse({
+    signature: formData.get("signature") ?? "",
+  });
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      fieldErrors[issue.path[0] as string] = issue.message;
+    }
+    return { fieldErrors };
+  }
+
+  const trimmed = parsed.data.signature.trim();
+  const { error } = await supabase
+    .from("workspaces")
+    .update({ default_signature: trimmed.length > 0 ? trimmed : null })
+    .eq("id", workspace.id)
+    .eq("user_id", user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/w/${slug}/settings`);
+  updateTag(WORKSPACE_CACHE_TAG);
+  return { success: true };
+}
+
+// =============================================================================
 // Schedule update
 // =============================================================================
 

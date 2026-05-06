@@ -256,16 +256,23 @@ export async function runFollowupsForQueue(
     Math.min(MAX_FOLLOWUPS_PER_RUN, remainingQuota),
   );
 
-  // Workspace meta for AI opener (cached)
+  // Workspace meta for AI opener + signature
   let workspaceMeta: { name: string; business_type: string | null } | null =
     null;
-  if (queue.use_ai_opener) {
+  let workspaceSignature: string | null = null;
+  {
     const { data: ws } = await admin
       .from("workspaces")
-      .select("name, business_type")
+      .select("name, business_type, default_signature")
       .eq("id", queue.workspace_id)
       .maybeSingle();
-    workspaceMeta = ws ?? null;
+    if (ws) {
+      if (queue.use_ai_opener) {
+        workspaceMeta = { name: ws.name, business_type: ws.business_type };
+      }
+      workspaceSignature =
+        (ws as { default_signature: string | null }).default_signature ?? null;
+    }
   }
 
   let accountSentToday = account.emails_sent_today;
@@ -333,6 +340,7 @@ export async function runFollowupsForQueue(
       inReplyToMessageId: c.cr.gmail_message_id,
       subjectPrefix: "Re:",
       forcedSubject: c.cr.gmail_subject_used,
+      signature: workspaceSignature,
     });
 
     if (!sendResult.ok) {

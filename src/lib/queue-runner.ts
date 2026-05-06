@@ -109,13 +109,21 @@ export async function runQueue(
   // Fetch workspace meta for AI opener prompt context
   let workspaceMeta: { name: string; business_type: string | null } | null =
     null;
-  if (queue.use_ai_opener) {
+  let workspaceSignature: string | null = null;
+  // One workspace fetch covers AI-opener metadata + signature
+  {
     const { data: ws } = await admin
       .from("workspaces")
-      .select("name, business_type")
+      .select("name, business_type, default_signature")
       .eq("id", queue.workspace_id)
       .maybeSingle();
-    workspaceMeta = ws ?? null;
+    if (ws) {
+      if (queue.use_ai_opener) {
+        workspaceMeta = { name: ws.name, business_type: ws.business_type };
+      }
+      workspaceSignature =
+        (ws as { default_signature: string | null }).default_signature ?? null;
+    }
   }
 
   // Pre-fetch cached AI openers for all candidate contacts in this batch
@@ -260,6 +268,7 @@ export async function runQueue(
       aiOpener,
       trackingUrl,
       subjectPrefix: queue.test_mode ? "[TEST]" : null,
+      signature: workspaceSignature,
     });
 
     if (!sendResult.ok) {

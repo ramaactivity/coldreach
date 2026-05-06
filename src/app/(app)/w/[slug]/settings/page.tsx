@@ -7,12 +7,14 @@ import {
   Calendar,
   Building2,
   Kanban,
+  PenLine,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { GmailConnectionCard } from "./gmail-connection-card";
 import { WorkspaceInfoForm } from "./workspace-info-form";
 import { ScheduleForm } from "./schedule-form";
+import { SignatureForm } from "./signature-form";
 import { PipelineStagesEditor } from "./pipeline-stages-editor";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -111,6 +113,19 @@ export default async function WorkspaceSettingsPage({
               schedule_end_time: workspace.schedule_end_time,
               daily_target: workspace.daily_target,
             }}
+          />
+        </section>
+
+        {/* Signature */}
+        <section>
+          <SectionHeading
+            icon={PenLine}
+            title="Email Signature"
+            description="Otomatis di-append ke setiap email yang dikirim (queue, follow-up, manual send) dari workspace ini."
+          />
+          <SignatureForm
+            slug={slug}
+            initial={{ signature: workspace.default_signature }}
           />
         </section>
 
