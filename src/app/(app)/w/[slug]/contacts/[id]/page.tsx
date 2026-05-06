@@ -11,6 +11,7 @@ import { updateContact, deleteContact, type ContactFormState } from "../actions"
 import { SendEmailPanel } from "./send-email-panel";
 import { NotesEditor } from "./notes-editor";
 import { ActivityTimeline } from "./activity-timeline";
+import { AltEmailsPanel } from "./alt-emails-panel";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -113,6 +114,16 @@ export default async function ContactDetailPage({
           label="Replies"
           value={workspaceData?.total_replies ?? 0}
           accent="blue"
+        />
+      </div>
+
+      {/* Email addresses (primary + alts) */}
+      <div className="mb-6">
+        <AltEmailsPanel
+          slug={slug}
+          contactId={contact.id}
+          primary={contact.email}
+          alts={contact.alt_emails ?? []}
         />
       </div>
 

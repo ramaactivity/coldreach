@@ -8,6 +8,7 @@ import { getWorkspaceBySlug } from "@/lib/workspaces";
 
 const ContactSchema = z.object({
   email: z.string().email("Email tidak valid"),
+  alt_emails: z.string().optional(), // comma-separated
   first_name: z.string().optional(),
   last_name: z.string().optional(),
   company: z.string().optional(),
@@ -19,6 +20,30 @@ const ContactSchema = z.object({
   priority: z.enum(["low", "medium", "high"]).optional(),
   lead_stage_id: z.string().optional(),
 });
+
+const SingleEmailSchema = z.string().email();
+
+function parseAltEmails(
+  raw: string | undefined,
+  primary: string,
+): { ok: string[]; invalid: string[] } {
+  if (!raw) return { ok: [], invalid: [] };
+  const ok: string[] = [];
+  const invalid: string[] = [];
+  const seen = new Set<string>([primary.toLowerCase()]);
+  for (const part of raw.split(/[,;]/)) {
+    const v = part.trim().toLowerCase();
+    if (!v) continue;
+    if (seen.has(v)) continue;
+    if (!SingleEmailSchema.safeParse(v).success) {
+      invalid.push(v);
+      continue;
+    }
+    ok.push(v);
+    seen.add(v);
+  }
+  return { ok, invalid };
+}
 
 export type ContactFormState = {
   error?: string;
@@ -57,14 +82,23 @@ export async function createContact(
     return { fieldErrors };
   }
 
-  const { tags, lead_stage_id, ...rest } = parsed.data;
+  const { tags, lead_stage_id, alt_emails, ...rest } = parsed.data;
   const tagsArray = parseTags(tags);
+  const altParsed = parseAltEmails(alt_emails, parsed.data.email);
+  if (altParsed.invalid.length > 0) {
+    return {
+      fieldErrors: {
+        alt_emails: `Email invalid: ${altParsed.invalid.join(", ")}`,
+      },
+    };
+  }
 
   const { data: contact, error } = await supabase
     .from("contacts")
     .insert({
       user_id: user.id,
       ...rest,
+      alt_emails: altParsed.ok,
       tags: tagsArray,
       source: "manual",
     })
@@ -115,13 +149,22 @@ export async function updateContact(
     return { fieldErrors };
   }
 
-  const { tags, lead_stage_id, ...rest } = parsed.data;
+  const { tags, lead_stage_id, alt_emails, ...rest } = parsed.data;
   const tagsArray = parseTags(tags);
+  const altParsed = parseAltEmails(alt_emails, parsed.data.email);
+  if (altParsed.invalid.length > 0) {
+    return {
+      fieldErrors: {
+        alt_emails: `Email invalid: ${altParsed.invalid.join(", ")}`,
+      },
+    };
+  }
 
   const { error } = await supabase
     .from("contacts")
     .update({
       ...rest,
+      alt_emails: altParsed.ok,
       tags: tagsArray,
     })
     .eq("id", id);

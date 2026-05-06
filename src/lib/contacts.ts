@@ -5,6 +5,7 @@ export type Contact = {
   id: string;
   user_id: string;
   email: string;
+  alt_emails: string[];
   first_name: string | null;
   last_name: string | null;
   company: string | null;
@@ -71,7 +72,7 @@ export async function listContacts(
     .from("contacts")
     .select(
       `
-      id, user_id, email, first_name, last_name, company, position,
+      id, user_id, email, alt_emails, first_name, last_name, company, position,
       phone, website, notes, custom_fields, tags, status, source, priority,
       total_emails_sent_all_workspaces, last_contacted_at_any,
       unsubscribe_token, created_at, updated_at, deleted_at,
@@ -87,8 +88,9 @@ export async function listContacts(
 
   if (filter.search) {
     const term = filter.search.trim();
+    // alt_emails::text gives us "{a@b.com,c@d.com}" so substring ilike works
     query = query.or(
-      `email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,company.ilike.%${term}%`,
+      `email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,company.ilike.%${term}%,alt_emails::text.ilike.%${term}%`,
     );
   }
   if (filter.tags && filter.tags.length > 0) {

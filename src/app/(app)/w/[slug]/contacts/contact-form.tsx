@@ -39,7 +39,7 @@ export function ContactForm({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <FieldLabel htmlFor="email" required>
-              Email
+              Email (primary)
             </FieldLabel>
             <Input
               id="email"
@@ -58,6 +58,18 @@ export function ContactForm({
               defaultValue={initialContact?.phone ?? ""}
               placeholder="+62 8xx..."
             />
+          </div>
+          <div className="sm:col-span-2">
+            <FieldLabel htmlFor="alt_emails" hint="comma-separated, optional">
+              Email (alternate)
+            </FieldLabel>
+            <Input
+              id="alt_emails"
+              name="alt_emails"
+              placeholder="email-kedua@example.com, email-ketiga@example.com"
+              defaultValue={initialContact?.alt_emails?.join(", ") ?? ""}
+            />
+            <FieldError>{state.fieldErrors?.alt_emails}</FieldError>
           </div>
           <div>
             <FieldLabel htmlFor="first_name">First name</FieldLabel>

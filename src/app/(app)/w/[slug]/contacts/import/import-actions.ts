@@ -8,6 +8,7 @@ import { getWorkspaceBySlug } from "@/lib/workspaces";
 
 export type ImportRow = {
   email?: string;
+  alt_emails?: string[];
   first_name?: string;
   last_name?: string;
   company?: string;
@@ -78,9 +79,19 @@ export async function importContacts(
         : []),
     ];
 
+    // Validate + dedupe alt emails: drop invalid + dropping equals primary
+    const altEmails = Array.from(
+      new Set(
+        (row.alt_emails ?? [])
+          .map((e) => e.trim().toLowerCase())
+          .filter((e) => e && e !== email && EmailSchema.safeParse(e).success),
+      ),
+    );
+
     validRows.push({
       user_id: user.id,
       email,
+      alt_emails: altEmails,
       first_name: row.first_name?.trim() || null,
       last_name: row.last_name?.trim() || null,
       company: row.company?.trim() || null,

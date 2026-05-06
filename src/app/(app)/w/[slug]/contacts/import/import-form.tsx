@@ -24,7 +24,8 @@ import {
 
 const FIELD_OPTIONS = [
   { value: "", label: "— Skip —" },
-  { value: "email", label: "Email *" },
+  { value: "email", label: "Email (utama) *" },
+  { value: "alt_email", label: "Email (alternate)" },
   { value: "first_name", label: "First name" },
   { value: "last_name", label: "Last name" },
   { value: "company", label: "Company" },
@@ -40,7 +41,16 @@ type FieldKey = (typeof FIELD_OPTIONS)[number]["value"];
 const FUZZY_MAP: Record<string, FieldKey> = {
   email: "email",
   "email address": "email",
+  "email utama": "email",
+  "primary email": "email",
   recipient: "email",
+  "secondary mail": "alt_email",
+  "secondary email": "alt_email",
+  "alt email": "alt_email",
+  "alternate email": "alt_email",
+  "email 2": "alt_email",
+  "email alternatif": "alt_email",
+  "email kedua": "alt_email",
   "first name": "first_name",
   firstname: "first_name",
   "nama depan": "first_name",
@@ -116,10 +126,23 @@ export function ImportForm({ slug }: { slug: string }) {
   function handleImport() {
     const importRows: ImportRow[] = rows.map((row) => {
       const mapped: ImportRow = {};
+      const altEmails: string[] = [];
       for (const [csvHeader, fieldKey] of Object.entries(mapping)) {
         if (!fieldKey) continue;
-        mapped[fieldKey] = row[csvHeader];
+        if (fieldKey === "alt_email") {
+          // Cell may contain multiple emails separated by , or ;
+          const cell = row[csvHeader];
+          if (cell) {
+            for (const part of cell.split(/[,;]/)) {
+              const v = part.trim();
+              if (v) altEmails.push(v);
+            }
+          }
+        } else {
+          mapped[fieldKey] = row[csvHeader];
+        }
       }
+      if (altEmails.length > 0) mapped.alt_emails = altEmails;
       return mapped;
     });
 
