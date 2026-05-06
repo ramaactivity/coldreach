@@ -42,14 +42,19 @@ export type { ContactsSort } from "@/lib/contacts-constants";
 export { CONTACTS_SORT_OPTIONS } from "@/lib/contacts-constants";
 import type { ContactsSort } from "@/lib/contacts-constants";
 
+export type ContactSegment =
+  | "never_contacted"
+  | "replied"
+  | "bounced"
+  | "stale_30d";
+
 export type ContactsFilter = {
   search?: string;
   tags?: string[];
   status?: Contact["status"];
   priority?: Contact["priority"];
   lead_stage_id?: string;
-  has_replied?: boolean;
-  never_contacted?: boolean;
+  segment?: ContactSegment;
   sort_by?: ContactsSort;
 };
 
@@ -107,6 +112,27 @@ export async function listContacts(
       "contact_workspace_data.lead_stage_id",
       filter.lead_stage_id,
     );
+  }
+
+  if (filter.segment) {
+    switch (filter.segment) {
+      case "never_contacted":
+        query = query.is("contact_workspace_data.last_contacted_at", null);
+        break;
+      case "replied":
+        query = query.gt("contact_workspace_data.total_replies", 0);
+        break;
+      case "bounced":
+        query = query.eq("status", "bounced");
+        break;
+      case "stale_30d": {
+        const cutoff = new Date(
+          Date.now() - 30 * 24 * 3600 * 1000,
+        ).toISOString();
+        query = query.lt("contact_workspace_data.last_contacted_at", cutoff);
+        break;
+      }
+    }
   }
 
   switch (filter.sort_by ?? "created_desc") {

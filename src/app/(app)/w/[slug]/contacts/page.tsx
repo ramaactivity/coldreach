@@ -6,13 +6,18 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  ShieldCheck,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
   listContacts,
+  type ContactSegment,
+} from "@/lib/contacts";
+import {
   CONTACTS_SORT_OPTIONS,
   type ContactsSort,
-} from "@/lib/contacts";
+} from "@/lib/contacts-constants";
+import { listSavedFilters } from "./saved-filter-actions";
 import { PageHeader } from "@/components/ui/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -22,6 +27,12 @@ import { ContactsTable } from "./contacts-table";
 const PAGE_SIZE = 50;
 
 const VALID_SORTS = new Set(CONTACTS_SORT_OPTIONS.map((o) => o.value));
+const VALID_SEGMENTS = new Set<ContactSegment>([
+  "never_contacted",
+  "replied",
+  "bounced",
+  "stale_30d",
+]);
 
 export default async function ContactsPage({
   params,
@@ -34,6 +45,7 @@ export default async function ContactsPage({
     page?: string;
     sort?: string;
     stage?: string;
+    segment?: string;
   }>;
 }) {
   const { slug } = await params;
@@ -44,23 +56,33 @@ export default async function ContactsPage({
 
   const page = Math.max(0, parseInt(sp.page ?? "0", 10));
   const sort = (
-    sp.sort && VALID_SORTS.has(sp.sort as ContactsSort) ? sp.sort : "created_desc"
+    sp.sort && VALID_SORTS.has(sp.sort as ContactsSort)
+      ? sp.sort
+      : "created_desc"
   ) as ContactsSort;
+  const segment =
+    sp.segment && VALID_SEGMENTS.has(sp.segment as ContactSegment)
+      ? (sp.segment as ContactSegment)
+      : undefined;
 
-  const { contacts, total } = await listContacts(
-    workspace,
-    {
-      search: sp.q,
-      tags: sp.tag ? [sp.tag] : undefined,
-      lead_stage_id: sp.stage || undefined,
-      sort_by: sort,
-    },
-    page,
-    PAGE_SIZE,
-  );
+  const [{ contacts, total }, savedFilters] = await Promise.all([
+    listContacts(
+      workspace,
+      {
+        search: sp.q,
+        tags: sp.tag ? [sp.tag] : undefined,
+        lead_stage_id: sp.stage || undefined,
+        segment,
+        sort_by: sort,
+      },
+      page,
+      PAGE_SIZE,
+    ),
+    listSavedFilters(slug),
+  ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const hasFilter = Boolean(sp.q || sp.tag || sp.stage);
+  const hasFilter = Boolean(sp.q || sp.tag || sp.stage || sp.segment);
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8 pb-32">
@@ -69,6 +91,14 @@ export default async function ContactsPage({
         description={`${total.toLocaleString("id-ID")} contacts · shared antar workspace, status untuk ${workspace.name}`}
         actions={
           <>
+            <ButtonLink
+              href={`/w/${slug}/contacts/duplicates`}
+              variant="outline"
+              size="md"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Duplicates
+            </ButtonLink>
             <ButtonLink
               href={`/w/${slug}/contacts/import`}
               variant="outline"
@@ -85,7 +115,11 @@ export default async function ContactsPage({
         }
       />
 
-      <FiltersBar slug={slug} stages={workspace.pipeline_stages} />
+      <FiltersBar
+        slug={slug}
+        stages={workspace.pipeline_stages}
+        savedFilters={savedFilters}
+      />
 
       {contacts.length === 0 ? (
         <EmptyState
