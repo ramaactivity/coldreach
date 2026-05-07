@@ -55,32 +55,28 @@ export default async function WorkspaceDashboardPage({
       : 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-8">
-      {/* Workspace hero with color accent */}
-      <div className="relative mb-8 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-[0_1px_3px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
+    <div className="mx-auto max-w-6xl px-6 py-10">
+      {/* Workspace hero — softer, more breathable, less boxed-in */}
+      <div className="relative mb-8">
         <div
-          className="absolute inset-x-0 top-0 h-1"
+          className="pointer-events-none absolute -left-12 -top-12 h-56 w-56 rounded-full opacity-[0.07] blur-3xl"
           style={{ backgroundColor: workspace.color_theme }}
         />
-        <div
-          className="absolute -right-10 -top-10 h-40 w-40 rounded-full opacity-[0.06] blur-2xl"
-          style={{ backgroundColor: workspace.color_theme }}
-        />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="mb-2 inline-flex items-center gap-2">
+        <div className="relative flex flex-wrap items-end justify-between gap-6">
+          <div className="min-w-0">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-zinc-200/70 bg-white/60 px-2.5 py-1 backdrop-blur-sm dark:border-zinc-800/70 dark:bg-zinc-900/60">
               <span
-                className="inline-block h-2 w-2 rounded-full"
+                className="inline-block h-1.5 w-1.5 rounded-full"
                 style={{ backgroundColor: workspace.color_theme }}
               />
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-600 dark:text-zinc-400">
                 {workspace.business_type}
               </span>
             </div>
-            <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 dark:text-zinc-50">
+            <h1 className="text-[36px] font-semibold leading-[1.05] tracking-[-0.025em] text-zinc-950 dark:text-zinc-50">
               {workspace.name}
             </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
               <span className="inline-flex items-center gap-1.5">
                 <Calendar className="h-3 w-3" />
                 Sen-Jum
@@ -107,7 +103,7 @@ export default async function WorkspaceDashboardPage({
       </div>
 
       {/* KPI grid - top row: send/perf */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <StatCard
           label="Sent today"
           value={stats.sent_today.toLocaleString("id-ID")}
@@ -140,7 +136,7 @@ export default async function WorkspaceDashboardPage({
       </div>
 
       {/* KPI grid - second row: counts */}
-      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-3.5 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <StatCard
           label="Contacts"
           value={stats.contacts_total.toLocaleString("id-ID")}
@@ -172,7 +168,7 @@ export default async function WorkspaceDashboardPage({
       </div>
 
       {/* KPI grid - third row: deliverability */}
-      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="mt-3.5 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
         <StatCard
           label="Bounced (7d)"
           value={stats.bounced_7d.toLocaleString("id-ID")}
@@ -355,8 +351,8 @@ function QuickAction({
       href={href}
       className={
         primary
-          ? "inline-flex h-8 items-center gap-1.5 rounded-lg bg-zinc-900 px-3 text-xs font-medium text-zinc-50 shadow-sm transition-all hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-          : "inline-flex h-8 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+          ? "inline-flex h-9 items-center gap-1.5 rounded-xl bg-zinc-900 px-3.5 text-[13px] font-medium text-zinc-50 shadow-[0_1px_2px_0_rgb(0_0_0/0.08)] transition-all duration-150 hover:bg-zinc-800 hover:shadow-[0_2px_6px_-1px_rgb(0_0_0/0.12)] active:scale-[0.97] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
+          : "inline-flex h-9 items-center gap-1.5 rounded-xl border border-zinc-200/80 bg-white px-3.5 text-[13px] font-medium text-zinc-700 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 hover:shadow-[0_1px_3px_0_rgb(0_0_0/0.08)] active:scale-[0.97] dark:border-zinc-800/80 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100"
       }
     >
       {children}
