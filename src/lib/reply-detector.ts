@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken, refreshAccessToken } from "@/lib/gmail";
 import { bumpContactEngagement } from "@/lib/engagement";
+import { classifyReply, type ReplyClass } from "@/lib/reply-classifier";
 
 const REPLY_LOOKBACK_DAYS = 30;
 const MAX_RECIPIENTS_PER_ACCOUNT_PER_RUN = 100;
@@ -57,6 +58,54 @@ function extractFrom(headerValue: string | null | undefined): string {
   // "Name <email@example.com>" or just "email@example.com"
   const m = headerValue.match(/<([^>]+)>/);
   return (m?.[1] ?? headerValue).trim().toLowerCase();
+}
+
+function decodeBase64Url(s: string): string {
+  const normalized = s.replace(/-/g, "+").replace(/_/g, "/");
+  try {
+    return Buffer.from(normalized, "base64").toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
+// Walk Gmail payload tree and pull text/plain bodies first, fall back to
+// stripped text/html. Used for reply classification — the classifier only
+// needs the gist, not the formatting.
+function extractBodyText(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const p = payload as {
+    mimeType?: string;
+    body?: { data?: string };
+    parts?: unknown[];
+  };
+  let plain = "";
+  let html = "";
+
+  function walk(node: typeof p): void {
+    if (node.body?.data) {
+      const decoded = decodeBase64Url(node.body.data);
+      if (node.mimeType?.startsWith("text/plain")) plain += decoded + "\n";
+      else if (node.mimeType?.startsWith("text/html")) html += decoded + "\n";
+    }
+    if (Array.isArray(node.parts)) {
+      for (const part of node.parts) walk(part as typeof p);
+    }
+  }
+  walk(p);
+
+  if (plain.trim().length > 0) return plain;
+  if (html.trim().length > 0) {
+    // Lightweight HTML strip — good enough for classifier intake.
+    return html
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  return "";
 }
 
 /**
@@ -142,12 +191,34 @@ export async function pollRepliesForAccount(
         parseInt(replyMessage.internalDate ?? Date.now().toString(), 10),
       ).toISOString();
 
+      // Pull the full reply body so we can classify it. Best-effort:
+      // failures fall through with classification=null.
+      let classification: ReplyClass | null = null;
+      try {
+        const replyFull = await gmail.users.messages.get({
+          userId: "me",
+          id: replyMessage.id ?? "",
+          format: "full",
+        });
+        const bodyText = extractBodyText(replyFull.data.payload);
+        if (bodyText) {
+          classification = await classifyReply(bodyText);
+        }
+      } catch (classifyErr) {
+        // Don't fail the whole reply detection just because classifier
+        // couldn't fetch / classify.
+        const msg =
+          classifyErr instanceof Error ? classifyErr.message : "unknown";
+        result.errors.push(`classify ${replyMessage.id}: ${msg}`);
+      }
+
       // Update campaign_recipient
       await admin
         .from("campaign_recipients")
         .update({
           status: "replied",
           replied_at: repliedAt,
+          reply_classification: classification,
         })
         .eq("id", cand.id);
 
@@ -174,6 +245,19 @@ export async function pollRepliesForAccount(
         .update({ status: "replied" })
         .eq("campaign_recipient_id", cand.id);
 
+      // Auto-archive on explicit unsubscribe — same path as the
+      // /unsubscribe/[token] route, just triggered from a free-form reply.
+      if (classification === "unsubscribe_request") {
+        await admin
+          .from("contacts")
+          .update({
+            status: "unsubscribed",
+            archived_at: repliedAt,
+            archive_reason: "unsubscribed",
+          })
+          .eq("id", cand.contact_id);
+      }
+
       // Activity log
       await admin.from("activity_log").insert({
         user_id: cand.user_id,
@@ -181,7 +265,10 @@ export async function pollRepliesForAccount(
         activity_type: "email_replied",
         entity_type: "campaign_recipient",
         entity_id: cand.id,
-        metadata: { contact_email: cand.contact_email },
+        metadata: {
+          contact_email: cand.contact_email,
+          classification,
+        },
       });
 
       result.replies_found++;

@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
+import { detectContactLanguage } from "@/lib/lang-detect";
 import type { FollowupStep } from "@/lib/queue-helpers";
 
 export type FollowupRunResult = {
@@ -36,6 +37,7 @@ type Candidate = {
     position: string | null;
     status: string;
     unsubscribe_token: string;
+    language_pref: string | null;
   };
   cr: {
     id: string;
@@ -128,13 +130,14 @@ export async function runFollowupsForQueue(
   const templateIds = Array.from(new Set(steps.map((s) => s.template_id)));
   const { data: templates } = await admin
     .from("templates")
-    .select("id, subject_lines, body_plain")
+    .select("id, subject_lines, body_plain, body_plain_en")
     .in("id", templateIds);
   const templateById = new Map(
     (templates ?? []).map((t) => [t.id as string, t as unknown as {
       id: string;
       subject_lines: string[];
       body_plain: string;
+      body_plain_en: string | null;
     }]),
   );
 
@@ -166,7 +169,7 @@ export async function runFollowupsForQueue(
     .from("queue_recipients")
     .select(
       `id, contact_id, campaign_recipient_id, sent_at,
-       contact:contacts!inner(id, email, first_name, last_name, company, position, status, unsubscribe_token),
+       contact:contacts!inner(id, email, first_name, last_name, company, position, status, unsubscribe_token, language_pref),
        campaign_recipient:campaign_recipients!inner(
          id, gmail_message_id, gmail_thread_id, gmail_subject_used, status
        )`,
@@ -376,6 +379,7 @@ export async function runFollowupsForQueue(
       ? `${appUrl}/unsubscribe/${c.contact.unsubscribe_token}`
       : null;
 
+    const language = detectContactLanguage(c.contact);
     const sendResult = await sendEmail(admin, {
       account: account as EmailAccount,
       contact: c.contact,
@@ -390,6 +394,7 @@ export async function runFollowupsForQueue(
       forcedSubject: c.cr.gmail_subject_used,
       signature: workspaceSignature,
       unsubscribeUrl,
+      language,
     });
 
     if (!sendResult.ok) {

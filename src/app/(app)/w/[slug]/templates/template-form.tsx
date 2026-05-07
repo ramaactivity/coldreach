@@ -46,6 +46,7 @@ export function TemplateForm({
     initialTemplate?.subject_lines?.join("\n") ?? "",
   );
   const [body, setBody] = useState(initialTemplate?.body_plain ?? "");
+  const [bodyEn, setBodyEn] = useState(initialTemplate?.body_plain_en ?? "");
 
   const detectedVariables = extractVariables(body + " " + subjects);
   const unsupported = detectedVariables.filter(
@@ -133,6 +134,27 @@ export function TemplateForm({
               konsisten. Variable otomatis di-replace saat kirim per kontak.
             </FieldDescription>
             <FieldError>{state.fieldErrors?.body_plain}</FieldError>
+          </div>
+
+          {/* Optional English variant */}
+          <div>
+            <FieldLabel htmlFor="body_plain_en">
+              Body (English) <span className="font-normal text-zinc-500">— opsional</span>
+            </FieldLabel>
+            <Textarea
+              id="body_plain_en"
+              name="body_plain_en"
+              value={bodyEn}
+              onChange={(e) => setBodyEn(e.target.value)}
+              rows={10}
+              className="font-mono text-xs leading-relaxed"
+              placeholder={`Hi {first_name},\n\n{ai_opener}\n\nI'm Muhamad from Tiska Catering.\n...`}
+            />
+            <FieldDescription>
+              Kalau diisi, kontak yang ke-detect Bahasa Inggris (domain
+              .com/.org/.io tanpa nama Indonesian) akan dapat versi ini. Kosong
+              berarti semua kontak pakai body utama di atas.
+            </FieldDescription>
           </div>
 
           {/* Variables */}

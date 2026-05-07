@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
+import { detectContactLanguage } from "@/lib/lang-detect";
 
 export type RunQueueResult = {
   queue_id: string;
@@ -102,7 +103,7 @@ export async function runQueue(
 
   const { data: template } = await admin
     .from("templates")
-    .select("id, subject_lines, body_plain")
+    .select("id, subject_lines, body_plain, body_plain_en")
     .eq("id", queue.template_id)
     .maybeSingle();
   if (!template) {
@@ -124,7 +125,8 @@ export async function runQueue(
       `id, priority,
        contact:contacts!inner(
          id, email, first_name, last_name, company, position, status,
-         archived_at, unsubscribe_token, total_emails_sent_all_workspaces
+         archived_at, unsubscribe_token, language_pref,
+         total_emails_sent_all_workspaces
        )`,
     )
     .eq("queue_id", queueId)
@@ -228,6 +230,7 @@ export async function runQueue(
             status: string;
             archived_at: string | null;
             unsubscribe_token: string;
+            language_pref: string | null;
             total_emails_sent_all_workspaces: number;
           }
         | Array<{
@@ -240,6 +243,7 @@ export async function runQueue(
             status: string;
             archived_at: string | null;
             unsubscribe_token: string;
+            language_pref: string | null;
             total_emails_sent_all_workspaces: number;
           }>
         | null;
@@ -359,6 +363,7 @@ export async function runQueue(
         }
       : contact;
 
+    const language = detectContactLanguage(contact);
     const sendResult = await sendEmail(admin, {
       account: account as EmailAccount,
       contact: testModeContact,
@@ -370,6 +375,7 @@ export async function runQueue(
       subjectPrefix: queue.test_mode ? "[TEST]" : null,
       signature: workspaceSignature,
       unsubscribeUrl,
+      language,
     });
 
     if (!sendResult.ok) {
@@ -408,6 +414,10 @@ export async function runQueue(
               gmail_message_id: sendResult.gmail_message_id,
               gmail_thread_id: sendResult.gmail_thread_id,
               gmail_subject_used: sendResult.subject_used,
+              subject_line_index:
+                sendResult.subject_index >= 0
+                  ? sendResult.subject_index
+                  : null,
             })
             .eq("id", campaignRecipient.id)
         : Promise.resolve(),

@@ -9,6 +9,7 @@ export type Template = {
   subject_lines: string[];
   body_html: string;
   body_plain: string;
+  body_plain_en: string | null;
   variables_used: string[];
   is_starter: boolean;
   times_used: number;

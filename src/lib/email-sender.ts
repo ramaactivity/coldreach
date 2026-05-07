@@ -17,6 +17,7 @@ export type EmailTemplate = {
   id: string;
   subject_lines: string[];
   body_plain: string;
+  body_plain_en?: string | null;
 };
 
 export type EmailAttachment = {
@@ -39,6 +40,7 @@ export type SendResult = {
   gmail_message_id: string;
   gmail_thread_id: string;
   subject_used: string;
+  subject_index: number;
 } | {
   ok: false;
   error: string;
@@ -59,9 +61,10 @@ function buildContactValues(
   };
 }
 
-function pickRandomSubject(subjects: string[]): string {
-  if (subjects.length === 0) return "(no subject)";
-  return subjects[Math.floor(Math.random() * subjects.length)];
+function pickRandomSubject(subjects: string[]): { value: string; index: number } {
+  if (subjects.length === 0) return { value: "(no subject)", index: -1 };
+  const index = Math.floor(Math.random() * subjects.length);
+  return { value: subjects[index], index };
 }
 
 function encodeRFC2047(str: string): string {
@@ -296,6 +299,8 @@ export type SendEmailParams = {
   signature?: string | null;
   /** When set, adds an unsubscribe footer + List-Unsubscribe headers. */
   unsubscribeUrl?: string | null;
+  /** Language code to pick body variant. 'en' uses body_plain_en if set, else falls back to body_plain. */
+  language?: "id" | "en";
 };
 
 export async function sendEmail(
@@ -316,6 +321,7 @@ export async function sendEmail(
     forcedSubject,
     signature,
     unsubscribeUrl,
+    language,
   } = params;
 
   try {
@@ -325,13 +331,21 @@ export async function sendEmail(
 
     // Render variables
     const values = buildContactValues(contact, aiOpener);
-    const baseSubject =
-      forcedSubject ?? pickRandomSubject(template.subject_lines);
+    const picked = forcedSubject
+      ? { value: forcedSubject, index: -1 }
+      : pickRandomSubject(template.subject_lines);
+    const baseSubject = picked.value;
     const renderedSubject = renderPreview(baseSubject, values);
     const subject = subjectPrefix
       ? `${subjectPrefix} ${renderedSubject}`
       : renderedSubject;
-    const renderedBody = renderPreview(template.body_plain, values);
+    // Pick body variant by language. Falls back to body_plain when EN not
+    // authored on this template.
+    const sourceBody =
+      language === "en" && template.body_plain_en
+        ? template.body_plain_en
+        : template.body_plain;
+    const renderedBody = renderPreview(sourceBody, values);
     // Append signature with RFC-3676 separator ("\n-- \n") so email
     // clients can detect and collapse it. Skip when signature is empty.
     const sigText = signature?.trim();
@@ -391,6 +405,7 @@ export async function sendEmail(
       gmail_message_id: result.data.id ?? "",
       gmail_thread_id: result.data.threadId ?? "",
       subject_used: subject,
+      subject_index: picked.index,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

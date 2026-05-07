@@ -12,6 +12,7 @@ const TemplateSchema = z.object({
   category: z.string().optional(),
   subject_lines: z.string().min(1, "Minimal 1 subject line"),
   body_plain: z.string().min(10, "Body minimal 10 karakter"),
+  body_plain_en: z.string().optional(),
 });
 
 export type TemplateFormState = {
@@ -51,13 +52,15 @@ export async function createTemplate(
     return { fieldErrors };
   }
 
-  const { name, category, subject_lines, body_plain } = parsed.data;
+  const { name, category, subject_lines, body_plain, body_plain_en } =
+    parsed.data;
   const subjectArray = parseSubjectLines(subject_lines);
   if (subjectArray.length === 0) {
     return { fieldErrors: { subject_lines: "Minimal 1 subject line" } };
   }
   const variables = extractVariables(body_plain);
-  const allText = [...subjectArray, body_plain].join(" ");
+  const enBody = body_plain_en?.trim() ? body_plain_en : null;
+  const allText = [...subjectArray, body_plain, enBody ?? ""].join(" ");
   const allVariables = Array.from(
     new Set([...variables, ...extractVariables(allText)]),
   );
@@ -72,6 +75,7 @@ export async function createTemplate(
       category: category || null,
       subject_lines: subjectArray,
       body_plain,
+      body_plain_en: enBody,
       body_html: bodyHtml,
       variables_used: allVariables,
     })
@@ -110,9 +114,11 @@ export async function updateTemplate(
     return { fieldErrors };
   }
 
-  const { name, category, subject_lines, body_plain } = parsed.data;
+  const { name, category, subject_lines, body_plain, body_plain_en } =
+    parsed.data;
   const subjectArray = parseSubjectLines(subject_lines);
-  const allText = [...subjectArray, body_plain].join(" ");
+  const enBody = body_plain_en?.trim() ? body_plain_en : null;
+  const allText = [...subjectArray, body_plain, enBody ?? ""].join(" ");
   const allVariables = extractVariables(allText);
   const bodyHtml = plainToHtml(body_plain);
 
@@ -123,6 +129,7 @@ export async function updateTemplate(
       category: category || null,
       subject_lines: subjectArray,
       body_plain,
+      body_plain_en: enBody,
       body_html: bodyHtml,
       variables_used: allVariables,
     })
