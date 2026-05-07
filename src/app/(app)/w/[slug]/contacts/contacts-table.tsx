@@ -10,12 +10,20 @@ import {
   Check,
   ChevronsUp,
   AlertTriangle,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import type { ContactWithWorkspaceData } from "@/lib/contacts";
 import type { PipelineStage } from "@/lib/workspace-constants";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectItem } from "@/components/ui/select";
-import { bulkAddTags, bulkChangeStage, bulkDelete } from "./bulk-actions";
+import {
+  bulkAddTags,
+  bulkChangeStage,
+  bulkDelete,
+  bulkArchive,
+  bulkUnarchive,
+} from "./bulk-actions";
 
 type Props = {
   slug: string;
@@ -23,7 +31,7 @@ type Props = {
   stages: PipelineStage[];
 };
 
-type Mode = null | "tag" | "stage" | "delete";
+type Mode = null | "tag" | "stage" | "delete" | "archive" | "unarchive";
 
 export function ContactsTable({ slug, contacts, stages }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -92,6 +100,15 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
   }
 
   const ids = Array.from(selected);
+  // If everything in the selection is already archived, surface an Unarchive
+  // action instead of Archive. Mixed selections show Archive (the more
+  // common path).
+  const allSelectedArchived =
+    ids.length > 0 &&
+    ids.every((id) => {
+      const c = contacts.find((x) => x.id === id);
+      return c ? !!c.archived_at : false;
+    });
 
   return (
     <>
@@ -241,6 +258,25 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                   icon={ChevronsUp}
                   label="Stage"
                 />
+                {allSelectedArchived ? (
+                  <ActionBtn
+                    active={mode === "unarchive"}
+                    onClick={() =>
+                      setMode(mode === "unarchive" ? null : "unarchive")
+                    }
+                    icon={RotateCcw}
+                    label="Restore"
+                  />
+                ) : (
+                  <ActionBtn
+                    active={mode === "archive"}
+                    onClick={() =>
+                      setMode(mode === "archive" ? null : "archive")
+                    }
+                    icon={Archive}
+                    label="Archive"
+                  />
+                )}
                 <ActionBtn
                   active={mode === "delete"}
                   onClick={() => setMode(mode === "delete" ? null : "delete")}
@@ -345,6 +381,52 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                     <Trash2 className="h-3 w-3" />
                   )}
                   Hapus
+                </button>
+              </div>
+            )}
+
+            {mode === "archive" && (
+              <div className="flex items-center gap-2 border-t border-zinc-100 bg-amber-50/60 px-4 py-3 dark:border-amber-900/30 dark:bg-amber-950/20">
+                <Archive className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
+                <p className="flex-1 text-xs text-amber-800 dark:text-amber-300">
+                  Archive {ids.length} kontak? Mereka gak akan masuk queue baru
+                  dan pending sends auto-skipped. Bisa di-restore kapan aja.
+                </p>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => runBulk(() => bulkArchive(slug, ids))}
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-amber-200 bg-white px-3 text-xs font-semibold text-amber-800 shadow-sm transition-colors hover:bg-amber-50 disabled:opacity-50 dark:border-amber-900/50 dark:bg-zinc-900 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                >
+                  {pending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Archive className="h-3 w-3" />
+                  )}
+                  Archive
+                </button>
+              </div>
+            )}
+
+            {mode === "unarchive" && (
+              <div className="flex items-center gap-2 border-t border-zinc-100 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+                <RotateCcw className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
+                <p className="flex-1 text-xs text-emerald-800 dark:text-emerald-300">
+                  Restore {ids.length} kontak? Status di-set ke active dan
+                  mereka jadi eligible buat queue lagi.
+                </p>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => runBulk(() => bulkUnarchive(slug, ids))}
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-800 shadow-sm transition-colors hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-900/50 dark:bg-zinc-900 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                >
+                  {pending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <RotateCcw className="h-3 w-3" />
+                  )}
+                  Restore
                 </button>
               </div>
             )}

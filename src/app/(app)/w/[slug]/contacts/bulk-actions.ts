@@ -126,3 +126,48 @@ export async function bulkDelete(
   revalidatePath(`/w/${slug}/contacts`);
   return { ok: true, affected: contactIds.length };
 }
+
+export async function bulkArchive(
+  slug: string,
+  contactIds: string[],
+): Promise<Result> {
+  if (contactIds.length === 0) return { ok: true, affected: 0 };
+  const { supabase } = await authAndWorkspace(slug);
+
+  const nowIso = new Date().toISOString();
+  const { error, data } = await supabase
+    .from("contacts")
+    .update({ archived_at: nowIso, archive_reason: "manual" })
+    .in("id", contactIds)
+    .is("archived_at", null)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+
+  // Sweep pending queue work for the just-archived contacts.
+  await supabase
+    .from("queue_recipients")
+    .update({ status: "skipped" })
+    .in("contact_id", contactIds)
+    .eq("status", "pending");
+
+  revalidatePath(`/w/${slug}/contacts`);
+  return { ok: true, affected: data?.length ?? 0 };
+}
+
+export async function bulkUnarchive(
+  slug: string,
+  contactIds: string[],
+): Promise<Result> {
+  if (contactIds.length === 0) return { ok: true, affected: 0 };
+  const { supabase } = await authAndWorkspace(slug);
+
+  const { error, data } = await supabase
+    .from("contacts")
+    .update({ archived_at: null, archive_reason: null, status: "active" })
+    .in("id", contactIds)
+    .select("id");
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/w/${slug}/contacts`);
+  return { ok: true, affected: data?.length ?? 0 };
+}

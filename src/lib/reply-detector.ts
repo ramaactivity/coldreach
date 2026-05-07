@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken, refreshAccessToken } from "@/lib/gmail";
+import { bumpContactEngagement } from "@/lib/engagement";
 
 const REPLY_LOOKBACK_DAYS = 30;
 const MAX_RECIPIENTS_PER_ACCOUNT_PER_RUN = 100;
@@ -162,6 +163,10 @@ export async function pollRepliesForAccount(
           },
           { onConflict: "contact_id,workspace_id" },
         );
+
+      // Global engagement signal — replies are 15× more valuable than opens
+      // in the score formula, so bump and recompute.
+      await bumpContactEngagement(admin, cand.contact_id, "reply");
 
       // Update queue_recipients linked to this campaign_recipient
       await admin

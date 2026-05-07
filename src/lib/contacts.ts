@@ -19,7 +19,11 @@ export type Contact = {
   source: string | null;
   priority: "low" | "medium" | "high";
   total_emails_sent_all_workspaces: number;
+  total_opens_all_workspaces: number;
+  total_replies_all_workspaces: number;
   last_contacted_at_any: string | null;
+  last_engaged_at: string | null;
+  engagement_score: number;
   bounce_count: number;
   last_bounce_at: string | null;
   last_bounce_type: "hard" | "soft" | "block" | "spam" | null;
@@ -31,6 +35,7 @@ export type Contact = {
     | "manual"
     | "unsubscribed"
     | "spam_complaint"
+    | "stale_unengaged"
     | null;
   unsubscribe_token: string;
   created_at: string;
@@ -92,8 +97,10 @@ export async function listContacts(
       `
       id, user_id, email, alt_emails, first_name, last_name, company, position,
       phone, website, notes, custom_fields, tags, status, source, priority,
-      total_emails_sent_all_workspaces, last_contacted_at_any,
-      bounce_count, last_bounce_at, last_bounce_type, archived_at, archive_reason,
+      total_emails_sent_all_workspaces, total_opens_all_workspaces,
+      total_replies_all_workspaces, last_contacted_at_any, last_engaged_at,
+      engagement_score, bounce_count, last_bounce_at, last_bounce_type,
+      archived_at, archive_reason,
       unsubscribe_token, created_at, updated_at, deleted_at,
       workspace_data:contact_workspace_data!left(
         lead_stage_id, workspace_notes, total_emails_sent,

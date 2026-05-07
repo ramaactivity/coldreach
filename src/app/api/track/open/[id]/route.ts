@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { bumpContactEngagement } from "@/lib/engagement";
 
 // 1x1 transparent GIF (43 bytes)
 const TRANSPARENT_GIF = Buffer.from(
@@ -54,7 +55,7 @@ async function trackOpen(recipientId: string, request: NextRequest) {
   // Fetch current state
   const { data: recipient } = await admin
     .from("campaign_recipients")
-    .select("id, opened_at, open_count, status, user_id")
+    .select("id, opened_at, open_count, status, user_id, contact_id")
     .eq("id", recipientId)
     .maybeSingle();
   if (!recipient) return;
@@ -86,5 +87,14 @@ async function trackOpen(recipientId: string, request: NextRequest) {
       entity_id: recipientId,
       metadata: { user_agent: userAgent.slice(0, 200) },
     });
+  }
+
+  // Bump global engagement aggregates + recompute score on every open.
+  if ((recipient as { contact_id?: string }).contact_id) {
+    await bumpContactEngagement(
+      admin,
+      (recipient as { contact_id: string }).contact_id,
+      "open",
+    );
   }
 }

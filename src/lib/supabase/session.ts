@@ -1,7 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/signout"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/auth/callback",
+  "/auth/signout",
+  // Token-based public routes for email recipients (no auth)
+  "/unsubscribe",
+];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some(

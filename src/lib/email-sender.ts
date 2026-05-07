@@ -75,6 +75,20 @@ function buildTrackingPixelHtml(trackingUrl: string | null): string {
   return `<img src="${trackingUrl}" width="1" height="1" alt="" border="0" style="display:block;border:0;outline:none;text-decoration:none;height:1px;width:1px;" />`;
 }
 
+function buildUnsubscribeFooterHtml(unsubscribeUrl: string | null): string {
+  if (!unsubscribeUrl) return "";
+  return `
+<div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:11px;line-height:1.4;color:#6b7280;font-family:-apple-system,system-ui,sans-serif;">
+  Don't want to receive these emails?
+  <a href="${unsubscribeUrl}" style="color:#6b7280;text-decoration:underline;">Unsubscribe</a>
+</div>`;
+}
+
+function buildUnsubscribeFooterPlain(unsubscribeUrl: string | null): string {
+  if (!unsubscribeUrl) return "";
+  return `\n\n--\nDon't want to receive these emails? Unsubscribe: ${unsubscribeUrl}`;
+}
+
 function buildMimeMessage(
   fromName: string | null,
   fromEmail: string,
@@ -85,6 +99,7 @@ function buildMimeMessage(
   trackingUrl: string | null,
   clickTrackingBase: string | null,
   inReplyToMessageId: string | null,
+  unsubscribeUrl: string | null,
 ): string {
   const fromHeader = fromName
     ? `${encodeRFC2047(fromName)} <${fromEmail}>`
@@ -100,6 +115,15 @@ function buildMimeMessage(
     `MIME-Version: 1.0`,
   ];
 
+  // RFC 2369 / RFC 8058 — gives Gmail/Outlook a one-click unsubscribe
+  // button in the inbox UI without needing the recipient to scroll to a
+  // tiny footer link. POST=List-Unsubscribe also flags us as legitimate
+  // bulk sender to spam filters.
+  if (unsubscribeUrl) {
+    baseHeaders.push(`List-Unsubscribe: <${unsubscribeUrl}>`);
+    baseHeaders.push(`List-Unsubscribe-Post: List-Unsubscribe=One-Click`);
+  }
+
   // Threading headers — when replying to a previous message, include
   // both In-Reply-To and References so email clients display the
   // follow-up as part of the original thread.
@@ -109,12 +133,14 @@ function buildMimeMessage(
   }
 
   // Build the bodies. HTML version: auto-links URLs (wrapped in click
-  // tracker when base is provided) + open-tracking pixel. Plain version
-  // keeps original URLs as-is so plain-text fallback stays clean.
+  // tracker when base is provided) + open-tracking pixel + unsubscribe
+  // footer. Plain version keeps original URLs as-is plus its own footer.
   const linkWrapper = clickTrackingBase
     ? (url: string) => buildClickTrackingHref(clickTrackingBase, url)
     : undefined;
-  const bodyHtml = `${plainToHtml(bodyPlain, linkWrapper)}${buildTrackingPixelHtml(trackingUrl)}`;
+  const bodyPlainWithFooter =
+    bodyPlain + buildUnsubscribeFooterPlain(unsubscribeUrl);
+  const bodyHtml = `${plainToHtml(bodyPlain, linkWrapper)}${buildUnsubscribeFooterHtml(unsubscribeUrl)}${buildTrackingPixelHtml(trackingUrl)}`;
 
   // Outer boundary (only used if attachments)
   const altBoundary = `----coldreach-alt-${Date.now().toString(36)}`;
@@ -125,7 +151,7 @@ function buildMimeMessage(
     `Content-Type: text/plain; charset="UTF-8"`,
     `Content-Transfer-Encoding: quoted-printable`,
     "",
-    quotedPrintable(bodyPlain),
+    quotedPrintable(bodyPlainWithFooter),
     "",
     `--${altBoundary}`,
     `Content-Type: text/html; charset="UTF-8"`,
@@ -268,6 +294,8 @@ export type SendEmailParams = {
   forcedSubject?: string | null;
   /** Workspace plain-text signature appended to body. RFC-3676 separator. */
   signature?: string | null;
+  /** When set, adds an unsubscribe footer + List-Unsubscribe headers. */
+  unsubscribeUrl?: string | null;
 };
 
 export async function sendEmail(
@@ -287,6 +315,7 @@ export async function sendEmail(
     subjectPrefix,
     forcedSubject,
     signature,
+    unsubscribeUrl,
   } = params;
 
   try {
@@ -338,6 +367,7 @@ export async function sendEmail(
       trackingUrl,
       clickTrackingBase ?? null,
       inReplyToMessageId ?? null,
+      unsubscribeUrl ?? null,
     );
 
     // Encode as base64url

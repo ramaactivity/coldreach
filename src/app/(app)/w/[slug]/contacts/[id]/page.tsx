@@ -87,6 +87,7 @@ export default async function ContactDetailPage({
     manual: "Di-archive manual oleh kamu",
     unsubscribed: "Unsubscribed",
     spam_complaint: "Dilaporkan sebagai spam",
+    stale_unengaged: "Stale — 5+ email kirim, 0 open/reply, 30+ hari diem",
   };
 
   return (
@@ -181,7 +182,7 @@ export default async function ContactDetailPage({
       )}
 
       {/* Stats */}
-      <div className="mb-6 grid grid-cols-3 gap-3">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <MiniStat
           label="Sent"
           value={workspaceData?.total_emails_sent ?? 0}
@@ -195,6 +196,18 @@ export default async function ContactDetailPage({
           label="Replies"
           value={workspaceData?.total_replies ?? 0}
           accent="blue"
+        />
+        <MiniStat
+          label="Engagement"
+          value={contact.engagement_score}
+          accent={
+            contact.engagement_score >= 50
+              ? "emerald"
+              : contact.engagement_score >= 20
+                ? "amber"
+                : undefined
+          }
+          hint="0-100"
         />
       </div>
 
@@ -259,10 +272,12 @@ function MiniStat({
   label,
   value,
   accent,
+  hint,
 }: {
   label: string;
   value: number;
-  accent?: "emerald" | "blue";
+  accent?: "emerald" | "blue" | "amber";
+  hint?: string;
 }) {
   return (
     <div className="rounded-xl border border-zinc-200/80 bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
@@ -275,13 +290,15 @@ function MiniStat({
             ? "text-emerald-600 dark:text-emerald-400"
             : accent === "blue"
               ? "text-blue-600 dark:text-blue-400"
-              : "text-zinc-900 dark:text-zinc-100"
+              : accent === "amber"
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-zinc-900 dark:text-zinc-100"
         }`}
       >
         {value.toLocaleString("id-ID")}
       </p>
       <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">
-        in this workspace
+        {hint ?? "in this workspace"}
       </p>
     </div>
   );

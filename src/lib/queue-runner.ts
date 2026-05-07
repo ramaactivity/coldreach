@@ -109,7 +109,7 @@ export async function runQueue(
       `id, priority,
        contact:contacts!inner(
          id, email, first_name, last_name, company, position, status,
-         archived_at, total_emails_sent_all_workspaces
+         archived_at, unsubscribe_token, total_emails_sent_all_workspaces
        )`,
     )
     .eq("queue_id", queueId)
@@ -212,6 +212,7 @@ export async function runQueue(
             position: string | null;
             status: string;
             archived_at: string | null;
+            unsubscribe_token: string;
             total_emails_sent_all_workspaces: number;
           }
         | Array<{
@@ -223,6 +224,7 @@ export async function runQueue(
             position: string | null;
             status: string;
             archived_at: string | null;
+            unsubscribe_token: string;
             total_emails_sent_all_workspaces: number;
           }>
         | null;
@@ -313,6 +315,10 @@ export async function runQueue(
     const clickTrackingBase = campaignRecipient?.id
       ? `${appUrl}/api/track/click/${campaignRecipient.id}`
       : null;
+    // Token-based public unsubscribe URL — no auth, idempotent.
+    const unsubscribeUrl = contact.unsubscribe_token
+      ? `${appUrl}/unsubscribe/${contact.unsubscribe_token}`
+      : null;
 
     // TEST MODE safety: redirect to connected Gmail account so we never
     // accidentally blast real recipients while iterating. Subject prefixed
@@ -337,6 +343,7 @@ export async function runQueue(
       clickTrackingBase,
       subjectPrefix: queue.test_mode ? "[TEST]" : null,
       signature: workspaceSignature,
+      unsubscribeUrl,
     });
 
     if (!sendResult.ok) {

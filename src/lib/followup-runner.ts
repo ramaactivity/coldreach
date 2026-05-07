@@ -34,6 +34,7 @@ type Candidate = {
     company: string | null;
     position: string | null;
     status: string;
+    unsubscribe_token: string;
   };
   cr: {
     id: string;
@@ -157,7 +158,7 @@ export async function runFollowupsForQueue(
     .from("queue_recipients")
     .select(
       `id, contact_id, campaign_recipient_id, sent_at,
-       contact:contacts!inner(id, email, first_name, last_name, company, position, status),
+       contact:contacts!inner(id, email, first_name, last_name, company, position, status, unsubscribe_token),
        campaign_recipient:campaign_recipients!inner(
          id, gmail_message_id, gmail_thread_id, gmail_subject_used, status
        )`,
@@ -363,6 +364,9 @@ export async function runFollowupsForQueue(
     const clickTrackingBase = followupCR?.id
       ? `${appUrl}/api/track/click/${followupCR.id}`
       : null;
+    const unsubscribeUrl = c.contact.unsubscribe_token
+      ? `${appUrl}/unsubscribe/${c.contact.unsubscribe_token}`
+      : null;
 
     const sendResult = await sendEmail(admin, {
       account: account as EmailAccount,
@@ -377,6 +381,7 @@ export async function runFollowupsForQueue(
       subjectPrefix: "Re:",
       forcedSubject: c.cr.gmail_subject_used,
       signature: workspaceSignature,
+      unsubscribeUrl,
     });
 
     if (!sendResult.ok) {
