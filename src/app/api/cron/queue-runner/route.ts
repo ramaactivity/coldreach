@@ -2,6 +2,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runQueue } from "@/lib/queue-runner";
 
+// Vercel Hobby caps at 60s. Cron path runs without inter-email delay, so a
+// batch of ~18 emails (Gmail API + DB writes per send) fits comfortably.
+export const maxDuration = 60;
+
 /**
  * Cron-triggered queue runner. Called by pg_cron + pg_net every 30 minutes
  * during business hours in production.
@@ -68,8 +72,11 @@ export async function GET(request: NextRequest) {
       // Send up to daily_target this tick (rate limit). For one-shot we want
       // it to drain fast, so use full daily_target as batch size each run.
       // Cron is every 30min, so daily_target/run is acceptable rate.
+      // applyDelay=false: serverless function timeout is ~60s, so we can't
+      // afford 30-90s human-like delays between emails. Cron interval (30min)
+      // is the rate limit instead.
       const batchSize = Math.max(1, queue.daily_target);
-      const result = await runQueue(queue.id, batchSize, true);
+      const result = await runQueue(queue.id, batchSize, false);
       results.push({
         id: result.queue_id,
         sent: result.sent,
@@ -89,7 +96,7 @@ export async function GET(request: NextRequest) {
       const ticksLeft = Math.max(1, Math.ceil(minutesLeft / 30));
       const batchSize = Math.max(1, Math.ceil(queue.daily_target / ticksLeft));
 
-      const result = await runQueue(queue.id, batchSize, true);
+      const result = await runQueue(queue.id, batchSize, false);
       results.push({
         id: result.queue_id,
         sent: result.sent,

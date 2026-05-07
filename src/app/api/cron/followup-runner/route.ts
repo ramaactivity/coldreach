@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runFollowupsForQueue } from "@/lib/followup-runner";
 
+export const maxDuration = 60;
+
 /**
  * Cron-triggered follow-up sender. Runs every hour in production.
  * For each active queue with followup_enabled, sends follow-ups to
