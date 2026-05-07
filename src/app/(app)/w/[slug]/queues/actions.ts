@@ -74,12 +74,20 @@ export async function createQueue(
   if (data.audience_type === "tag" && data.audience_tag) {
     contactQuery = contactQuery.contains("tags", [data.audience_tag]);
   }
-  const { data: contacts } = await contactQuery;
-  if (!contacts || contacts.length === 0) {
+  const { data: contactsRaw } = await contactQuery;
+  if (!contactsRaw || contactsRaw.length === 0) {
     return {
       error:
         "Tidak ada kontak yang match audience ini. Tambah kontak atau ganti filter dulu.",
     };
+  }
+  // Fisher-Yates shuffle so each queue picks a different slice of the
+  // shared pool, minimising overlap when multiple workspaces draw from
+  // the same ~14k contacts.
+  const contacts = [...contactsRaw];
+  for (let i = contacts.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [contacts[i], contacts[j]] = [contacts[j], contacts[i]];
   }
 
   // Create queue

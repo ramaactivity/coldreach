@@ -15,12 +15,16 @@ const DEFAULT_BATCH_SIZE = 5;
 const DELAY_MIN_MS = 30_000;
 const DELAY_MAX_MS = 90_000;
 
-// Start of today in WIB (UTC+7), returned as a UTC ISO string.
-function startOfTodayWIB(): string {
-  const now = new Date();
-  const wib = new Date(now.getTime() + 7 * 3600 * 1000);
-  wib.setUTCHours(0, 0, 0, 0);
-  return new Date(wib.getTime() - 7 * 3600 * 1000).toISOString();
+// Cross-workspace dedup window. With ~14k contacts in the global pool and
+// random tiebreak ordering (see recipient query), 3 days is plenty to keep
+// a single recipient from being touched twice across all workspaces.
+const DEDUP_COOLDOWN_DAYS = 3;
+
+// Cutoff timestamp (UTC ISO) for the dedup window: now() minus N days.
+function dedupCutoffIso(): string {
+  return new Date(
+    Date.now() - DEDUP_COOLDOWN_DAYS * 24 * 3600 * 1000,
+  ).toISOString();
 }
 
 /**
@@ -96,6 +100,9 @@ export async function runQueue(
     .eq("template_id", queue.template_id);
 
   const limit = Math.min(batchSize, remainingQuota);
+  // Order by priority desc, then id (UUIDs are random) for a pseudo-random
+  // tiebreak within the same priority bucket. Combined with the queue-
+  // creation shuffle, this keeps cross-workspace overlap small.
   const { data: recipients } = await admin
     .from("queue_recipients")
     .select(
@@ -108,6 +115,7 @@ export async function runQueue(
     .eq("queue_id", queueId)
     .eq("status", "pending")
     .order("priority", { ascending: false })
+    .order("id", { ascending: true })
     .limit(limit);
 
   if (!recipients || recipients.length === 0) {
@@ -171,7 +179,6 @@ export async function runQueue(
 
   const dedupedEmails = new Set<string>();
   if (candidateEmailsLower.length > 0) {
-    const todayStartIso = startOfTodayWIB();
     // Use created_at (always set) instead of sent_at (NULL for 'sending'
     // rows) so we also catch in-flight rows from a prior batch that timed
     // out mid-iteration.
@@ -179,7 +186,7 @@ export async function runQueue(
       .from("campaign_recipients")
       .select("contact_email")
       .eq("user_id", queue.user_id)
-      .gte("created_at", todayStartIso)
+      .gte("created_at", dedupCutoffIso())
       .in("status", ["sending", "sent", "opened", "replied"])
       .in("contact_email", candidateEmailsLower);
     for (const row of alreadySent ?? []) {

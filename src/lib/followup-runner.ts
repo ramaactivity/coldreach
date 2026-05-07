@@ -13,12 +13,12 @@ export type FollowupRunResult = {
 };
 
 const MAX_FOLLOWUPS_PER_RUN = 10;
+const DEDUP_COOLDOWN_DAYS = 3;
 
-function startOfTodayWIB(): string {
-  const now = new Date();
-  const wib = new Date(now.getTime() + 7 * 3600 * 1000);
-  wib.setUTCHours(0, 0, 0, 0);
-  return new Date(wib.getTime() - 7 * 3600 * 1000).toISOString();
+function dedupCutoffIso(): string {
+  return new Date(
+    Date.now() - DEDUP_COOLDOWN_DAYS * 24 * 3600 * 1000,
+  ).toISOString();
 }
 
 type Candidate = {
@@ -271,12 +271,11 @@ export async function runFollowupsForQueue(
   );
   const dedupedEmails = new Set<string>();
   if (eligibleEmailsLower.length > 0) {
-    const todayStartIso = startOfTodayWIB();
     const { data: alreadySent } = await admin
       .from("campaign_recipients")
       .select("contact_email")
       .eq("user_id", queue.user_id)
-      .gte("created_at", todayStartIso)
+      .gte("created_at", dedupCutoffIso())
       .in("status", ["sending", "sent", "opened", "replied"])
       .in("contact_email", eligibleEmailsLower);
     for (const row of alreadySent ?? []) {
