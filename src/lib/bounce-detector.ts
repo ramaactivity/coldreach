@@ -12,8 +12,94 @@ const BOUNCE_LOOKBACK_DAYS = 7;
 // After this many soft bounces, treat the contact as effectively bounced.
 const SOFT_BOUNCE_THRESHOLD = 3;
 // If this many contacts at the same domain hard-bounce within the lookback,
-// auto-archive every other contact at that domain too.
+// AND the bounce rate at that domain crosses DOMAIN_BLOCK_RATE, auto-archive
+// every other contact at that domain too.
 const DOMAIN_BLOCK_THRESHOLD = 3;
+// Bounces / total-contacts-at-domain must exceed this. Stops a few bad
+// addresses at @microsoft.com from poisoning the whole domain.
+const DOMAIN_BLOCK_RATE = 0.5;
+
+// Free / consumer email providers. Auto-block at the domain level here
+// would torch tons of legitimate inboxes — if @gmail.com bounces three
+// times that says nothing about every other gmail user. We still archive
+// the individual contacts that bounced, just never the whole domain.
+//
+// Sources: keep this conservative — when in doubt add the domain. Easier
+// to remove later than to recover from a 14k-contact incident.
+const PUBLIC_EMAIL_DOMAINS = new Set<string>([
+  // Google
+  "gmail.com",
+  "googlemail.com",
+  // Microsoft
+  "outlook.com",
+  "hotmail.com",
+  "hotmail.co.uk",
+  "hotmail.co.id",
+  "live.com",
+  "msn.com",
+  // Yahoo
+  "yahoo.com",
+  "yahoo.co.uk",
+  "yahoo.co.id",
+  "yahoo.co.jp",
+  "yahoo.fr",
+  "yahoo.de",
+  "ymail.com",
+  "rocketmail.com",
+  // Apple
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  // AOL / Verizon
+  "aol.com",
+  "aol.co.uk",
+  // Privacy-first providers
+  "protonmail.com",
+  "proton.me",
+  "pm.me",
+  "tutanota.com",
+  "tutanota.de",
+  "tuta.io",
+  // Generic / legacy
+  "mail.com",
+  "gmx.com",
+  "gmx.net",
+  "gmx.de",
+  "zoho.com",
+  // Russian / Eastern European
+  "yandex.com",
+  "yandex.ru",
+  "mail.ru",
+  "rambler.ru",
+  // Asian
+  "naver.com",
+  "163.com",
+  "qq.com",
+  "126.com",
+  "sina.com",
+  "sina.cn",
+  // European ISPs
+  "web.de",
+  "t-online.de",
+  "freenet.de",
+  "libero.it",
+  "virgilio.it",
+  "orange.fr",
+  "free.fr",
+  "wanadoo.fr",
+  "laposte.net",
+  "bluewin.ch",
+  "telkomsel.net",
+  // Indonesian
+  "telkom.net",
+  "plasa.com",
+  // Education / org defaults that act like consumer pools
+  "students.kemenag.go.id",
+]);
+
+function isPublicEmailDomain(domain: string): boolean {
+  return PUBLIC_EMAIL_DOMAINS.has(domain.toLowerCase());
+}
 
 type EmailAccountRow = {
   id: string;
@@ -196,33 +282,71 @@ async function cleanupPendingQueueRecipients(
 }
 
 // If the same domain produced >= DOMAIN_BLOCK_THRESHOLD hard bounces in the
-// lookback window, archive every other contact at that domain too. Catches
-// company-wide blocks and dead domains before we waste more quota.
+// lookback window AND the bounce rate at that domain exceeds
+// DOMAIN_BLOCK_RATE, archive every other contact at that domain. Catches
+// dead domains and company-wide rejects without nuking gmail.com or a
+// large enterprise where only a few seats are misconfigured.
 async function maybeBlockDomain(
   admin: SupabaseClient,
   userId: string,
   domain: string,
-): Promise<{ archived: number; blocked: boolean }> {
+): Promise<{
+  archived: number;
+  blocked: boolean;
+  reason?: "public_provider" | "below_threshold" | "rate_too_low";
+}> {
   if (!domain) return { archived: 0, blocked: false };
+
+  // Hard guard: never auto-block free / consumer providers.
+  if (isPublicEmailDomain(domain)) {
+    return { archived: 0, blocked: false, reason: "public_provider" };
+  }
 
   const cutoff = new Date(
     Date.now() - BOUNCE_LOOKBACK_DAYS * 24 * 3600 * 1000,
   ).toISOString();
 
-  const { count } = await admin
+  // Distinct bouncing contacts at this domain in the lookback.
+  const { data: bouncingRows } = await admin
     .from("campaign_recipients")
-    .select("contact_id", { count: "exact", head: true })
+    .select("contact_id")
     .eq("user_id", userId)
     .eq("bounce_type", "hard")
     .gte("bounced_at", cutoff)
     .ilike("contact_email", `%@${domain}`);
+  const bouncingContactIds = new Set(
+    (bouncingRows ?? []).map(
+      (r) => (r as { contact_id: string }).contact_id,
+    ),
+  );
+  const bouncingCount = bouncingContactIds.size;
 
-  if ((count ?? 0) < DOMAIN_BLOCK_THRESHOLD) {
-    return { archived: 0, blocked: false };
+  if (bouncingCount < DOMAIN_BLOCK_THRESHOLD) {
+    return { archived: 0, blocked: false, reason: "below_threshold" };
   }
 
-  // Archive every still-active contact at the domain. Using ilike on email
-  // to catch all case variants.
+  // Total contacts at this domain (active + already-archived count toward
+  // the denominator so a domain that's already mostly archived doesn't
+  // get re-flagged).
+  const { count: totalAtDomain } = await admin
+    .from("contacts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .ilike("email", `%@${domain}`);
+
+  const denom = totalAtDomain ?? 0;
+  if (denom === 0) {
+    return { archived: 0, blocked: false, reason: "below_threshold" };
+  }
+
+  const rate = bouncingCount / denom;
+  if (rate < DOMAIN_BLOCK_RATE) {
+    return { archived: 0, blocked: false, reason: "rate_too_low" };
+  }
+
+  // Archive every still-active contact at the domain. ilike catches case
+  // variants (Gmail.COM etc.).
   const nowIso = new Date().toISOString();
   const { data: archived } = await admin
     .from("contacts")
