@@ -9,6 +9,8 @@ export type WorkspaceStats = {
   opened_7d: number;
   replied_7d: number;
   pending_replies: number; // replied but not yet handled
+  bounced_7d: number;
+  skipped_total: number;
   quota_today: { sent: number; quota: number } | null;
 };
 
@@ -34,13 +36,6 @@ export type RecentReply = {
   workspace_name?: string;
 };
 
-function startOfTodayWIB(): string {
-  const now = new Date();
-  const wib = new Date(now.getTime() + 7 * 3600 * 1000);
-  wib.setUTCHours(0, 0, 0, 0);
-  return new Date(wib.getTime() - 7 * 3600 * 1000).toISOString();
-}
-
 function daysAgoIso(days: number): string {
   return new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
 }
@@ -49,18 +44,18 @@ export async function getWorkspaceStats(
   workspaceId: string,
 ): Promise<WorkspaceStats> {
   const supabase = await createClient();
-  const todayStart = startOfTodayWIB();
   const weekAgo = daysAgoIso(7);
 
   const [
     contactsCount,
     templatesCount,
     activeQueuesCount,
-    sentTodayCount,
     sent7dCount,
     opened7dCount,
     replied7dCount,
     pendingRepliesCount,
+    bounced7dCount,
+    skippedTotalCount,
     accountInfo,
   ] = await Promise.all([
     supabase
@@ -84,12 +79,6 @@ export async function getWorkspaceStats(
       .from("campaign_recipients")
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", workspaceId)
-      .gte("created_at", todayStart)
-      .in("status", ["sending", "sent", "opened", "replied"]),
-    supabase
-      .from("campaign_recipients")
-      .select("id", { count: "exact", head: true })
-      .eq("workspace_id", workspaceId)
       .gte("created_at", weekAgo)
       .in("status", ["sending", "sent", "opened", "replied"]),
     supabase
@@ -109,6 +98,17 @@ export async function getWorkspaceStats(
       .eq("status", "replied")
       .is("handled_at", null),
     supabase
+      .from("campaign_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .gte("created_at", weekAgo)
+      .eq("status", "bounced"),
+    supabase
+      .from("queue_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .eq("status", "skipped"),
+    supabase
       .from("email_accounts")
       .select("daily_quota, emails_sent_today")
       .eq("workspace_id", workspaceId)
@@ -116,15 +116,25 @@ export async function getWorkspaceStats(
       .maybeSingle(),
   ]);
 
+  // sent_today is sourced from email_accounts.emails_sent_today so it stays
+  // in sync with the per-account quota counter the queue-runner writes
+  // directly. campaign_recipients-based counts could undercount when
+  // post-send DB writes lag (or be misaligned by RLS/cache).
+  const sentToday = accountInfo.data
+    ? (accountInfo.data as { emails_sent_today: number }).emails_sent_today
+    : 0;
+
   return {
     contacts_total: contactsCount.count ?? 0,
     templates_total: templatesCount.count ?? 0,
     queues_active: activeQueuesCount.count ?? 0,
-    sent_today: sentTodayCount.count ?? 0,
+    sent_today: sentToday,
     sent_7d: sent7dCount.count ?? 0,
     opened_7d: opened7dCount.count ?? 0,
     replied_7d: replied7dCount.count ?? 0,
     pending_replies: pendingRepliesCount.count ?? 0,
+    bounced_7d: bounced7dCount.count ?? 0,
+    skipped_total: skippedTotalCount.count ?? 0,
     quota_today: accountInfo.data
       ? {
           sent: (accountInfo.data as { emails_sent_today: number }).emails_sent_today,

@@ -15,6 +15,8 @@ import {
   Clock,
   Calendar,
   Target,
+  AlertTriangle,
+  SkipForward,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
@@ -166,6 +168,29 @@ export default async function WorkspaceDashboardPage({
             }
           />
         </Link>
+      </div>
+
+      {/* KPI grid - third row: deliverability */}
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label="Bounced (7d)"
+          value={stats.bounced_7d.toLocaleString("id-ID")}
+          icon={AlertTriangle}
+          tone={stats.bounced_7d > 0 ? "red" : "default"}
+          hint={
+            stats.sent_7d > 0
+              ? `${Math.round(
+                  (stats.bounced_7d / stats.sent_7d) * 100,
+                )}% bounce rate`
+              : "delivery failures"
+          }
+        />
+        <StatCard
+          label="Skipped"
+          value={stats.skipped_total.toLocaleString("id-ID")}
+          icon={SkipForward}
+          hint="dedup / inactive"
+        />
       </div>
 
       {/* Two column: Replies + Activity */}
