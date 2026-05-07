@@ -455,24 +455,102 @@ export async function pollBouncesForAccount(
       "Subject",
     );
     const body = extractMessageText(full.data.payload);
-    if (!body) continue;
+    if (!body) {
+      // Diagnostic — most-likely-cause: image-only DSN we can't parse
+      await admin.from("activity_log").insert({
+        user_id: account.user_id,
+        activity_type: "bounce_scan_skipped",
+        entity_type: "gmail_message",
+        entity_id: m.id,
+        metadata: {
+          reason: "empty_body",
+          subject: subject.slice(0, 200),
+          gmail_thread_id: full.data.threadId,
+        },
+      });
+      continue;
+    }
 
     const bounceType = classifyBounce(subject, body);
     const bouncedEmails = extractBouncedEmails(body, account.email);
-    if (bouncedEmails.length === 0) continue;
+    const threadId = full.data.threadId ?? null;
 
-    const { data: hits } = await admin
-      .from("campaign_recipients")
-      .select("id, contact_id, contact_email, workspace_id, status")
-      .eq("user_id", account.user_id)
-      .gte("created_at", cutoffIso)
-      .in(
-        "contact_email",
-        bouncedEmails.map((e) => e.toLowerCase()),
-      )
-      .in("status", ["sending", "sent", "opened"]);
+    // Strategy 1 (most reliable): Gmail threads bounces back into the same
+    // thread as the original outgoing message. If we have a campaign_recipient
+    // with that thread_id, link directly — no email parsing needed.
+    type Hit = {
+      id: string;
+      contact_id: string;
+      contact_email: string;
+      workspace_id: string;
+      status: string;
+    };
+    let hits: Hit[] | null = null;
 
-    if (!hits || hits.length === 0) continue;
+    if (threadId) {
+      const { data: byThread } = await admin
+        .from("campaign_recipients")
+        .select("id, contact_id, contact_email, workspace_id, status")
+        .eq("user_id", account.user_id)
+        .eq("gmail_thread_id", threadId)
+        .in("status", ["sending", "sent", "opened"]);
+      if (byThread && byThread.length > 0) {
+        hits = byThread as Hit[];
+      }
+    }
+
+    // Strategy 2: parse the bounce body for the failed recipient and look
+    // them up by email. Case-insensitive (.in is exact match, so we
+    // generate both the verbatim and lowercase forms — Postgres compares
+    // them all in one shot).
+    if (!hits || hits.length === 0) {
+      if (bouncedEmails.length === 0) {
+        await admin.from("activity_log").insert({
+          user_id: account.user_id,
+          activity_type: "bounce_scan_skipped",
+          entity_type: "gmail_message",
+          entity_id: m.id,
+          metadata: {
+            reason: "no_recipient_extracted",
+            subject: subject.slice(0, 200),
+            gmail_thread_id: threadId,
+            body_snippet: body.slice(0, 240).replace(/\s+/g, " ").trim(),
+          },
+        });
+        continue;
+      }
+      const variants = new Set<string>();
+      for (const e of bouncedEmails) {
+        variants.add(e);
+        variants.add(e.toLowerCase());
+      }
+      const { data: byEmail } = await admin
+        .from("campaign_recipients")
+        .select("id, contact_id, contact_email, workspace_id, status")
+        .eq("user_id", account.user_id)
+        .gte("created_at", cutoffIso)
+        .in("contact_email", Array.from(variants))
+        .in("status", ["sending", "sent", "opened"]);
+      hits = (byEmail as Hit[] | null) ?? null;
+    }
+
+    if (!hits || hits.length === 0) {
+      // Fully exhausted — log so the user can audit what's slipping through.
+      await admin.from("activity_log").insert({
+        user_id: account.user_id,
+        activity_type: "bounce_scan_skipped",
+        entity_type: "gmail_message",
+        entity_id: m.id,
+        metadata: {
+          reason: "no_match",
+          subject: subject.slice(0, 200),
+          bounce_type: bounceType,
+          extracted_emails: bouncedEmails.slice(0, 5),
+          gmail_thread_id: threadId,
+        },
+      });
+      continue;
+    }
 
     const nowIso = new Date().toISOString();
     const errorSnippet = body.slice(0, 500).replace(/\s+/g, " ").trim();

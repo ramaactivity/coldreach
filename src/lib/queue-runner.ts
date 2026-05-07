@@ -295,7 +295,7 @@ export async function runQueue(
     }
 
     // Pre-create campaign_recipient row so we can embed its ID as tracking pixel URL
-    const { data: campaignRecipient } = await admin
+    const { data: campaignRecipient, error: crInsertError } = await admin
       .from("campaign_recipients")
       .insert({
         campaign_id: null,
@@ -307,6 +307,17 @@ export async function runQueue(
       })
       .select("id")
       .maybeSingle();
+    // Loud failure — earlier we silently swallowed this and ended up with
+    // 0 campaign_recipients while emails were still going out via Gmail.
+    if (crInsertError || !campaignRecipient?.id) {
+      result.failed++;
+      result.errors.push(
+        `${contact.email}: campaign_recipient insert failed${
+          crInsertError ? ` — ${crInsertError.message}` : ""
+        }`,
+      );
+      continue;
+    }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const trackingUrl = campaignRecipient?.id
