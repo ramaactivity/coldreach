@@ -14,6 +14,13 @@ export type FollowupRunResult = {
 
 const MAX_FOLLOWUPS_PER_RUN = 10;
 
+function startOfTodayWIB(): string {
+  const now = new Date();
+  const wib = new Date(now.getTime() + 7 * 3600 * 1000);
+  wib.setUTCHours(0, 0, 0, 0);
+  return new Date(wib.getTime() - 7 * 3600 * 1000).toISOString();
+}
+
 type Candidate = {
   qr_id: string;
   contact_id: string;
@@ -251,9 +258,34 @@ export async function runFollowupsForQueue(
       new Date(a.reference_time).getTime() -
       new Date(b.reference_time).getTime(),
   );
-  const eligible = candidates.slice(
+  const eligibleRaw = candidates.slice(
     0,
     Math.min(MAX_FOLLOWUPS_PER_RUN, remainingQuota),
+  );
+
+  // Cross-workspace daily dedup: skip any contact_email that already
+  // received (or is mid-receiving) an email today from any of this user's
+  // workspaces.
+  const eligibleEmailsLower = eligibleRaw.map((c) =>
+    c.contact_email.toLowerCase(),
+  );
+  const dedupedEmails = new Set<string>();
+  if (eligibleEmailsLower.length > 0) {
+    const todayStartIso = startOfTodayWIB();
+    const { data: alreadySent } = await admin
+      .from("campaign_recipients")
+      .select("contact_email")
+      .eq("user_id", queue.user_id)
+      .gte("created_at", todayStartIso)
+      .in("status", ["sending", "sent", "opened", "replied"])
+      .in("contact_email", eligibleEmailsLower);
+    for (const row of alreadySent ?? []) {
+      const e = (row as { contact_email: string | null }).contact_email;
+      if (e) dedupedEmails.add(e.toLowerCase());
+    }
+  }
+  const eligible = eligibleRaw.filter(
+    (c) => !dedupedEmails.has(c.contact_email.toLowerCase()),
   );
 
   // Workspace meta for AI opener + signature

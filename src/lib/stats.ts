@@ -77,18 +77,21 @@ export async function getWorkspaceStats(
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", workspaceId)
       .eq("is_active", true),
+    // Use created_at + include 'sending' so we still count rows whose
+    // post-send DB update never finished (e.g., function timeout). The
+    // email actually went out via Gmail in those cases.
     supabase
       .from("campaign_recipients")
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", workspaceId)
-      .gte("sent_at", todayStart)
-      .in("status", ["sent", "opened", "replied"]),
+      .gte("created_at", todayStart)
+      .in("status", ["sending", "sent", "opened", "replied"]),
     supabase
       .from("campaign_recipients")
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", workspaceId)
-      .gte("sent_at", weekAgo)
-      .in("status", ["sent", "opened", "replied"]),
+      .gte("created_at", weekAgo)
+      .in("status", ["sending", "sent", "opened", "replied"]),
     supabase
       .from("campaign_recipients")
       .select("id", { count: "exact", head: true })

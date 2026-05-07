@@ -15,6 +15,14 @@ const DEFAULT_BATCH_SIZE = 5;
 const DELAY_MIN_MS = 30_000;
 const DELAY_MAX_MS = 90_000;
 
+// Start of today in WIB (UTC+7), returned as a UTC ISO string.
+function startOfTodayWIB(): string {
+  const now = new Date();
+  const wib = new Date(now.getTime() + 7 * 3600 * 1000);
+  wib.setUTCHours(0, 0, 0, 0);
+  return new Date(wib.getTime() - 7 * 3600 * 1000).toISOString();
+}
+
 /**
  * Process up to `batchSize` pending recipients in a queue.
  * Used by manual "Run Now" and the cron job.
@@ -149,6 +157,37 @@ export async function runQueue(
     }
   }
 
+  // Cross-workspace daily dedup: any contact_email already received an email
+  // today (under this user, across any workspace) is skipped. Includes
+  // in-flight 'sending' rows so we don't double-send when a previous batch
+  // timed out mid-iteration.
+  const candidateEmailsLower = recipients
+    .map((r) => {
+      const c = (r as { contact: unknown }).contact;
+      const obj = Array.isArray(c) ? c[0] : (c as { email?: string } | null);
+      return obj?.email?.toLowerCase() ?? null;
+    })
+    .filter((e): e is string => !!e);
+
+  const dedupedEmails = new Set<string>();
+  if (candidateEmailsLower.length > 0) {
+    const todayStartIso = startOfTodayWIB();
+    // Use created_at (always set) instead of sent_at (NULL for 'sending'
+    // rows) so we also catch in-flight rows from a prior batch that timed
+    // out mid-iteration.
+    const { data: alreadySent } = await admin
+      .from("campaign_recipients")
+      .select("contact_email")
+      .eq("user_id", queue.user_id)
+      .gte("created_at", todayStartIso)
+      .in("status", ["sending", "sent", "opened", "replied"])
+      .in("contact_email", candidateEmailsLower);
+    for (const row of alreadySent ?? []) {
+      const e = (row as { contact_email: string | null }).contact_email;
+      if (e) dedupedEmails.add(e.toLowerCase());
+    }
+  }
+
   let queueTotalSent = queue.total_sent;
   let queuePending = queue.total_pending;
   let accountSentToday = account.emails_sent_today;
@@ -191,6 +230,19 @@ export async function runQueue(
       continue;
     }
     if (contact.status !== "active") {
+      await admin
+        .from("queue_recipients")
+        .update({ status: "skipped" })
+        .eq("id", recipient.id);
+      result.skipped++;
+      continue;
+    }
+
+    // Cross-workspace daily dedup: if this contact's email already received
+    // (or is mid-receiving) an email today from any of this user's
+    // workspaces, skip — leave queue_recipient pending so it's retried
+    // tomorrow.
+    if (dedupedEmails.has(contact.email.toLowerCase())) {
       await admin
         .from("queue_recipients")
         .update({ status: "skipped" })
@@ -293,73 +345,73 @@ export async function runQueue(
       continue;
     }
 
-    // Update campaign_recipient with sent metadata
-    if (campaignRecipient?.id) {
-      await admin
-        .from("campaign_recipients")
+    // Counter bookkeeping (in-memory; DB writes follow in parallel below)
+    queueTotalSent++;
+    queuePending = Math.max(0, queuePending - 1);
+    accountSentToday++;
+    const nowIso = new Date().toISOString();
+
+    // All post-send DB writes are independent — fire in parallel to keep
+    // per-iteration latency low and survive Vercel's 60s cap on bigger
+    // batches. campaign_recipients first ensures stats see 'sent' fastest.
+    await Promise.all([
+      campaignRecipient?.id
+        ? admin
+            .from("campaign_recipients")
+            .update({
+              status: "sent",
+              sent_at: nowIso,
+              gmail_message_id: sendResult.gmail_message_id,
+              gmail_thread_id: sendResult.gmail_thread_id,
+              gmail_subject_used: sendResult.subject_used,
+            })
+            .eq("id", campaignRecipient.id)
+        : Promise.resolve(),
+      admin
+        .from("queue_recipients")
         .update({
           status: "sent",
-          sent_at: new Date().toISOString(),
-          gmail_message_id: sendResult.gmail_message_id,
-          gmail_thread_id: sendResult.gmail_thread_id,
-          gmail_subject_used: sendResult.subject_used,
+          sent_at: nowIso,
+          campaign_recipient_id: campaignRecipient?.id ?? null,
         })
-        .eq("id", campaignRecipient.id);
-    }
-
-    await admin
-      .from("queue_recipients")
-      .update({
-        status: "sent",
-        sent_at: new Date().toISOString(),
-        campaign_recipient_id: campaignRecipient?.id ?? null,
-      })
-      .eq("id", recipient.id);
-
-    // Workspace contact data
-    await admin
-      .from("contact_workspace_data")
-      .upsert(
+        .eq("id", recipient.id),
+      admin.from("contact_workspace_data").upsert(
         {
           contact_id: contact.id,
           workspace_id: queue.workspace_id,
           user_id: queue.user_id,
-          last_contacted_at: new Date().toISOString(),
+          last_contacted_at: nowIso,
         },
         { onConflict: "contact_id,workspace_id" },
-      );
+      ),
+      admin
+        .from("contacts")
+        .update({
+          total_emails_sent_all_workspaces:
+            contact.total_emails_sent_all_workspaces + 1,
+          last_contacted_at_any: nowIso,
+        })
+        .eq("id", contact.id),
+      admin
+        .from("send_queues")
+        .update({
+          total_sent: queueTotalSent,
+          total_pending: queuePending,
+          last_run_at: nowIso,
+        })
+        .eq("id", queueId),
+      admin
+        .from("email_accounts")
+        .update({
+          emails_sent_today: accountSentToday,
+          last_used_at: nowIso,
+        })
+        .eq("id", account.id),
+    ]);
 
-    // Aggregate contact stats
-    await admin
-      .from("contacts")
-      .update({
-        total_emails_sent_all_workspaces:
-          contact.total_emails_sent_all_workspaces + 1,
-        last_contacted_at_any: new Date().toISOString(),
-      })
-      .eq("id", contact.id);
-
-    // Counter bookkeeping
-    queueTotalSent++;
-    queuePending = Math.max(0, queuePending - 1);
-    accountSentToday++;
-
-    await admin
-      .from("send_queues")
-      .update({
-        total_sent: queueTotalSent,
-        total_pending: queuePending,
-        last_run_at: new Date().toISOString(),
-      })
-      .eq("id", queueId);
-
-    await admin
-      .from("email_accounts")
-      .update({
-        emails_sent_today: accountSentToday,
-        last_used_at: new Date().toISOString(),
-      })
-      .eq("id", account.id);
+    // Track the just-sent email so dedup catches subsequent recipients in
+    // the same batch (the DB query at batch start can't see this row yet).
+    dedupedEmails.add(contact.email.toLowerCase());
 
     result.sent++;
 
