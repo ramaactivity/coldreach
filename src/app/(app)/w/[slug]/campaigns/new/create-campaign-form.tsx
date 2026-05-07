@@ -193,7 +193,7 @@ export function CreateCampaignForm({
       </div>
 
       {/* AI opener */}
-      <div className="rounded-xl border border-zinc-200/80 bg-gradient-to-br from-amber-50/60 to-rose-50/40 p-4 dark:border-zinc-800/80 dark:from-amber-950/20 dark:to-rose-950/10">
+      <div className="rounded-2xl border border-zinc-200/70 bg-gradient-to-br from-amber-50/60 to-rose-50/40 p-4 dark:border-zinc-800/80 dark:from-amber-950/20 dark:to-rose-950/10">
         <label className="flex cursor-pointer items-start gap-3">
           <div className="relative mt-0.5">
             <input

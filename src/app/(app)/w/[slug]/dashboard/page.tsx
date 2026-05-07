@@ -352,7 +352,7 @@ function QuickAction({
       className={
         primary
           ? "inline-flex h-9 items-center gap-1.5 rounded-xl bg-zinc-900 px-3.5 text-[13px] font-medium text-zinc-50 shadow-[0_1px_2px_0_rgb(0_0_0/0.08)] transition-all duration-150 hover:bg-zinc-800 hover:shadow-[0_2px_6px_-1px_rgb(0_0_0/0.12)] active:scale-[0.97] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
-          : "inline-flex h-9 items-center gap-1.5 rounded-xl border border-zinc-200/80 bg-white px-3.5 text-[13px] font-medium text-zinc-700 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 hover:shadow-[0_1px_3px_0_rgb(0_0_0/0.08)] active:scale-[0.97] dark:border-zinc-800/80 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100"
+          : "inline-flex h-9 items-center gap-1.5 rounded-2xl border border-zinc-200/70 bg-white px-3.5 text-[13px] font-medium text-zinc-700 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 hover:shadow-[0_1px_3px_0_rgb(0_0_0/0.08)] active:scale-[0.97] dark:border-zinc-800/80 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100"
       }
     >
       {children}
@@ -376,7 +376,7 @@ function ShortcutCard({
   return (
     <Link
       href={href}
-      className="group relative overflow-hidden rounded-xl border border-zinc-200/80 bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900"
+      className="group relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900"
     >
       <div className="flex items-start justify-between">
         <div

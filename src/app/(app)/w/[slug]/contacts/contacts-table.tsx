@@ -112,11 +112,11 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.04),0_1px_3px_0_rgb(0_0_0/0.06)] dark:border-zinc-800/80 dark:bg-zinc-900">
+      <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] dark:border-zinc-800/70 dark:bg-zinc-900">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-200/80 bg-zinc-50/60 text-left text-[11px] uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400">
+              <tr className="border-b border-zinc-200/70 bg-zinc-50/60 text-left text-[10.5px] font-semibold uppercase tracking-[0.06em] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400">
                 <th className="w-10 px-5 py-3">
                   <CheckboxInput
                     checked={allChecked}

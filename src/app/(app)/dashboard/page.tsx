@@ -109,7 +109,7 @@ export default async function DashboardPage() {
               <Link
                 key={ws.id}
                 href={`/w/${ws.slug}/dashboard`}
-                className="group relative overflow-hidden rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_8px_20px_-4px_rgb(0_0_0/0.08)] dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700"
+                className="group relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_8px_20px_-4px_rgb(0_0_0/0.08)] dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700"
               >
                 {/* Color accent strip */}
                 <div
@@ -158,7 +158,7 @@ export default async function DashboardPage() {
 
           <Link
             href="/onboarding/workspace"
-            className="group flex items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-5 transition-all hover:-translate-y-0.5 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/30 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
+            className="group flex items-center justify-center rounded-2xl border border-dashed border-zinc-300/70 bg-zinc-50/50 p-5 transition-all hover:-translate-y-0.5 hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/30 dark:hover:border-zinc-600 dark:hover:bg-zinc-900"
           >
             <div className="flex flex-col items-center gap-2 text-zinc-500 transition-colors group-hover:text-zinc-900 dark:text-zinc-400 dark:group-hover:text-zinc-100">
               <Plus className="h-5 w-5" />

@@ -6,6 +6,7 @@ import { FileText, Image as ImageIcon, Upload, Trash2, AlertCircle, Loader2 } fr
 import type { TemplateAttachment } from "@/lib/template-helpers";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useConfirm } from "@/components/ui/dialog";
 import { uploadAttachment, deleteAttachment } from "../actions";
 
 function formatBytes(bytes: number): string {
@@ -24,6 +25,7 @@ export function AttachmentsManager({
   attachments: TemplateAttachment[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -41,9 +43,15 @@ export function AttachmentsManager({
     });
   }
 
-  function handleDelete(attachmentId: string) {
+  async function handleDelete(attachmentId: string) {
     setError(null);
-    if (!confirm("Hapus attachment ini?")) return;
+    const ok = await confirm({
+      title: "Hapus attachment ini?",
+      description: "Attachment akan dihapus dari semua send berikutnya.",
+      confirmLabel: "Hapus",
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       const res = await deleteAttachment(attachmentId, templateId, slug);
       if (res.error) setError(res.error);

@@ -74,7 +74,7 @@ export default async function CampaignsPage({
               <Link
                 key={c.id}
                 href={`/w/${slug}/campaigns/${c.id}`}
-                className="group block overflow-hidden rounded-xl border border-zinc-200/80 bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700"
+                className="group block overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">

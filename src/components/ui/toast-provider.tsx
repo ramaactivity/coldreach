@@ -26,12 +26,17 @@ export function ToastProvider() {
       closeButton
       gap={8}
       offset={16}
+      duration={4500}
       toastOptions={{
         classNames: {
           toast:
-            "rounded-xl border shadow-lg ring-1 ring-black/5 dark:ring-white/5",
-          title: "text-sm font-medium",
-          description: "text-xs",
+            "rounded-2xl border border-zinc-200/70 bg-white/95 backdrop-blur-xl shadow-[0_8px_24px_-4px_rgb(0_0_0/0.12),0_2px_6px_-2px_rgb(0_0_0/0.06)] dark:border-zinc-800/70 dark:bg-zinc-900/95",
+          title: "text-[13px] font-semibold tracking-[-0.005em]",
+          description: "text-[11.5px] leading-relaxed",
+          actionButton:
+            "rounded-lg !bg-zinc-900 !text-white hover:!bg-zinc-800 dark:!bg-zinc-100 dark:!text-zinc-900",
+          cancelButton:
+            "rounded-lg !bg-zinc-100 !text-zinc-700 hover:!bg-zinc-200 dark:!bg-zinc-800 dark:!text-zinc-300",
         },
       }}
     />

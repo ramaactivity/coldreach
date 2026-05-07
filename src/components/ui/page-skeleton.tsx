@@ -56,7 +56,7 @@ function ListBody() {
           <Skeleton className="h-9 w-24" />
         </div>
       </div>
-      <div className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
+      <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
         <div className="border-b border-zinc-200/80 bg-zinc-50/60 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-900/40">
           <Skeleton className="h-3 w-24" />
         </div>
@@ -85,14 +85,14 @@ function DetailBody() {
         {Array.from({ length: 3 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-xl border border-zinc-200/80 bg-white p-4 dark:border-zinc-800/80 dark:bg-zinc-900"
+            className="rounded-2xl border border-zinc-200/70 bg-white p-4 dark:border-zinc-800/80 dark:bg-zinc-900"
           >
             <Skeleton className="mb-2 h-3 w-16" />
             <Skeleton className="h-7 w-12" />
           </div>
         ))}
       </div>
-      <div className="rounded-xl border border-zinc-200/80 bg-white p-5 dark:border-zinc-800/80 dark:bg-zinc-900">
+      <div className="rounded-2xl border border-zinc-200/70 bg-white p-5 dark:border-zinc-800/80 dark:bg-zinc-900">
         <Skeleton className="mb-3 h-4 w-32" />
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -100,7 +100,7 @@ function DetailBody() {
           ))}
         </div>
       </div>
-      <div className="rounded-xl border border-zinc-200/80 bg-white p-5 dark:border-zinc-800/80 dark:bg-zinc-900">
+      <div className="rounded-2xl border border-zinc-200/70 bg-white p-5 dark:border-zinc-800/80 dark:bg-zinc-900">
         <Skeleton className="mb-4 h-4 w-32" />
         <div className="grid grid-cols-2 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -121,7 +121,7 @@ function KanbanBody() {
       {Array.from({ length: 4 }).map((_, col) => (
         <div
           key={col}
-          className="rounded-xl border border-zinc-200/80 bg-zinc-50/40 p-3 dark:border-zinc-800/80 dark:bg-zinc-900/40"
+          className="rounded-2xl border border-zinc-200/70 bg-zinc-50/40 p-3 dark:border-zinc-800/80 dark:bg-zinc-900/40"
         >
           <Skeleton className="mb-3 h-4 w-24" />
           <div className="space-y-2">
@@ -143,7 +143,7 @@ function KanbanBody() {
 
 function FormBody() {
   return (
-    <div className="rounded-xl border border-zinc-200/80 bg-white p-6 dark:border-zinc-800/80 dark:bg-zinc-900">
+    <div className="rounded-2xl border border-zinc-200/70 bg-white p-6 dark:border-zinc-800/80 dark:bg-zinc-900">
       <div className="space-y-6">
         {Array.from({ length: 4 }).map((_, section) => (
           <div key={section} className="space-y-3">
@@ -170,7 +170,7 @@ function StatsBody() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-xl border border-zinc-200/80 bg-white p-5 dark:border-zinc-800/80 dark:bg-zinc-900"
+            className="rounded-2xl border border-zinc-200/70 bg-white p-5 dark:border-zinc-800/80 dark:bg-zinc-900"
           >
             <Skeleton className="mb-3 h-3 w-16" />
             <Skeleton className="h-8 w-20" />
@@ -183,7 +183,7 @@ function StatsBody() {
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
-              className="rounded-xl border border-zinc-200/80 bg-white p-5 dark:border-zinc-800/80 dark:bg-zinc-900"
+              className="rounded-2xl border border-zinc-200/70 bg-white p-5 dark:border-zinc-800/80 dark:bg-zinc-900"
             >
               <Skeleton className="mb-3 h-4 w-32" />
               <Skeleton className="mb-2 h-6 w-40" />
@@ -202,7 +202,7 @@ function InboxBody() {
       <div className="mb-4">
         <Skeleton className="h-12 w-full rounded-lg" />
       </div>
-      <div className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white dark:border-zinc-800/80 dark:bg-zinc-900">
+      <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white dark:border-zinc-800/80 dark:bg-zinc-900">
         <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="flex items-start gap-3 px-5 py-4">

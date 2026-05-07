@@ -121,7 +121,7 @@ export function TagManager({
 
   if (initial.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/40 px-6 py-14 text-center dark:border-zinc-800 dark:bg-zinc-900/30">
+      <div className="rounded-2xl border border-dashed border-zinc-300/70 bg-zinc-50/40 px-6 py-14 text-center dark:border-zinc-800 dark:bg-zinc-900/30">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700">
           <Tag className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
         </div>
@@ -150,7 +150,7 @@ export function TagManager({
       </div>
 
       {/* Tag list */}
-      <div className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
+      <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
         <div className="flex items-center justify-between gap-2 border-b border-zinc-200/80 bg-zinc-50/60 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-900/40">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             {filtered.length} tag

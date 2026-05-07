@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FieldLabel, FieldDescription } from "@/components/ui/input";
 import { Select, SelectItem } from "@/components/ui/select";
+import { useConfirm } from "@/components/ui/dialog";
 import { sendOneEmailToContact, type SendOneEmailResult } from "./send-actions";
 
 type Template = {
@@ -44,6 +45,7 @@ export function SendEmailPanel({
   account: EmailAccountInfo;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
   const [useAiOpener, setUseAiOpener] = useState(true);
@@ -56,15 +58,16 @@ export function SendEmailPanel({
   const canSend =
     !!account && remainingQuota > 0 && templates.length > 0 && !!templateId;
 
-  function handleSend() {
+  async function handleSend() {
     if (!canSend) return;
-    if (
-      !testMode &&
-      !confirm(
-        `Kirim email ke ${contactEmail} sekarang juga? (gak bisa di-undo)`,
-      )
-    )
-      return;
+    if (!testMode) {
+      const ok = await confirm({
+        title: "Kirim email sekarang?",
+        description: `Email keluar ke ${contactEmail} dan gak bisa di-undo.`,
+        confirmLabel: "Kirim",
+      });
+      if (!ok) return;
+    }
 
     setResult(null);
     startTransition(async () => {

@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useConfirm } from "@/components/ui/dialog";
 import { disconnectGmail, toggleWarmupMode } from "./actions";
 import { QuotaForm } from "./quota-form";
 import { describeWarmupStage } from "@/lib/warmup";
@@ -42,6 +43,7 @@ export function GmailConnectionCard({
   account: EmailAccount;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
 
   if (!account || !account.is_active) {
@@ -73,8 +75,15 @@ export function GmailConnectionCard({
     );
   }
 
-  function handleDisconnect() {
-    if (!account || !confirm(`Disconnect Gmail ${account.email}? Lu bisa connect lagi nanti.`)) return;
+  async function handleDisconnect() {
+    if (!account) return;
+    const ok = await confirm({
+      title: "Disconnect Gmail?",
+      description: `${account.email} akan terputus. Lu bisa connect lagi nanti.`,
+      confirmLabel: "Disconnect",
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       await disconnectGmail(slug, account.id);
       router.refresh();

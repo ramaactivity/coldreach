@@ -158,7 +158,7 @@ export function TemplateForm({
           </div>
 
           {/* Variables */}
-          <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-4 dark:border-zinc-800/80 dark:bg-zinc-900/60">
+          <div className="rounded-2xl border border-zinc-200/70 bg-zinc-50/60 p-4 dark:border-zinc-800/80 dark:bg-zinc-900/60">
             <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
               <Sparkles className="h-3 w-3 text-amber-500" />
               Variables tersedia
@@ -195,7 +195,7 @@ export function TemplateForm({
 
         {/* Preview */}
         <div className="lg:sticky lg:top-6 lg:self-start">
-          <div className="overflow-hidden rounded-xl border border-zinc-200/80 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
+          <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
             <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/60 px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/60">
               <Mail className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">

@@ -99,7 +99,7 @@ export function FollowupSequenceEditor({
 
   if (!editing && steps.length === 0) {
     return (
-      <div className="rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
+      <div className="rounded-2xl border border-zinc-200/70 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
         <div className="flex items-center justify-between border-b border-zinc-200/80 px-5 py-3 dark:border-zinc-800/80">
           <Header />
           <button
@@ -128,7 +128,7 @@ export function FollowupSequenceEditor({
   }
 
   return (
-    <div className="rounded-xl border border-zinc-200/80 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
+    <div className="rounded-2xl border border-zinc-200/70 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
       <div className="flex items-center justify-between border-b border-zinc-200/80 px-5 py-3 dark:border-zinc-800/80">
         <Header />
         <div className="flex items-center gap-2">

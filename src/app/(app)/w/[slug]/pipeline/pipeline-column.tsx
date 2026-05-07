@@ -25,7 +25,7 @@ export function PipelineColumn({
   const visible = items.slice(0, maxCards);
 
   return (
-    <div className="flex w-72 shrink-0 flex-col rounded-xl border border-zinc-200/80 bg-zinc-50/40 dark:border-zinc-800/80 dark:bg-zinc-900/40">
+    <div className="flex w-72 shrink-0 flex-col rounded-2xl border border-zinc-200/70 bg-zinc-50/40 dark:border-zinc-800/80 dark:bg-zinc-900/40">
       <div className="flex items-center justify-between border-b border-zinc-200/80 px-3 py-2.5 dark:border-zinc-800/80">
         <div className="flex items-center gap-2">
           <span

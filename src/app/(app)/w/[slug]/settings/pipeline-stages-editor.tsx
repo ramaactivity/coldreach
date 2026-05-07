@@ -14,6 +14,7 @@ import {
 import type { PipelineStage } from "@/lib/workspace-constants";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useConfirm } from "@/components/ui/dialog";
 import { updatePipelineStages } from "./actions";
 
 const STAGE_COLORS = [
@@ -49,6 +50,7 @@ export function PipelineStagesEditor({
   initial: PipelineStage[];
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [stages, setStages] = useState<PipelineStage[]>(initial);
   const [adding, setAdding] = useState(false);
@@ -79,12 +81,19 @@ export function PipelineStagesEditor({
     setStages(next);
   }
 
-  function remove(index: number) {
+  async function remove(index: number) {
     if (stages.length <= 2) {
       setError("Minimal 2 stages (Baru + Closed)");
       return;
     }
-    if (!confirm(`Remove stage "${stages[index].name}"?`)) return;
+    const ok = await confirm({
+      title: `Remove stage "${stages[index].name}"?`,
+      description:
+        "Kontak yang ada di stage ini akan reset ke stage default berikutnya.",
+      confirmLabel: "Remove",
+      destructive: true,
+    });
+    if (!ok) return;
     setStages(stages.filter((_, i) => i !== index));
   }
 

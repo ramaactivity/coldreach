@@ -11,6 +11,7 @@ import {
 } from "../actions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/dialog";
 
 export function QueueActionsBar({
   slug,
@@ -26,6 +27,7 @@ export function QueueActionsBar({
   pendingCount: number;
 }) {
   const router = useRouter();
+  const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [lastResult, setLastResult] = useState<string | null>(null);
   const [resultTone, setResultTone] = useState<"success" | "error" | "info">("info");
@@ -71,13 +73,15 @@ export function QueueActionsBar({
     });
   }
 
-  function handleDelete() {
-    if (
-      !confirm(
-        "Delete queue ini permanen? Semua queue_recipients ikut terhapus, tapi email yang udah ke-kirim tetap di Gmail Sent.",
-      )
-    )
-      return;
+  async function handleDelete() {
+    const ok = await confirm({
+      title: "Delete queue ini?",
+      description:
+        "Semua queue_recipients ikut terhapus, tapi email yang udah ke-kirim tetap di Gmail Sent.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       await deleteQueueAction(slug, queueId);
     });
