@@ -65,11 +65,14 @@ export async function createQueue(
       ? { type: "tag", tag: data.audience_tag ?? "" }
       : { type: "all" };
 
-  // Resolve audience to contact IDs
+  // Resolve audience to contact IDs.
+  // archived_at filter excludes anything the bounce-detector or the user
+  // has shelved — bounced, blocked, soft-bounce-threshold, manual archive.
   let contactQuery = supabase
     .from("contacts")
     .select("id")
     .is("deleted_at", null)
+    .is("archived_at", null)
     .eq("status", "active");
   if (data.audience_type === "tag" && data.audience_tag) {
     contactQuery = contactQuery.contains("tags", [data.audience_tag]);

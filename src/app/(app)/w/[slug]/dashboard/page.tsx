@@ -17,6 +17,7 @@ import {
   Target,
   AlertTriangle,
   SkipForward,
+  Archive,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
@@ -185,6 +186,15 @@ export default async function WorkspaceDashboardPage({
               : "delivery failures"
           }
         />
+        <Link href={`/w/${slug}/contacts?segment=archived`} className="block">
+          <StatCard
+            label="Archived"
+            value={stats.archived_total.toLocaleString("id-ID")}
+            icon={Archive}
+            tone={stats.archived_total > 0 ? "amber" : "default"}
+            hint="auto + manual"
+          />
+        </Link>
         <StatCard
           label="Skipped"
           value={stats.skipped_total.toLocaleString("id-ID")}

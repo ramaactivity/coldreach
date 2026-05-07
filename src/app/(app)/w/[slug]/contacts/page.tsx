@@ -34,6 +34,7 @@ const VALID_SEGMENTS = new Set<ContactSegment>([
   "replied",
   "bounced",
   "stale_30d",
+  "archived",
 ]);
 
 export default async function ContactsPage({

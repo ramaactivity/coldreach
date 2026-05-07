@@ -1,18 +1,25 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Mail, Building2 } from "lucide-react";
+import { ArrowLeft, Mail, Building2, Archive, RotateCcw, AlertTriangle } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { getContactById } from "@/lib/contacts";
 import { listTemplates } from "@/lib/templates";
 import { getContactTimeline } from "@/lib/contact-activity";
 import { createClient } from "@/lib/supabase/server";
 import { ContactForm } from "../contact-form";
-import { updateContact, deleteContact, type ContactFormState } from "../actions";
+import {
+  updateContact,
+  deleteContact,
+  archiveContact,
+  unarchiveContact,
+  type ContactFormState,
+} from "../actions";
 import { SendEmailPanel } from "./send-email-panel";
 import { NotesEditor } from "./notes-editor";
 import { ActivityTimeline } from "./activity-timeline";
 import { AltEmailsPanel } from "./alt-emails-panel";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 
 export default async function ContactDetailPage({
@@ -59,9 +66,28 @@ export default async function ContactDetailPage({
     redirect(`/w/${slug}/contacts`);
   }
 
+  async function archiveAction() {
+    "use server";
+    await archiveContact(id, slug);
+  }
+
+  async function unarchiveAction() {
+    "use server";
+    await unarchiveContact(id, slug);
+  }
+
   const fullName =
     [contact.first_name, contact.last_name].filter(Boolean).join(" ") ||
     contact.email;
+
+  const archiveReasonLabels: Record<string, string> = {
+    hard_bounce: "Email tidak ditemukan (hard bounce)",
+    soft_bounce_threshold: "Soft bounce 3x — auto-archived",
+    domain_blocked: "Domain di-block (banyak hard bounce)",
+    manual: "Di-archive manual oleh kamu",
+    unsubscribed: "Unsubscribed",
+    spam_complaint: "Dilaporkan sebagai spam",
+  };
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">
@@ -92,12 +118,67 @@ export default async function ContactDetailPage({
             )}
           </div>
         </div>
-        <form action={deleteAction}>
-          <Button variant="destructive" size="sm" type="submit">
-            Delete
-          </Button>
-        </form>
+        <div className="flex flex-wrap gap-2">
+          {contact.archived_at ? (
+            <form action={unarchiveAction}>
+              <Button variant="outline" size="sm" type="submit">
+                <RotateCcw className="h-3.5 w-3.5" />
+                Restore
+              </Button>
+            </form>
+          ) : (
+            <form action={archiveAction}>
+              <Button variant="outline" size="sm" type="submit">
+                <Archive className="h-3.5 w-3.5" />
+                Archive
+              </Button>
+            </form>
+          )}
+          <form action={deleteAction}>
+            <Button variant="destructive" size="sm" type="submit">
+              Delete
+            </Button>
+          </form>
+        </div>
       </div>
+
+      {/* Archive / bounce banner */}
+      {contact.archived_at && (
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200/80 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+            <Archive className="h-4 w-4" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+              Kontak ini archived
+            </p>
+            <p className="mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+              {contact.archive_reason
+                ? archiveReasonLabels[contact.archive_reason] ??
+                  contact.archive_reason
+                : "Tidak akan dimasukkan ke queue baru, dan recipient pending sudah di-skip otomatis."}
+              {contact.bounce_count > 0 && (
+                <>
+                  {" "}
+                  <Badge variant="secondary" className="ml-1 align-middle">
+                    {contact.bounce_count}× bounced
+                  </Badge>
+                </>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+      {!contact.archived_at && contact.bounce_count > 0 && (
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3 text-xs dark:border-amber-900/40 dark:bg-amber-950/20">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <p className="text-amber-900 dark:text-amber-300">
+            Pernah bounce {contact.bounce_count}× (terakhir{" "}
+            {contact.last_bounce_type ?? "—"}). Kalau soft-bounce mencapai 3,
+            contact akan auto-archived.
+          </p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="mb-6 grid grid-cols-3 gap-3">

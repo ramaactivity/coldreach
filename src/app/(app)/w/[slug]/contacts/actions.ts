@@ -327,3 +327,62 @@ export async function deleteContact(id: string, slug: string) {
 
   revalidatePath(`/w/${slug}/contacts`);
 }
+
+/**
+ * Archive a contact: stops every workspace from emailing them while keeping
+ * the row + history intact. Sets archive_reason='manual' so it's clear the
+ * user did this (vs the bounce-detector). Also flips any pending
+ * queue_recipients to 'skipped' so the cron doesn't waste a tick on them.
+ */
+export async function archiveContact(id: string, slug: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  await supabase
+    .from("contacts")
+    .update({
+      archived_at: new Date().toISOString(),
+      archive_reason: "manual",
+    })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  await supabase
+    .from("queue_recipients")
+    .update({ status: "skipped" })
+    .eq("contact_id", id)
+    .eq("status", "pending");
+
+  revalidatePath(`/w/${slug}/contacts`);
+  revalidatePath(`/w/${slug}/contacts/${id}`);
+  return { ok: true };
+}
+
+/** Reverse archiveContact: brings the contact back into the active pool. */
+export async function unarchiveContact(id: string, slug: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  await supabase
+    .from("contacts")
+    .update({
+      archived_at: null,
+      archive_reason: null,
+      // Best-effort restore to active. If the contact was hard-bounced we
+      // intentionally do NOT bump bounce_count back to 0 — that history is
+      // useful for spotting repeat offenders.
+      status: "active",
+    })
+    .eq("id", id)
+    .eq("user_id", user.id);
+
+  revalidatePath(`/w/${slug}/contacts`);
+  revalidatePath(`/w/${slug}/contacts/${id}`);
+  return { ok: true };
+}

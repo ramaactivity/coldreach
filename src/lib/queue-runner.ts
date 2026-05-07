@@ -109,7 +109,7 @@ export async function runQueue(
       `id, priority,
        contact:contacts!inner(
          id, email, first_name, last_name, company, position, status,
-         total_emails_sent_all_workspaces
+         archived_at, total_emails_sent_all_workspaces
        )`,
     )
     .eq("queue_id", queueId)
@@ -211,6 +211,7 @@ export async function runQueue(
             company: string | null;
             position: string | null;
             status: string;
+            archived_at: string | null;
             total_emails_sent_all_workspaces: number;
           }
         | Array<{
@@ -221,6 +222,7 @@ export async function runQueue(
             company: string | null;
             position: string | null;
             status: string;
+            archived_at: string | null;
             total_emails_sent_all_workspaces: number;
           }>
         | null;
@@ -236,7 +238,9 @@ export async function runQueue(
       result.skipped++;
       continue;
     }
-    if (contact.status !== "active") {
+    // Skip if either the email-sending status went non-active OR the user /
+    // bounce-detector has archived the contact since this queue was built.
+    if (contact.status !== "active" || contact.archived_at) {
       await admin
         .from("queue_recipients")
         .update({ status: "skipped" })

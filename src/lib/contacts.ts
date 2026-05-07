@@ -20,6 +20,18 @@ export type Contact = {
   priority: "low" | "medium" | "high";
   total_emails_sent_all_workspaces: number;
   last_contacted_at_any: string | null;
+  bounce_count: number;
+  last_bounce_at: string | null;
+  last_bounce_type: "hard" | "soft" | "block" | "spam" | null;
+  archived_at: string | null;
+  archive_reason:
+    | "hard_bounce"
+    | "soft_bounce_threshold"
+    | "domain_blocked"
+    | "manual"
+    | "unsubscribed"
+    | "spam_complaint"
+    | null;
   unsubscribe_token: string;
   created_at: string;
   updated_at: string;
@@ -46,7 +58,8 @@ export type ContactSegment =
   | "never_contacted"
   | "replied"
   | "bounced"
-  | "stale_30d";
+  | "stale_30d"
+  | "archived";
 
 export type ContactsFilter = {
   search?: string;
@@ -80,6 +93,7 @@ export async function listContacts(
       id, user_id, email, alt_emails, first_name, last_name, company, position,
       phone, website, notes, custom_fields, tags, status, source, priority,
       total_emails_sent_all_workspaces, last_contacted_at_any,
+      bounce_count, last_bounce_at, last_bounce_type, archived_at, archive_reason,
       unsubscribe_token, created_at, updated_at, deleted_at,
       workspace_data:contact_workspace_data!left(
         lead_stage_id, workspace_notes, total_emails_sent,
@@ -90,6 +104,12 @@ export async function listContacts(
     )
     .is("deleted_at", null)
     .eq("contact_workspace_data.workspace_id", workspace.id);
+
+  // Archived contacts are hidden by default. Only the dedicated 'archived'
+  // segment includes them (handled below).
+  if (filter.segment !== "archived") {
+    query = query.is("archived_at", null);
+  }
 
   if (filter.search) {
     const term = filter.search.trim();
@@ -132,6 +152,9 @@ export async function listContacts(
         query = query.lt("contact_workspace_data.last_contacted_at", cutoff);
         break;
       }
+      case "archived":
+        query = query.not("archived_at", "is", null);
+        break;
     }
   }
 
@@ -241,6 +264,10 @@ export async function listAllContactsForExport(
     .is("deleted_at", null)
     .eq("contact_workspace_data.workspace_id", workspace.id);
 
+  if (filter.segment !== "archived") {
+    query = query.is("archived_at", null);
+  }
+
   if (filter.search) {
     const term = filter.search.trim();
     query = query.or(
@@ -273,6 +300,9 @@ export async function listAllContactsForExport(
         query = query.lt("contact_workspace_data.last_contacted_at", cutoff);
         break;
       }
+      case "archived":
+        query = query.not("archived_at", "is", null);
+        break;
     }
   }
   query = query.order("created_at", { ascending: false });

@@ -16,6 +16,7 @@ import {
   MessageCircle,
   AlertOctagon,
   Clock,
+  Archive,
 } from "lucide-react";
 import {
   CONTACTS_SORT_OPTIONS,
@@ -40,6 +41,7 @@ const SEGMENTS: {
   { value: "replied", label: "Pernah reply", icon: MessageCircle, tone: "blue" },
   { value: "bounced", label: "Bounced", icon: AlertOctagon, tone: "red" },
   { value: "stale_30d", label: "Stale 30+ hari", icon: Clock, tone: "zinc" },
+  { value: "archived", label: "Archived", icon: Archive, tone: "zinc" },
 ];
 
 const SEGMENT_TONE_CLASSES: Record<

@@ -11,6 +11,7 @@ export type WorkspaceStats = {
   pending_replies: number; // replied but not yet handled
   bounced_7d: number;
   skipped_total: number;
+  archived_total: number;
   quota_today: { sent: number; quota: number } | null;
 };
 
@@ -46,6 +47,14 @@ export async function getWorkspaceStats(
   const supabase = await createClient();
   const weekAgo = daysAgoIso(7);
 
+  // Need workspace.user_id to scope user-level counts (archived contacts).
+  const { data: workspace } = await supabase
+    .from("workspaces")
+    .select("user_id")
+    .eq("id", workspaceId)
+    .maybeSingle();
+  const ownerUserId = (workspace as { user_id?: string } | null)?.user_id;
+
   const [
     contactsCount,
     templatesCount,
@@ -56,6 +65,7 @@ export async function getWorkspaceStats(
     pendingRepliesCount,
     bounced7dCount,
     skippedTotalCount,
+    archivedTotalCount,
     accountInfo,
   ] = await Promise.all([
     supabase
@@ -108,6 +118,16 @@ export async function getWorkspaceStats(
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", workspaceId)
       .eq("status", "skipped"),
+    // Archived contacts are user-scoped (the global pool). Show the same
+    // count from any workspace so the user sees the cumulative damage.
+    ownerUserId
+      ? supabase
+          .from("contacts")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", ownerUserId)
+          .is("deleted_at", null)
+          .not("archived_at", "is", null)
+      : Promise.resolve({ count: 0 }),
     supabase
       .from("email_accounts")
       .select("daily_quota, emails_sent_today")
@@ -135,6 +155,7 @@ export async function getWorkspaceStats(
     pending_replies: pendingRepliesCount.count ?? 0,
     bounced_7d: bounced7dCount.count ?? 0,
     skipped_total: skippedTotalCount.count ?? 0,
+    archived_total: archivedTotalCount.count ?? 0,
     quota_today: accountInfo.data
       ? {
           sent: (accountInfo.data as { emails_sent_today: number }).emails_sent_today,
