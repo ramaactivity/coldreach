@@ -21,6 +21,9 @@ const CreateQueueSchema = z.object({
   daily_target: z.coerce.number().int().min(1).max(500),
   use_ai_opener: z.coerce.boolean().optional().default(true),
   test_mode: z.coerce.boolean().optional().default(false),
+  // Pool ordering: 'random' (default, Fisher-Yates) or 'warm_first'
+  // (engagement_score DESC, then random tiebreak).
+  pool_order: z.enum(["random", "warm_first"]).optional().default("random"),
 });
 
 export type CreateQueueState = {
@@ -70,12 +73,17 @@ export async function createQueue(
   // has shelved — bounced, blocked, soft-bounce-threshold, manual archive.
   let contactQuery = supabase
     .from("contacts")
-    .select("id")
+    .select("id, engagement_score")
     .is("deleted_at", null)
     .is("archived_at", null)
     .eq("status", "active");
   if (data.audience_type === "tag" && data.audience_tag) {
     contactQuery = contactQuery.contains("tags", [data.audience_tag]);
+  }
+  // Warm-first: order by engagement_score DESC at the DB layer so we don't
+  // need to sort 14k rows in JS. Random mode just doesn't apply an ORDER BY.
+  if (data.pool_order === "warm_first") {
+    contactQuery = contactQuery.order("engagement_score", { ascending: false });
   }
   const { data: contactsRaw } = await contactQuery;
   if (!contactsRaw || contactsRaw.length === 0) {
@@ -84,13 +92,35 @@ export async function createQueue(
         "Tidak ada kontak yang match audience ini. Tambah kontak atau ganti filter dulu.",
     };
   }
-  // Fisher-Yates shuffle so each queue picks a different slice of the
-  // shared pool, minimising overlap when multiple workspaces draw from
-  // the same ~14k contacts.
-  const contacts = [...contactsRaw];
-  for (let i = contacts.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [contacts[i], contacts[j]] = [contacts[j], contacts[i]];
+  let contacts: Array<{ id: string; engagement_score?: number }> = [
+    ...(contactsRaw as Array<{ id: string; engagement_score?: number }>),
+  ];
+
+  if (data.pool_order === "warm_first") {
+    // Stable bucket-shuffle: keep engaged contacts at the top, but randomise
+    // ordering inside each engagement bucket so multiple queues drawing
+    // from the same pool don't queue identical sequences.
+    const buckets = new Map<number, typeof contacts>();
+    for (const c of contacts) {
+      const bucket = c.engagement_score ?? 0;
+      if (!buckets.has(bucket)) buckets.set(bucket, []);
+      buckets.get(bucket)!.push(c);
+    }
+    contacts = [];
+    for (const score of Array.from(buckets.keys()).sort((a, b) => b - a)) {
+      const arr = buckets.get(score)!;
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      contacts.push(...arr);
+    }
+  } else {
+    // Plain Fisher-Yates over the whole pool.
+    for (let i = contacts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [contacts[i], contacts[j]] = [contacts[j], contacts[i]];
+    }
   }
 
   // Create queue
@@ -116,7 +146,11 @@ export async function createQueue(
 
   if (error || !queue) return { error: error?.message ?? "Gagal create queue" };
 
-  // Bulk insert queue_recipients
+  // Bulk insert queue_recipients. For warm_first we copy engagement_score
+  // into priority so queue-runner's `ORDER BY priority DESC` naturally
+  // picks engaged contacts first. For random, priority stays 0 across
+  // the board and the id-based tiebreak inside queue-runner keeps order
+  // shuffled.
   const BATCH = 500;
   for (let i = 0; i < contacts.length; i += BATCH) {
     const batch = contacts.slice(i, i + BATCH).map((c) => ({
@@ -125,7 +159,8 @@ export async function createQueue(
       user_id: user.id,
       workspace_id: workspace.id,
       status: "pending",
-      priority: 0,
+      priority:
+        data.pool_order === "warm_first" ? (c.engagement_score ?? 0) : 0,
     }));
     await supabase.from("queue_recipients").insert(batch);
   }

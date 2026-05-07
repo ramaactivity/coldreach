@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runQueue } from "@/lib/queue-runner";
+import { isTodayHolidayWIB, todayWIB } from "@/lib/holidays-id";
 
 // Vercel Hobby caps at 60s. Cron path runs without inter-email delay, so a
 // batch of ~18 emails (Gmail API + DB writes per send) fits comfortably.
@@ -26,6 +27,20 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  // Skip the entire run on Indonesian national holidays — corporate inboxes
+  // are dead, sends would just sit there until Monday + look weirdly
+  // automated. Cuti bersama gets the same treatment if listed in the
+  // holidays-id table.
+  if (isTodayHolidayWIB()) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: "indonesian_national_holiday",
+      date_wib: todayWIB(),
+      queues_processed: 0,
+    });
+  }
 
   // WIB = UTC+7. Compute current day-of-week and time in WIB.
   const now = new Date();

@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
+import { effectiveWarmupQuota } from "@/lib/warmup";
 
 export type RunQueueResult = {
   queue_id: string;
@@ -69,7 +70,7 @@ export async function runQueue(
   const { data: account } = await admin
     .from("email_accounts")
     .select(
-      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today",
+      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today, warmup_mode, warmup_started_at",
     )
     .eq("workspace_id", queue.workspace_id)
     .eq("is_active", true)
@@ -79,9 +80,23 @@ export async function runQueue(
     return result;
   }
 
-  const remainingQuota = account.daily_quota - account.emails_sent_today;
+  // Apply warmup ramp if active. Effective quota = min(account.daily_quota,
+  // ramp-stage cap). Once we strip warmup_mode the cap goes back to the
+  // raw daily_quota.
+  const effectiveDailyQuota = effectiveWarmupQuota({
+    warmupMode: (account as { warmup_mode?: boolean }).warmup_mode ?? false,
+    warmupStartedAt:
+      (account as { warmup_started_at?: string | null }).warmup_started_at ??
+      null,
+    fallbackQuota: account.daily_quota,
+  });
+  const remainingQuota = effectiveDailyQuota - account.emails_sent_today;
   if (remainingQuota <= 0) {
-    result.errors.push("Daily quota exhausted");
+    result.errors.push(
+      effectiveDailyQuota < account.daily_quota
+        ? `Warmup cap reached (${effectiveDailyQuota}/day)`
+        : "Daily quota exhausted",
+    );
     return result;
   }
 

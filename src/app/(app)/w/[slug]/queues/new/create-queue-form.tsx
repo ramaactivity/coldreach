@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Loader2, Users, Tag, Sparkles, Check, Shield } from "lucide-react";
+import { Loader2, Users, Tag, Sparkles, Check, Shield, Flame } from "lucide-react";
 import {
   FieldLabel,
   FieldError,
@@ -194,6 +194,54 @@ export function CreateQueueForm({
             </p>
           </div>
         </label>
+      </div>
+
+      {/* Pool ordering */}
+      <div className="rounded-xl border border-zinc-200/80 bg-white p-4 dark:border-zinc-800/80 dark:bg-zinc-900">
+        <p className="mb-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          Urutan kontak di queue
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3 transition-colors hover:border-zinc-300 has-[:checked]:border-zinc-900 has-[:checked]:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/30 dark:hover:border-zinc-700 dark:has-[:checked]:border-zinc-100 dark:has-[:checked]:bg-zinc-900">
+            <input
+              type="radio"
+              name="pool_order"
+              value="random"
+              defaultChecked
+              className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-zinc-900 dark:accent-zinc-100"
+            />
+            <div>
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="h-3 w-3 text-zinc-500" />
+                <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  Random
+                </p>
+              </div>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                Acak dari pool. Default — fair distribution antar workspace.
+              </p>
+            </div>
+          </label>
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3 transition-colors hover:border-amber-300 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50/60 dark:border-zinc-800 dark:bg-zinc-950/30 dark:hover:border-amber-800 dark:has-[:checked]:border-amber-700 dark:has-[:checked]:bg-amber-950/20">
+            <input
+              type="radio"
+              name="pool_order"
+              value="warm_first"
+              className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-amber-600 dark:accent-amber-500"
+            />
+            <div>
+              <div className="flex items-center gap-1.5">
+                <Flame className="h-3 w-3 text-amber-500" />
+                <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                  Warm-first
+                </p>
+              </div>
+              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                Kontak engaged (pernah open/reply) diprioritisasi duluan.
+              </p>
+            </div>
+          </label>
+        </div>
       </div>
 
       {/* Test mode toggle */}

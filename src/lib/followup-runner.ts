@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
+import { effectiveWarmupQuota } from "@/lib/warmup";
 import type { FollowupStep } from "@/lib/queue-helpers";
 
 export type FollowupRunResult = {
@@ -104,7 +105,7 @@ export async function runFollowupsForQueue(
   const { data: account } = await admin
     .from("email_accounts")
     .select(
-      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today",
+      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today, warmup_mode, warmup_started_at",
     )
     .eq("workspace_id", queue.workspace_id)
     .eq("is_active", true)
@@ -113,7 +114,14 @@ export async function runFollowupsForQueue(
     result.errors.push("No connected Gmail");
     return result;
   }
-  const remainingQuota = account.daily_quota - account.emails_sent_today;
+  const effectiveDailyQuota = effectiveWarmupQuota({
+    warmupMode: (account as { warmup_mode?: boolean }).warmup_mode ?? false,
+    warmupStartedAt:
+      (account as { warmup_started_at?: string | null }).warmup_started_at ??
+      null,
+    fallbackQuota: account.daily_quota,
+  });
+  const remainingQuota = effectiveDailyQuota - account.emails_sent_today;
   if (remainingQuota <= 0) return result;
 
   // Pre-fetch templates referenced by steps

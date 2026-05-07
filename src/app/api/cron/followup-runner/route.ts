@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runFollowupsForQueue } from "@/lib/followup-runner";
+import { isTodayHolidayWIB, todayWIB } from "@/lib/holidays-id";
 
 export const maxDuration = 60;
 
@@ -22,6 +23,16 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = createAdminClient();
+
+  if (isTodayHolidayWIB()) {
+    return NextResponse.json({
+      ok: true,
+      skipped: true,
+      reason: "indonesian_national_holiday",
+      date_wib: todayWIB(),
+      queues_checked: 0,
+    });
+  }
 
   const { data: queues } = await admin
     .from("send_queues")

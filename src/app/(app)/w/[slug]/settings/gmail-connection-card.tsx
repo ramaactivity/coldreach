@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { disconnectGmail, toggleWarmupMode } from "./actions";
 import { QuotaForm } from "./quota-form";
+import { describeWarmupStage } from "@/lib/warmup";
 
 type EmailAccount = {
   id: string;
@@ -205,19 +206,29 @@ export function GmailConnectionCard({
               )}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-              Untuk akun Gmail baru (&lt; 90 hari) atau yang lama gak dipakai.
-              Mulai 5 email/hari, naik bertahap selama 14 hari sebelum hit full
-              quota.
+              Untuk akun Gmail baru atau yang lama gak dipakai. Cap pengiriman
+              naik bertahap: 20 → 40 → 60 → 80 → full ({account.daily_quota})
+              selama 30 hari biar reputasi domain stabil.
             </p>
-            {account.warmup_mode && account.warmup_started_at && (
-              <p className="mt-1.5 text-xs text-emerald-700 dark:text-emerald-400">
-                Started{" "}
-                {new Date(account.warmup_started_at).toLocaleDateString(
-                  "id-ID",
-                  { day: "numeric", month: "long", year: "numeric" },
-                )}
-              </p>
-            )}
+            {account.warmup_mode && account.warmup_started_at && (() => {
+              const stage = describeWarmupStage({
+                warmupMode: account.warmup_mode,
+                warmupStartedAt: account.warmup_started_at,
+                fallbackQuota: account.daily_quota,
+              });
+              if (!stage) return null;
+              return (
+                <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800 ring-1 ring-emerald-600/20 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-500/30">
+                  <span>Hari ke-{stage.day}</span>
+                  <span>·</span>
+                  <span>
+                    Cap{" "}
+                    <strong className="font-semibold">{stage.cap}</strong>
+                    /hari{stage.isCapped ? "" : " (full quota)"}
+                  </span>
+                </div>
+              );
+            })()}
           </div>
           <Button
             variant={account.warmup_mode ? "primary" : "outline"}
