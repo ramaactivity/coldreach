@@ -13,6 +13,7 @@ import {
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { getQueueById, getQueueStats } from "@/lib/queues";
 import { createClient } from "@/lib/supabase/server";
+import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
 import { formatDays, formatTime, progressPercent } from "@/lib/queue-helpers";
 import { QueueActionsBar } from "./queue-actions-bar";
 import { FollowupSequenceEditor } from "./followup-sequence-editor";
@@ -49,7 +50,7 @@ export default async function QueueDetailPage({
       : Promise.resolve({ data: null }),
     supabase
       .from("email_accounts")
-      .select("email, daily_quota, emails_sent_today")
+      .select("id, email, daily_quota, emails_sent_today, quota_reset_at")
       .eq("workspace_id", workspace.id)
       .eq("is_active", true)
       .maybeSingle(),
@@ -61,7 +62,18 @@ export default async function QueueDetailPage({
       .order("name"),
   ]);
   const template = templateResult.data;
-  const account = accountResult.data;
+  const account = accountResult.data as
+    | {
+        id: string;
+        email: string;
+        daily_quota: number;
+        emails_sent_today: number;
+        quota_reset_at: string | null;
+      }
+    | null;
+  if (account) {
+    account.emails_sent_today = await ensureDailyQuotaFresh(supabase, account);
+  }
   const allTemplates = (allTemplatesResult.data ?? []) as Array<{
     id: string;
     name: string;

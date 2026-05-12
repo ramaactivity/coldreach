@@ -16,6 +16,7 @@ import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { getQueueById, getQueueStats } from "@/lib/queues";
 import { createClient } from "@/lib/supabase/server";
 import { progressPercent } from "@/lib/queue-helpers";
+import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
 import { QueueActionsBar } from "../../queues/[id]/queue-actions-bar";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,13 +52,24 @@ export default async function CampaignDetailPage({
       : Promise.resolve({ data: null }),
     supabase
       .from("email_accounts")
-      .select("email, daily_quota, emails_sent_today")
+      .select("id, email, daily_quota, emails_sent_today, quota_reset_at")
       .eq("workspace_id", workspace.id)
       .eq("is_active", true)
       .maybeSingle(),
   ]);
   const template = templateResult.data;
-  const account = accountResult.data;
+  const account = accountResult.data as
+    | {
+        id: string;
+        email: string;
+        daily_quota: number;
+        emails_sent_today: number;
+        quota_reset_at: string | null;
+      }
+    | null;
+  if (account) {
+    account.emails_sent_today = await ensureDailyQuotaFresh(supabase, account);
+  }
   const remainingQuota = account ? account.daily_quota - account.emails_sent_today : 0;
 
   const isCompleted = !queue.is_active && queue.total_pending === 0;

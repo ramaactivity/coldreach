@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
+import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
 
 export type SendOneEmailResult =
   | {
@@ -63,7 +64,7 @@ export async function sendOneEmailToContact(
   const { data: account } = await admin
     .from("email_accounts")
     .select(
-      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today",
+      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today, quota_reset_at",
     )
     .eq("workspace_id", workspace.id)
     .eq("is_active", true)
@@ -74,6 +75,15 @@ export async function sendOneEmailToContact(
       error: "Belum ada Gmail terhubung di workspace ini. Connect dulu di Settings.",
     };
   }
+  // Self-heal stale daily counter (pg_cron reset is best-effort backup).
+  const freshSentToday = await ensureDailyQuotaFresh(admin, {
+    id: account.id,
+    emails_sent_today: account.emails_sent_today,
+    quota_reset_at:
+      (account as { quota_reset_at?: string | null }).quota_reset_at ?? null,
+  });
+  account.emails_sent_today = freshSentToday;
+
   if (account.emails_sent_today >= account.daily_quota) {
     return {
       ok: false,

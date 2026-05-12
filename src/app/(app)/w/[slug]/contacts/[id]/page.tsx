@@ -6,6 +6,7 @@ import { getContactById } from "@/lib/contacts";
 import { listTemplates } from "@/lib/templates";
 import { getContactTimeline } from "@/lib/contact-activity";
 import { createClient } from "@/lib/supabase/server";
+import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
 import { ContactForm } from "../contact-form";
 import {
   updateContact,
@@ -47,13 +48,24 @@ export default async function ContactDetailPage({
         .maybeSingle(),
       supabase
         .from("email_accounts")
-        .select("email, daily_quota, emails_sent_today")
+        .select("id, email, daily_quota, emails_sent_today, quota_reset_at")
         .eq("workspace_id", workspace.id)
         .eq("is_active", true)
         .maybeSingle(),
       listTemplates(workspace.id),
       getContactTimeline(id, workspace.id),
     ]);
+  if (account) {
+    (account as { emails_sent_today: number }).emails_sent_today =
+      await ensureDailyQuotaFresh(
+        supabase,
+        account as {
+          id: string;
+          emails_sent_today: number;
+          quota_reset_at: string | null;
+        },
+      );
+  }
 
   async function updateAction(_prev: ContactFormState, formData: FormData) {
     "use server";

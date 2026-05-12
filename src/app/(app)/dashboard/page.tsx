@@ -18,6 +18,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
+import { HolidayNotice } from "@/components/holiday-notice";
 
 export default async function DashboardPage() {
   const user = await requireCurrentUser();
@@ -64,6 +65,8 @@ export default async function DashboardPage() {
           title="Semua Workspace"
           description="Aggregate view dari semua bisnis lu. Klik workspace untuk masuk lebih detail."
         />
+
+        <HolidayNotice />
 
         {/* Aggregate KPIs */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

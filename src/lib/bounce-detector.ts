@@ -493,7 +493,7 @@ export async function pollBouncesForAccount(
         .select("id, contact_id, contact_email, workspace_id, status")
         .eq("user_id", account.user_id)
         .eq("gmail_thread_id", threadId)
-        .in("status", ["sending", "sent", "opened"]);
+        .in("status", ["sending", "sent", "opened", "replied"]);
       if (byThread && byThread.length > 0) {
         hits = byThread as Hit[];
       }
@@ -530,7 +530,7 @@ export async function pollBouncesForAccount(
         .eq("user_id", account.user_id)
         .gte("created_at", cutoffIso)
         .in("contact_email", Array.from(variants))
-        .in("status", ["sending", "sent", "opened"]);
+        .in("status", ["sending", "sent", "opened", "replied"]);
       hits = (byEmail as Hit[] | null) ?? null;
     }
 
@@ -564,7 +564,10 @@ export async function pollBouncesForAccount(
         status: string;
       };
 
-      // Update campaign_recipients with bounce_type
+      // Update campaign_recipients with bounce_type. Clear replied_at too
+      // so the dashboard's "Recent Replies" stops showing a bounce that
+      // was mistakenly classified as a reply by an earlier reply-poller
+      // run (back when reply-detector didn't filter DSN senders).
       await admin
         .from("campaign_recipients")
         .update({
@@ -572,6 +575,8 @@ export async function pollBouncesForAccount(
           bounced_at: nowIso,
           bounce_type: bounceType,
           error_message: errorSnippet,
+          replied_at: null,
+          reply_classification: null,
         })
         .eq("id", row.id);
 

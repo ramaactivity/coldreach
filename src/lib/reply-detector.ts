@@ -60,6 +60,58 @@ function extractFrom(headerValue: string | null | undefined): string {
   return (m?.[1] ?? headerValue).trim().toLowerCase();
 }
 
+// Bounce / DSN / autoresponder senders. Gmail threads delivery failures and
+// "out of office" autoresponders back into the original outgoing thread, so
+// without this filter we'd mark the contact as having replied when really
+// the message we received was a bounce or a system notification.
+function isBounceOrSystemSender(fromEmail: string): boolean {
+  if (!fromEmail) return true;
+  const lower = fromEmail.toLowerCase();
+  if (lower.includes("mailer-daemon")) return true;
+  if (lower.startsWith("postmaster@")) return true;
+  if (lower.startsWith("noreply@")) return true;
+  if (lower.startsWith("no-reply@")) return true;
+  if (lower.startsWith("do-not-reply@")) return true;
+  if (lower.startsWith("bounce@")) return true;
+  if (lower.startsWith("bounces@")) return true;
+  if (lower.startsWith("bounce-")) return true;
+  if (lower.startsWith("mailerdaemon@")) return true;
+  return false;
+}
+
+// Subject markers that scream "this is a delivery failure / autoresponder",
+// not an actual reply. Covers Gmail (English + Indonesian localisation),
+// Microsoft Exchange, and most SMTP-RFC-3464 wrappers we've seen.
+function isLikelyDsnSubject(subject: string): boolean {
+  if (!subject) return false;
+  const s = subject.toLowerCase();
+  return (
+    s.includes("undeliverable") ||
+    s.includes("undelivered") ||
+    s.includes("delivery status notification") ||
+    s.includes("delivery failure") ||
+    s.includes("failure notice") ||
+    s.includes("returned mail") ||
+    s.includes("message blocked") ||
+    s.includes("mail delivery failed") ||
+    s.includes("mail delivery subsystem") ||
+    s.includes("address not found") ||
+    s.includes("tidak terkirim") || // Gmail ID localisation
+    s.includes("automatic reply") ||
+    s.includes("auto-reply") ||
+    s.includes("out of office") ||
+    s.includes("autoresponder")
+  );
+}
+
+// RFC 3834: legitimate autoresponders / DSNs set Auto-Submitted to a
+// non-"no" value. If we see this, it's not a human reply.
+function isAutoSubmitted(autoSubmitted: string | null | undefined): boolean {
+  if (!autoSubmitted) return false;
+  const v = autoSubmitted.toLowerCase().trim();
+  return v !== "" && v !== "no";
+}
+
 function decodeBase64Url(s: string): string {
   const normalized = s.replace(/-/g, "+").replace(/_/g, "/");
   try {
@@ -167,7 +219,7 @@ export async function pollRepliesForAccount(
         userId: "me",
         id: cand.gmail_thread_id,
         format: "metadata",
-        metadataHeaders: ["From", "Date"],
+        metadataHeaders: ["From", "Subject", "Auto-Submitted", "Date"],
       });
 
       const messages = thread.data.messages ?? [];
@@ -176,13 +228,20 @@ export async function pollRepliesForAccount(
       const sentAtMs = new Date(cand.sent_at).getTime();
 
       const replyMessage = messages.find((msg) => {
-        const fromHeader = msg.payload?.headers?.find(
-          (h) => h.name?.toLowerCase() === "from",
-        )?.value;
-        const fromEmail = extractFrom(fromHeader);
+        const headers = msg.payload?.headers ?? [];
+        const get = (name: string) =>
+          headers.find((h) => h.name?.toLowerCase() === name)?.value ?? "";
+        const fromEmail = extractFrom(get("from"));
         if (!fromEmail || fromEmail === accountEmailLower) return false;
         const internalDate = parseInt(msg.internalDate ?? "0", 10);
-        return internalDate > sentAtMs;
+        if (internalDate <= sentAtMs) return false;
+        // Drop bounces, postmaster notices, and OOO autoresponders so they
+        // don't get counted as replies. Bounce detector handles them on its
+        // own pass; auto-replies aren't actionable engagement.
+        if (isBounceOrSystemSender(fromEmail)) return false;
+        if (isLikelyDsnSubject(get("subject"))) return false;
+        if (isAutoSubmitted(get("auto-submitted"))) return false;
+        return true;
       });
 
       if (!replyMessage) continue;

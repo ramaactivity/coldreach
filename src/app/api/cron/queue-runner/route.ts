@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runQueue } from "@/lib/queue-runner";
-import { isTodayHolidayWIB, todayWIB } from "@/lib/holidays-id";
+import {
+  isTodayHolidayWIBAsync,
+  holidayDataLooksStale,
+  todayWIB,
+} from "@/lib/holidays-id";
 
 // Vercel Hobby caps at 60s. Cron path runs without inter-email delay, so a
 // batch of ~18 emails (Gmail API + DB writes per send) fits comfortably.
@@ -28,17 +32,38 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
 
-  // Skip the entire run on Indonesian national holidays — corporate inboxes
-  // are dead, sends would just sit there until Monday + look weirdly
-  // automated. Cuti bersama gets the same treatment if listed in the
-  // holidays-id table.
-  if (isTodayHolidayWIB()) {
+  // Skip the entire run on Indonesian national holidays + cuti bersama —
+  // corporate inboxes are dead, sends would just sit there until the
+  // next workday and look weirdly automated. Data is auto-refreshed
+  // daily from a public API into `id_holidays`; the hardcoded set in
+  // holidays-id.ts is offline fallback.
+  const holiday = await isTodayHolidayWIBAsync(admin);
+  if (holiday) {
     return NextResponse.json({
       ok: true,
       skipped: true,
-      reason: "indonesian_national_holiday",
+      reason: holiday.is_cuti_bersama
+        ? "indonesian_cuti_bersama"
+        : "indonesian_national_holiday",
+      holiday: holiday.name,
+      source: holiday.source,
       date_wib: todayWIB(),
       queues_processed: 0,
+    });
+  }
+
+  // Warn when the hardcoded fallback is exhausted AND the DB has no rows
+  // for the current year — without that data, we'd silently send on
+  // real holidays. This shouldn't block the run, but it's worth logging.
+  if (await holidayDataLooksStale(admin)) {
+    console.warn(
+      `[queue-runner] Holiday data appears stale for year ${todayWIB().slice(0, 4)}. ` +
+        `Refresh-holidays cron may have stopped. Sends are continuing as best-effort.`,
+    );
+    await admin.from("activity_log").insert({
+      activity_type: "holidays_stale_warning",
+      entity_type: "id_holidays",
+      metadata: { date_wib: todayWIB() },
     });
   }
 

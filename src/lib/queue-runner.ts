@@ -3,6 +3,7 @@ import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
 import { detectContactLanguage } from "@/lib/lang-detect";
+import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
 
 export type RunQueueResult = {
   queue_id: string;
@@ -71,7 +72,7 @@ export async function runQueue(
   const { data: account } = await admin
     .from("email_accounts")
     .select(
-      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today, warmup_mode, warmup_started_at",
+      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at",
     )
     .eq("workspace_id", queue.workspace_id)
     .eq("is_active", true)
@@ -80,6 +81,15 @@ export async function runQueue(
     result.errors.push("No connected Gmail for this workspace");
     return result;
   }
+
+  // Self-heal stale daily counter (pg_cron reset is best-effort backup).
+  const freshSentToday = await ensureDailyQuotaFresh(admin, {
+    id: account.id,
+    emails_sent_today: account.emails_sent_today,
+    quota_reset_at:
+      (account as { quota_reset_at?: string | null }).quota_reset_at ?? null,
+  });
+  account.emails_sent_today = freshSentToday;
 
   // Apply warmup ramp if active. Effective quota = min(account.daily_quota,
   // ramp-stage cap). Once we strip warmup_mode the cap goes back to the

@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { runFollowupsForQueue } from "@/lib/followup-runner";
-import { isTodayHolidayWIB, todayWIB } from "@/lib/holidays-id";
+import {
+  isTodayHolidayWIBAsync,
+  holidayDataLooksStale,
+  todayWIB,
+} from "@/lib/holidays-id";
 
 export const maxDuration = 60;
 
@@ -24,14 +28,26 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
 
-  if (isTodayHolidayWIB()) {
+  const holiday = await isTodayHolidayWIBAsync(admin);
+  if (holiday) {
     return NextResponse.json({
       ok: true,
       skipped: true,
-      reason: "indonesian_national_holiday",
+      reason: holiday.is_cuti_bersama
+        ? "indonesian_cuti_bersama"
+        : "indonesian_national_holiday",
+      holiday: holiday.name,
+      source: holiday.source,
       date_wib: todayWIB(),
       queues_checked: 0,
     });
+  }
+
+  if (await holidayDataLooksStale(admin)) {
+    console.warn(
+      `[followup-runner] Holiday data appears stale for year ${todayWIB().slice(0, 4)}. ` +
+        `Refresh-holidays cron may have stopped.`,
+    );
   }
 
   const { data: queues } = await admin

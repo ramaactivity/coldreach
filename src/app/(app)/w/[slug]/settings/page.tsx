@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
+import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
 import { GmailConnectionCard } from "./gmail-connection-card";
 import { WorkspaceInfoForm } from "./workspace-info-form";
 import { ScheduleForm } from "./schedule-form";
@@ -37,10 +38,21 @@ export default async function WorkspaceSettingsPage({
   const { data: emailAccount } = await supabase
     .from("email_accounts")
     .select(
-      "id, email, display_name, oauth_scope, token_expires_at, is_active, daily_quota, emails_sent_today, health_status, health_notes, warmup_mode, warmup_started_at, last_used_at",
+      "id, email, display_name, oauth_scope, token_expires_at, is_active, daily_quota, emails_sent_today, quota_reset_at, health_status, health_notes, warmup_mode, warmup_started_at, last_used_at",
     )
     .eq("workspace_id", workspace.id)
     .maybeSingle();
+  if (emailAccount) {
+    (emailAccount as { emails_sent_today: number }).emails_sent_today =
+      await ensureDailyQuotaFresh(
+        supabase,
+        emailAccount as {
+          id: string;
+          emails_sent_today: number;
+          quota_reset_at: string | null;
+        },
+      );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-8">

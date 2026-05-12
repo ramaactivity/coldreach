@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { startOfTodayWibIso } from "@/lib/quota-reset";
 
 export type WorkspaceStats = {
   contacts_total: number;
@@ -46,6 +47,7 @@ export async function getWorkspaceStats(
 ): Promise<WorkspaceStats> {
   const supabase = await createClient();
   const weekAgo = daysAgoIso(7);
+  const todayStart = startOfTodayWibIso();
 
   // Need workspace.user_id to scope user-level counts (archived contacts).
   const { data: workspace } = await supabase
@@ -59,6 +61,7 @@ export async function getWorkspaceStats(
     contactsCount,
     templatesCount,
     activeQueuesCount,
+    sentTodayCount,
     sent7dCount,
     opened7dCount,
     replied7dCount,
@@ -82,6 +85,18 @@ export async function getWorkspaceStats(
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", workspaceId)
       .eq("is_active", true),
+    // sent_today is computed from actual campaign_recipients rows created
+    // today (WIB) rather than the email_accounts counter. The counter
+    // depends on a daily pg_cron reset that may not have fired, so it can
+    // show yesterday's total. Counting rows is the source of truth.
+    // Include 'bounced' too — bounced still counts as a delivery attempt
+    // against Gmail's per-day send limit.
+    supabase
+      .from("campaign_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .gte("created_at", todayStart)
+      .in("status", ["sending", "sent", "opened", "replied", "bounced"]),
     // Use created_at + include 'sending' so we still count rows whose
     // post-send DB update never finished (e.g., function timeout). The
     // email actually went out via Gmail in those cases.
@@ -136,13 +151,11 @@ export async function getWorkspaceStats(
       .maybeSingle(),
   ]);
 
-  // sent_today is sourced from email_accounts.emails_sent_today so it stays
-  // in sync with the per-account quota counter the queue-runner writes
-  // directly. campaign_recipients-based counts could undercount when
-  // post-send DB writes lag (or be misaligned by RLS/cache).
-  const sentToday = accountInfo.data
-    ? (accountInfo.data as { emails_sent_today: number }).emails_sent_today
-    : 0;
+  // Source of truth for "sent today" is the actual campaign_recipients
+  // rows created today (WIB). The quota counter on email_accounts is for
+  // gating sends — it can be stale until the next send (lazy reset) or
+  // the next pg_cron fire. For *display*, always trust the rows.
+  const sentToday = sentTodayCount.count ?? 0;
 
   return {
     contacts_total: contactsCount.count ?? 0,
@@ -158,7 +171,11 @@ export async function getWorkspaceStats(
     archived_total: archivedTotalCount.count ?? 0,
     quota_today: accountInfo.data
       ? {
-          sent: (accountInfo.data as { emails_sent_today: number }).emails_sent_today,
+          // Show actual sent count today (source-of-truth), not the
+          // potentially-stale quota counter. The dashboard's "X/Y quota"
+          // line should reflect reality so a fresh morning shows 0/90,
+          // not 90/90 from yesterday.
+          sent: sentToday,
           quota: (accountInfo.data as { daily_quota: number }).daily_quota,
         }
       : null,
