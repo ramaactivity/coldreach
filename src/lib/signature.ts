@@ -200,36 +200,34 @@ export function renderSignatureHtml(
       titleLine +
     `</td>`;
 
-  // Socials → small brand-colored icon row, pushed flush right.
+  // Socials → compact brand-colored icons, sized down to 20px so they sit
+  // inline with the tagline rather than dominating the right column.
   const socialIcons = (d.socials ?? [])
     .filter((s) => s.url && s.url.trim())
     .map((s) => {
       const meta = socialMeta(s.platform);
       const href = esc(normalizeWebsiteHref(s.url));
-      const iconPng = brandIconPng(meta.slug, "ffffff", 56);
+      const iconPng = brandIconPng(meta.slug, "ffffff", 40);
       return (
-        `<a href="${href}" style="display:inline-block;margin-left:6px;text-decoration:none;" aria-label="${esc(meta.label)}">` +
-          `<img src="${iconPng}" alt="${esc(meta.label)}" width="28" height="28" ` +
-          `style="display:inline-block;border:0;border-radius:7px;background-color:#${meta.color};padding:6px;box-sizing:border-box;">` +
+        `<a href="${href}" style="display:inline-block;margin-left:6px;text-decoration:none;vertical-align:middle;" aria-label="${esc(meta.label)}">` +
+          `<img src="${iconPng}" alt="${esc(meta.label)}" width="20" height="20" ` +
+          `style="display:inline-block;border:0;border-radius:5px;background-color:#${meta.color};padding:4px;box-sizing:border-box;vertical-align:middle;">` +
         `</a>`
       );
     })
     .join("");
-  const socialsBlock = socialIcons
-    ? `<div style="line-height:0;font-size:0;text-align:right;">${socialIcons}</div>`
-    : "";
 
-  const taglineBlock = d.tagline?.trim()
-    ? `<div style="font-family:${FONT_STACK};font-style:italic;font-size:12px;line-height:1.4;color:#525252;margin-top:8px;letter-spacing:-0.005em;text-align:right;">&ldquo;${esc(d.tagline.trim())}&rdquo;</div>`
+  const taglineInline = d.tagline?.trim()
+    ? `<span style="font-family:${FONT_STACK};font-style:italic;font-size:12px;line-height:1.4;color:#525252;letter-spacing:-0.005em;display:inline-block;vertical-align:middle;margin-right:8px;white-space:nowrap;">&ldquo;${esc(d.tagline.trim())}&rdquo;</span>`
     : "";
 
   const socialCell =
-    socialsBlock || taglineBlock
-      ? `<td align="right" valign="top" style="vertical-align:top;text-align:right;">` +
-          socialsBlock +
-          taglineBlock +
+    socialIcons || taglineInline
+      ? `<td align="right" valign="middle" style="vertical-align:middle;text-align:right;white-space:nowrap;">` +
+          taglineInline +
+          socialIcons +
         `</td>`
-      : `<td align="right" valign="top" style="vertical-align:top;">&nbsp;</td>`;
+      : `<td align="right" valign="middle" style="vertical-align:middle;">&nbsp;</td>`;
 
   // ---------------------------------------------------------------------------
   // RIGHT COLUMN — Bottom row: colored contact bar
@@ -237,8 +235,11 @@ export function renderSignatureHtml(
   // <td> so we can render real WhatsApp glyph as an inline <img>. Items use
   // align="center" inside their cells; white text inherits to unicode glyphs.
   // ---------------------------------------------------------------------------
-  const barLinkStyle = `color:#ffffff;text-decoration:none;font-family:${FONT_STACK};font-size:11.5px;line-height:1.4;`;
-  const barCellStyle = `padding:9px 8px;color:#ffffff;font-family:${FONT_STACK};font-size:11.5px;line-height:1.4;vertical-align:middle;`;
+  // white-space:nowrap on every cell keeps "+62 251 831 9713" etc. on a
+  // single line — without it the cell wraps each space-separated chunk
+  // into a new line when the parent container is narrower than ideal.
+  const barLinkStyle = `color:#ffffff;text-decoration:none;font-family:${FONT_STACK};font-size:11.5px;line-height:1.4;white-space:nowrap;`;
+  const barCellStyle = `padding:9px 10px;color:#ffffff;font-family:${FONT_STACK};font-size:11.5px;line-height:1.4;vertical-align:middle;white-space:nowrap;`;
 
   const barCells: string[] = [];
   if (d.email) {
@@ -306,7 +307,7 @@ export function renderSignatureHtml(
   // MASTER TABLE — 100% width up to 700px max. Two columns: logo + content.
   // ---------------------------------------------------------------------------
   return [
-    `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="width:100%;max-width:700px;border-collapse:collapse;background-color:#ffffff;font-family:${FONT_STACK};color:#0a0a0a;margin-top:24px;">`,
+    `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="width:100%;min-width:550px;max-width:700px;border-collapse:collapse;background-color:#ffffff;font-family:${FONT_STACK};color:#0a0a0a;margin-top:24px;">`,
       `<tr>`,
         logoCell,
         `<td width="75%" valign="middle" style="width:75%;padding:0 0 0 20px;vertical-align:middle;">`,
