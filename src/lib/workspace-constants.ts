@@ -1,5 +1,7 @@
 // Client-safe types and constants. No server imports.
 
+import type { SignatureData } from "@/lib/signature";
+
 export type PipelineStage = {
   id: string;
   name: string;
@@ -43,7 +45,9 @@ export type Workspace = {
   schedule_start_time: string;
   schedule_end_time: string;
   daily_target: number;
-  default_signature: string | null;
+  /** Structured signature (logo, contacts, socials). NULL = no signature. */
+  signature_data: SignatureData | null;
+  /** @deprecated legacy column, no longer read or written. Kept until 0022 drops it. */
   default_signature_html: string | null;
   display_order: number;
   is_archived: boolean;

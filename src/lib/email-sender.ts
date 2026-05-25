@@ -1,4 +1,9 @@
 import { google } from "googleapis";
+import {
+  renderSignatureHtml,
+  renderSignaturePlain,
+  type SignatureData,
+} from "@/lib/signature";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken, refreshAccessToken } from "@/lib/gmail";
 import { plainToHtml, renderPreview } from "@/lib/template-helpers";
@@ -92,6 +97,21 @@ function buildUnsubscribeFooterPlain(unsubscribeUrl: string | null): string {
   return `\n\n--\nDon't want to receive these emails? Unsubscribe: ${unsubscribeUrl}`;
 }
 
+/**
+ * Drop the plain-text signature block from a plain body so we can re-render
+ * the signature as structured HTML in the HTML part. Convention: "-- " on
+ * its own line (RFC 3676) is the signature separator. Returns body up to
+ * (but not including) that separator.
+ */
+function stripPlainSignature(plainBody: string): string {
+  // Match the separator line: two dashes + optional space, surrounded by
+  // newlines. Trailing whitespace on separator line is preserved per RFC
+  // but we accept both "-- " and "--".
+  const m = plainBody.match(/\n\n-- ?\n/);
+  if (!m) return plainBody;
+  return plainBody.slice(0, m.index);
+}
+
 function buildMimeMessage(
   fromName: string | null,
   fromEmail: string,
@@ -103,6 +123,10 @@ function buildMimeMessage(
   clickTrackingBase: string | null,
   inReplyToMessageId: string | null,
   unsubscribeUrl: string | null,
+  /** Pre-rendered structured signature HTML, injected between body and
+   *  footer. Kept separate from `bodyPlain` so we don't naïvely convert
+   *  the structured layout via plainToHtml. */
+  signatureHtml: string,
 ): string {
   const fromHeader = fromName
     ? `${encodeRFC2047(fromName)} <${fromEmail}>`
@@ -143,7 +167,11 @@ function buildMimeMessage(
     : undefined;
   const bodyPlainWithFooter =
     bodyPlain + buildUnsubscribeFooterPlain(unsubscribeUrl);
-  const bodyHtml = `${plainToHtml(bodyPlain, linkWrapper)}${buildUnsubscribeFooterHtml(unsubscribeUrl)}${buildTrackingPixelHtml(trackingUrl)}`;
+  // Body → signature → unsubscribe → tracking pixel. `bodyPlain` already
+  // has the plain-text signature appended by the caller (with RFC 3676
+  // separator); the HTML signature here is the structured rich version
+  // that replaces what plainToHtml would naïvely render.
+  const bodyHtml = `${plainToHtml(stripPlainSignature(bodyPlain), linkWrapper)}${signatureHtml}${buildUnsubscribeFooterHtml(unsubscribeUrl)}${buildTrackingPixelHtml(trackingUrl)}`;
 
   // Outer boundary (only used if attachments)
   const altBoundary = `----coldreach-alt-${Date.now().toString(36)}`;
@@ -295,8 +323,12 @@ export type SendEmailParams = {
   subjectPrefix?: string | null;
   /** Override the subject (e.g., for follow-ups, reuse original subject). */
   forcedSubject?: string | null;
-  /** Workspace plain-text signature appended to body. RFC-3676 separator. */
-  signature?: string | null;
+  /** Structured signature (logo, contacts, socials). Renders as HTML in the
+   *  HTML part and plain text in the plain part. NULL = no signature. */
+  signatureData?: SignatureData | null;
+  /** Brand color fallback (e.g. workspace.color_theme) when signatureData
+   *  doesn't override. Drives the accent border + icon tints. */
+  signatureFallbackColor?: string | null;
   /** When set, adds an unsubscribe footer + List-Unsubscribe headers. */
   unsubscribeUrl?: string | null;
   /** Language code to pick body variant. 'en' uses body_plain_en if set, else falls back to body_plain. */
@@ -319,7 +351,8 @@ export async function sendEmail(
     inReplyToMessageId,
     subjectPrefix,
     forcedSubject,
-    signature,
+    signatureData,
+    signatureFallbackColor,
     unsubscribeUrl,
     language,
   } = params;
@@ -346,12 +379,16 @@ export async function sendEmail(
         ? template.body_plain_en
         : template.body_plain;
     const renderedBody = renderPreview(sourceBody, values);
-    // Append signature with RFC-3676 separator ("\n-- \n") so email
-    // clients can detect and collapse it. Skip when signature is empty.
-    const sigText = signature?.trim();
-    const body = sigText
-      ? `${renderedBody}\n\n-- \n${sigText}`
+    // Append plain-text signature with RFC-3676 separator. The HTML version
+    // is rendered separately by renderSignatureHtml and embedded in the
+    // HTML MIME part — see buildMimeMessage(...signatureHtml).
+    const sigPlain = renderSignaturePlain(signatureData).trim();
+    const body = sigPlain
+      ? `${renderedBody}\n\n-- \n${sigPlain}`
       : renderedBody;
+    const sigHtml = renderSignatureHtml(signatureData, {
+      fallbackBrandColor: signatureFallbackColor ?? undefined,
+    });
 
     // Download attachment files
     const attachmentBuffers: Array<{
@@ -382,6 +419,7 @@ export async function sendEmail(
       clickTrackingBase ?? null,
       inReplyToMessageId ?? null,
       unsubscribeUrl ?? null,
+      sigHtml,
     );
 
     // Encode as base64url

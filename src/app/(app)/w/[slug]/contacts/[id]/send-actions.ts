@@ -184,7 +184,8 @@ export async function sendOneEmailToContact(
     trackingUrl,
     clickTrackingBase,
     subjectPrefix: opts.testMode ? "[TEST]" : null,
-    signature: workspace.default_signature,
+    signatureData: workspace.signature_data,
+    signatureFallbackColor: workspace.color_theme,
   });
 
   if (!sendResult.ok) {

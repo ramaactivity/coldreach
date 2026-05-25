@@ -4,6 +4,7 @@ import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
 import { detectContactLanguage } from "@/lib/lang-detect";
 import { ensureDailyQuotaFresh, startOfTodayWibIso } from "@/lib/quota-reset";
+import type { SignatureData } from "@/lib/signature";
 
 export type RunQueueResult = {
   queue_id: string;
@@ -169,20 +170,24 @@ export async function runQueue(
   // Fetch workspace meta for AI opener prompt context
   let workspaceMeta: { name: string; business_type: string | null } | null =
     null;
-  let workspaceSignature: string | null = null;
-  // One workspace fetch covers AI-opener metadata + signature
+  let workspaceSignatureData: SignatureData | null = null;
+  let workspaceColorTheme: string | null = null;
+  // One workspace fetch covers AI-opener metadata + structured signature
+  // + brand color fallback
   {
     const { data: ws } = await admin
       .from("workspaces")
-      .select("name, business_type, default_signature")
+      .select("name, business_type, signature_data, color_theme")
       .eq("id", queue.workspace_id)
       .maybeSingle();
     if (ws) {
       if (queue.use_ai_opener) {
         workspaceMeta = { name: ws.name, business_type: ws.business_type };
       }
-      workspaceSignature =
-        (ws as { default_signature: string | null }).default_signature ?? null;
+      workspaceSignatureData =
+        (ws as { signature_data: SignatureData | null }).signature_data ?? null;
+      workspaceColorTheme =
+        (ws as { color_theme: string | null }).color_theme ?? null;
     }
   }
 
@@ -426,7 +431,8 @@ export async function runQueue(
       trackingUrl,
       clickTrackingBase,
       subjectPrefix: queue.test_mode ? "[TEST]" : null,
-      signature: workspaceSignature,
+      signatureData: workspaceSignatureData,
+      signatureFallbackColor: workspaceColorTheme,
       unsubscribeUrl,
       language,
     });

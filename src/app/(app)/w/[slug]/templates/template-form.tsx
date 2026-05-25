@@ -132,6 +132,10 @@ export function TemplateForm({
             <FieldDescription>
               Plain text lebih bagus untuk cold email — masuk inbox lebih
               konsisten. Variable otomatis di-replace saat kirim per kontak.
+              Signature workspace (logo, kontak, sosmed) <strong>otomatis
+              di-append</strong> di bawah body — atur di{" "}
+              <strong>Settings → Email Signature</strong>, gak perlu tulis
+              di sini.
             </FieldDescription>
             <FieldError>{state.fieldErrors?.body_plain}</FieldError>
           </div>

@@ -139,7 +139,8 @@ export default async function WorkspaceSettingsPage({
           />
           <SignatureForm
             slug={slug}
-            initial={{ signature: workspace.default_signature }}
+            initial={{ signature_data: workspace.signature_data }}
+            workspaceColorTheme={workspace.color_theme}
           />
         </section>
 
