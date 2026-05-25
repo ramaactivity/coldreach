@@ -47,10 +47,14 @@ export type SignatureData = {
   /** Raw digits incl. country code, e.g. "628123456789". We auto-link to wa.me. */
   whatsapp?: string;
   website?: string;
-  /** HTTPS URL to a hosted PNG/JPG/WebP. Recommend square aspect, >=192px. */
+  /** HTTPS URL to a hosted PNG/JPG/WebP. Any aspect ratio — renderer
+   *  letterboxes through the weserv proxy so wide / tall / square logos
+   *  all render without cropping. */
   logo_url?: string;
   /** Hex with leading #. Falls back to workspace color_theme if absent. */
   brand_color?: string;
+  /** Short brand tagline shown in the right column. Italic, accent color. */
+  tagline?: string;
   socials?: SignatureSocial[];
 };
 
@@ -139,7 +143,16 @@ function brandIconPng(slug: string, colorHex: string, size = 56): string {
   return `https://images.weserv.nl/?url=${encodeURIComponent(inner)}&w=${size}&h=${size}&fit=contain&output=png`;
 }
 
-const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+/** Proxy a workspace logo through weserv to letterbox it into a square box
+ *  without cropping or distortion. Any aspect ratio in → square out with
+ *  white fill on the empty edges. `fit=contain` preserves aspect ratio. */
+function proxyLogoUrl(rawUrl: string, size = 240): string {
+  // weserv accepts the URL without protocol; strip + percent-encode.
+  const stripped = rawUrl.replace(/^https?:\/\//, "");
+  return `https://images.weserv.nl/?url=${encodeURIComponent(stripped)}&w=${size}&h=${size}&fit=contain&cbg=ffffff&output=png`;
+}
+
+const FONT_STACK = "Helvetica,Arial,'Helvetica Neue',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
 
 /**
  * Render the structured signature into an email-safe HTML fragment.
@@ -152,28 +165,42 @@ export function renderSignatureHtml(
 ): string {
   if (isSignatureEmpty(data)) return "";
   const d = data as SignatureData;
-  const brand = (d.brand_color || opts.fallbackBrandColor || "#0f172a").replace("#", "");
+  const brand = (d.brand_color || opts.fallbackBrandColor || "#0a0a0a").replace("#", "");
 
-  // --- Name + title block ----------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // COLUMN 1 — Logo
+  // weserv letterboxes any aspect ratio into a 240×240 PNG with white fill.
+  // Image is then displayed at 104×104 inside a 110-wide cell. Square,
+  // landscape, and portrait logos all render without cropping or stretching.
+  // ---------------------------------------------------------------------------
+  const logoCell = d.logo_url
+    ? `<td align="left" valign="top" width="110" style="width:110px;padding:0 24px 0 0;vertical-align:top;">` +
+        `<img src="${esc(proxyLogoUrl(d.logo_url, 240))}" alt="${esc(d.company || d.name || "Logo")}" width="104" height="104" style="display:block;border:0;width:104px;height:104px;border-radius:12px;background-color:#ffffff;">` +
+      `</td>`
+    : "";
+
+  // ---------------------------------------------------------------------------
+  // COLUMN 2 — Sales Information
+  // Name (heavy), title · company (medium muted), contact rows tabular.
+  // ---------------------------------------------------------------------------
   const nameLine = d.name
-    ? `<div style="font-family:${FONT_STACK};font-weight:600;font-size:17px;line-height:1.25;color:#0f172a;letter-spacing:-0.01em;">${esc(d.name)}</div>`
+    ? `<div style="font-family:${FONT_STACK};font-weight:700;font-size:18px;line-height:1.2;color:#0a0a0a;letter-spacing:-0.015em;">${esc(d.name)}</div>`
     : "";
 
   const titleParts: string[] = [];
-  if (d.title) titleParts.push(esc(d.title));
-  if (d.company) titleParts.push(`<span style="color:#0f172a;">${esc(d.company)}</span>`);
+  if (d.title) titleParts.push(`<span style="color:#0a0a0a;font-weight:500;">${esc(d.title)}</span>`);
+  if (d.company) titleParts.push(`<span style="color:#525252;">${esc(d.company)}</span>`);
   const titleLine = titleParts.length
-    ? `<div style="font-family:${FONT_STACK};color:#6b7280;font-size:13px;line-height:1.4;margin-top:3px;">${titleParts.join(' <span style="color:#cbd5e1;margin:0 4px;">·</span> ')}</div>`
+    ? `<div style="font-family:${FONT_STACK};font-size:13px;line-height:1.4;margin-top:4px;">${titleParts.join(' <span style="color:#a3a3a3;">·</span> ')}</div>`
     : "";
 
-  // --- Contact rows ----------------------------------------------------------
-  // Each row: small monochrome glyph (unicode) + linked text. Keeping it
-  // text-glyph rather than images for the small-screen contact rows keeps
-  // file size + load time down where it matters least.
-  const contactRow = (icon: string, text: string, href: string) =>
-    `<tr><td style="padding:3px 0;font-family:${FONT_STACK};font-size:13px;line-height:1.5;color:#374151;" valign="middle">` +
-      `<span style="display:inline-block;width:18px;color:#${brand};font-weight:600;">${icon}</span>` +
-      `<a href="${esc(href)}" style="color:#374151;text-decoration:none;">${text}</a>` +
+  const linkStyle = "color:#404040;text-decoration:none;font-family:" + FONT_STACK + ";";
+  const labelGlyph = (g: string) =>
+    `<span style="display:inline-block;width:18px;color:#${brand};font-weight:700;text-align:left;">${g}</span>`;
+  const contactRow = (glyph: string, text: string, href: string) =>
+    `<tr><td style="padding:3px 0;font-size:12.5px;line-height:1.5;color:#404040;font-family:${FONT_STACK};" valign="middle">` +
+      labelGlyph(glyph) +
+      `<a href="${esc(href)}" style="${linkStyle}">${text}</a>` +
     `</td></tr>`;
 
   const contactRows: string[] = [];
@@ -184,13 +211,14 @@ export function renderSignatureHtml(
     contactRows.push(contactRow("☎", esc(d.phone), `tel:${digitsOnly(d.phone)}`));
   }
   if (d.whatsapp) {
-    // WhatsApp gets its real green glyph (other rows use unicode for
-    // consistent vertical alignment — there's no widely-supported unicode
-    // for the WA mark and brand recognition matters here).
+    // Real green WhatsApp glyph keeps brand recognition; same row geometry
+    // as the unicode glyphs above for vertical alignment.
     contactRows.push(
-      `<tr><td style="padding:3px 0;font-family:${FONT_STACK};font-size:13px;line-height:1.5;color:#374151;" valign="middle">` +
-        `<img src="${brandIconPng("whatsapp", "25D366", 36)}" alt="" width="14" height="14" style="display:inline-block;vertical-align:-3px;margin-right:6px;border:0;">` +
-        `<a href="${esc(waUrl(d.whatsapp))}" style="color:#374151;text-decoration:none;">${esc(d.whatsapp)}</a>` +
+      `<tr><td style="padding:3px 0;font-size:12.5px;line-height:1.5;color:#404040;font-family:${FONT_STACK};" valign="middle">` +
+        `<span style="display:inline-block;width:18px;text-align:left;">` +
+          `<img src="${brandIconPng("whatsapp", "25D366", 36)}" alt="" width="13" height="13" style="display:inline-block;vertical-align:-2px;border:0;">` +
+        `</span>` +
+        `<a href="${esc(waUrl(d.whatsapp))}" style="${linkStyle}">${esc(d.whatsapp)}</a>` +
       `</td></tr>`,
     );
   }
@@ -200,13 +228,23 @@ export function renderSignatureHtml(
     );
   }
   const contactsTable = contactRows.length
-    ? `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;margin-top:8px;">${contactRows.join("")}</table>`
+    ? `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;margin-top:14px;">${contactRows.join("")}</table>`
     : "";
 
-  // --- Social icons row ------------------------------------------------------
-  // Real brand PNG via weserv → simpleicons proxy. Each icon sits in a
-  // brand-colored 32×32 rounded square so they remain visible against any
-  // background.
+  const infoCell =
+    `<td valign="top" style="vertical-align:top;padding:0 20px 0 0;">` +
+      nameLine +
+      titleLine +
+      contactsTable +
+    `</td>`;
+
+  // ---------------------------------------------------------------------------
+  // COLUMN 3 — Tagline + Social media (right-aligned)
+  // ---------------------------------------------------------------------------
+  const taglineBlock = d.tagline?.trim()
+    ? `<div style="font-family:${FONT_STACK};font-style:italic;font-size:13px;line-height:1.45;color:#0a0a0a;letter-spacing:-0.005em;margin-bottom:14px;">&ldquo;${esc(d.tagline.trim())}&rdquo;</div>`
+    : "";
+
   const socialIcons = (d.socials ?? [])
     .filter((s) => s.url && s.url.trim())
     .map((s) => {
@@ -214,48 +252,47 @@ export function renderSignatureHtml(
       const href = esc(normalizeWebsiteHref(s.url));
       const iconPng = brandIconPng(meta.slug, "ffffff", 56);
       return (
-        `<a href="${href}" style="display:inline-block;margin-right:6px;text-decoration:none;" aria-label="${esc(meta.label)}">` +
-          `<img src="${iconPng}" alt="${esc(meta.label)}" width="28" height="28" ` +
-          `style="display:block;border:0;border-radius:8px;background-color:#${meta.color};padding:6px;box-sizing:border-box;width:28px;height:28px;">` +
+        `<a href="${href}" style="display:inline-block;margin-left:6px;text-decoration:none;" aria-label="${esc(meta.label)}">` +
+          `<img src="${iconPng}" alt="${esc(meta.label)}" width="30" height="30" ` +
+          `style="display:block;border:0;border-radius:8px;background-color:#${meta.color};padding:7px;box-sizing:border-box;width:30px;height:30px;">` +
         `</a>`
       );
     })
     .join("");
   const socialsBlock = socialIcons
-    ? `<div style="margin-top:14px;line-height:0;font-size:0;">${socialIcons}</div>`
+    ? `<div style="line-height:0;font-size:0;text-align:right;">${socialIcons}</div>`
     : "";
 
-  // --- Logo cell -------------------------------------------------------------
-  // 96×96 displayed, rounded, with a soft shadow ring. We don't show a
-  // placeholder when no logo is set — keep the layout clean.
-  const logoCell = d.logo_url
-    ? `<td valign="top" style="padding:0 22px 0 0;width:96px;">
-         <img src="${esc(d.logo_url)}" alt="${esc(d.company || d.name || "Logo")}" width="96" height="96" style="display:block;border:0;border-radius:14px;object-fit:cover;width:96px;height:96px;background:#ffffff;">
-       </td>`
-    : "";
+  const rightCell =
+    (taglineBlock || socialsBlock)
+      ? `<td valign="top" align="right" width="170" style="width:170px;vertical-align:top;text-align:right;">` +
+          taglineBlock +
+          socialsBlock +
+        `</td>`
+      : "";
 
-  const dividerCell = d.logo_url
-    ? `<td valign="middle" style="padding:0 22px 0 0;width:1px;">
-         <div style="width:2px;height:84px;background:#${brand};border-radius:2px;opacity:0.85;"></div>
-       </td>`
-    : "";
-
-  // --- Outer wrapper ---------------------------------------------------------
+  // ---------------------------------------------------------------------------
+  // OUTER WRAPPER — 600px max table with a full-width brand accent bar at
+  // the top. Using a table (not a div with border-top) guarantees the line
+  // actually spans the whole signature width in Gmail / Outlook / Apple Mail.
+  // ---------------------------------------------------------------------------
   return [
-    `<div style="margin-top:28px;padding-top:18px;border-top:1px solid #e5e7eb;font-family:${FONT_STACK};color:#0f172a;max-width:560px;">`,
-    `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;">`,
-    `<tr>`,
-    logoCell,
-    dividerCell,
-    `<td valign="top">`,
-    nameLine,
-    titleLine,
-    contactsTable,
-    socialsBlock,
-    `</td>`,
-    `</tr>`,
+    `<table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;max-width:600px;margin-top:28px;font-family:${FONT_STACK};color:#0a0a0a;">`,
+      // Full-width brand accent bar
+      `<tr><td height="3" style="height:3px;line-height:3px;font-size:0;background-color:#${brand};">&nbsp;</td></tr>`,
+      // Top spacer
+      `<tr><td style="height:18px;line-height:18px;font-size:0;">&nbsp;</td></tr>`,
+      // Main 3-column row
+      `<tr><td>`,
+        `<table cellpadding="0" cellspacing="0" border="0" width="100%" role="presentation" style="border-collapse:collapse;">`,
+          `<tr>`,
+            logoCell,
+            infoCell,
+            rightCell,
+          `</tr>`,
+        `</table>`,
+      `</td></tr>`,
     `</table>`,
-    `</div>`,
   ].join("");
 }
 

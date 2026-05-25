@@ -148,6 +148,7 @@ const SignatureDataSchema = z.object({
     .trim()
     .regex(/^#[0-9a-fA-F]{6}$/, "Format hex, e.g. #f59e0b")
     .optional(),
+  tagline: z.string().trim().max(120).optional(),
   socials: z.array(SocialSchema).max(10).optional(),
 });
 

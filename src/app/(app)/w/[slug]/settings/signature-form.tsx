@@ -286,6 +286,15 @@ export function SignatureForm({
                 value={data.website ?? ""}
                 onChange={(v) => setField("website", v)}
               />
+              <div className="sm:col-span-2">
+                <Field
+                  label="Tagline"
+                  hint="muncul italic di kolom kanan signature"
+                  placeholder="Let's celebrate love with us"
+                  value={data.tagline ?? ""}
+                  onChange={(v) => setField("tagline", v)}
+                />
+              </div>
             </div>
 
             {/* Contact */}
