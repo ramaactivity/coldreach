@@ -143,13 +143,14 @@ function brandIconPng(slug: string, colorHex: string, size = 56): string {
   return `https://images.weserv.nl/?url=${encodeURIComponent(inner)}&w=${size}&h=${size}&fit=contain&output=png`;
 }
 
-/** Proxy a workspace logo through weserv to letterbox it into a square box
- *  without cropping or distortion. Any aspect ratio in → square out with
- *  white fill on the empty edges. `fit=contain` preserves aspect ratio. */
+/** Proxy a workspace logo through weserv. We resize to a target width only
+ *  (no height cap, no square letterboxing) so wide / tall / square logos
+ *  render at their natural aspect ratio — no white padding strips that
+ *  visually shrink the actual mark inside the frame. `trim=10` still
+ *  strips any solid-edge padding baked into the file itself. */
 function proxyLogoUrl(rawUrl: string, size = 240): string {
-  // weserv accepts the URL without protocol; strip + percent-encode.
   const stripped = rawUrl.replace(/^https?:\/\//, "");
-  return `https://images.weserv.nl/?url=${encodeURIComponent(stripped)}&w=${size}&h=${size}&fit=contain&cbg=ffffff&output=png`;
+  return `https://images.weserv.nl/?url=${encodeURIComponent(stripped)}&trim=10&w=${size}&output=png`;
 }
 
 const FONT_STACK = "Helvetica,Arial,'Helvetica Neue',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";
@@ -178,10 +179,10 @@ export function renderSignatureHtml(
   // both sides. cell + img use valign="middle" so the logo vertically
   // centers against the right column's identity-row + contact-bar stack.
   const logoCell = d.logo_url
-    ? `<td width="30%" align="center" valign="middle" style="width:30%;padding:8px 22px 8px 0;border-right:1px solid #cbd5e1;vertical-align:middle;">` +
-        `<img src="${esc(proxyLogoUrl(d.logo_url, 300))}" alt="${esc(d.company || d.name || "Logo")}" width="140" style="display:block;border:0;width:140px;max-width:100%;height:auto;margin:0 auto;">` +
+    ? `<td width="30%" align="center" valign="middle" style="width:30%;padding:12px 22px 12px 0;border-right:1px solid #cbd5e1;vertical-align:middle;">` +
+        `<img src="${esc(proxyLogoUrl(d.logo_url, 320))}" alt="${esc(d.company || d.name || "Logo")}" style="display:block;border:0;width:100%;max-width:160px;height:auto;margin:0 auto;">` +
       `</td>`
-    : `<td width="30%" valign="middle" style="width:30%;padding:8px 22px 8px 0;border-right:1px solid #cbd5e1;vertical-align:middle;">&nbsp;</td>`;
+    : `<td width="30%" valign="middle" style="width:30%;padding:12px 22px 12px 0;border-right:1px solid #cbd5e1;vertical-align:middle;">&nbsp;</td>`;
 
   // ---------------------------------------------------------------------------
   // RIGHT COLUMN — Top row: identity (left) + tagline & socials (right)

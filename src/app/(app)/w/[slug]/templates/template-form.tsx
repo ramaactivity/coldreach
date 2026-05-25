@@ -236,8 +236,8 @@ export function TemplateForm({
         </div>
 
         {/* Preview */}
-        <div className="lg:sticky lg:top-6 lg:self-start">
-          <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
+        <div className="min-w-0 lg:sticky lg:top-6 lg:self-start">
+          <div className="rounded-2xl border border-zinc-200/70 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
             <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/60 px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/60">
               <Mail className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
@@ -296,7 +296,7 @@ export function TemplateForm({
                     Auto-appended dari workspace signature
                   </div>
                   <div
-                    className="rounded-lg border border-zinc-200 bg-zinc-50/40 p-3 dark:border-zinc-800 dark:bg-zinc-900/40"
+                    className="overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50/40 p-3 dark:border-zinc-800 dark:bg-zinc-900/40"
                     dangerouslySetInnerHTML={{ __html: signatureHtml }}
                   />
                 </div>
