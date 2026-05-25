@@ -71,7 +71,7 @@ export function Sidebar({
   const settingsActive = isActive(settingsHref);
 
   return (
-    <aside className="relative flex w-[244px] shrink-0 flex-col border-r border-zinc-200/70 bg-white/80 backdrop-blur-xl dark:border-zinc-800/70 dark:bg-zinc-950/80">
+    <aside className="relative flex h-screen w-[244px] shrink-0 flex-col border-r border-zinc-200/60 bg-white/90 backdrop-blur-xl dark:border-zinc-800/60 dark:bg-zinc-950/85">
       {/* Workspace color accent — top hairline + soft glow */}
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-px"
@@ -148,13 +148,14 @@ export function Sidebar({
         ))}
       </nav>
 
-      {/* Settings + footer cluster — one visual block, no orphaned divider */}
-      <div className="relative px-3 pb-3 pt-2">
+      {/* Settings link sits with the rest of the nav, not bundled with the
+          footer — visually reads as one continuous list. */}
+      <div className="relative px-3 pb-2 pt-1">
         <Link
           href={settingsHref}
           prefetch={true}
           aria-current={settingsActive ? "page" : undefined}
-          className={`group mb-2 flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] transition-all duration-150 ${
+          className={`group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] transition-all duration-150 ${
             settingsActive
               ? "bg-zinc-900 text-white shadow-sm shadow-zinc-900/10 dark:bg-zinc-100 dark:text-zinc-900"
               : "text-zinc-600 hover:bg-zinc-100/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
@@ -169,29 +170,31 @@ export function Sidebar({
           />
           <span className="truncate font-medium">Settings</span>
         </Link>
+      </div>
 
-        <div className="rounded-xl border border-zinc-200/70 bg-zinc-50/40 p-1.5 dark:border-zinc-800/60 dark:bg-zinc-900/40">
-          <div className="flex items-center gap-2.5 px-1.5 py-1">
-            <div
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold uppercase text-white shadow-sm ring-2 ring-white dark:ring-zinc-900"
-              style={{ backgroundColor: workspace.color_theme }}
-            >
-              {userEmail[0]?.toUpperCase() ?? "U"}
-            </div>
-            <p className="min-w-0 flex-1 truncate text-[11px] leading-tight text-zinc-700 dark:text-zinc-300">
-              {userEmail}
-            </p>
+      {/* Account footer — anchored to the absolute bottom by mt-auto.
+          Inline layout (no nested card) reads as part of the shell. */}
+      <div className="relative mt-auto border-t border-zinc-200/60 px-3 py-3 dark:border-zinc-800/60">
+        <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
+          <div
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold uppercase text-white shadow-sm"
+            style={{ backgroundColor: workspace.color_theme }}
+          >
+            {userEmail[0]?.toUpperCase() ?? "U"}
           </div>
-          <form action="/auth/signout" method="post">
-            <button
-              type="submit"
-              className="mt-1 flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12px] text-zinc-500 transition-all hover:bg-white hover:text-zinc-900 hover:shadow-sm dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-            >
-              <LogOut className="h-3.5 w-3.5 shrink-0" />
-              <span className="font-medium">Sign out</span>
-            </button>
-          </form>
+          <p className="min-w-0 flex-1 truncate text-[11px] leading-tight text-zinc-700 dark:text-zinc-300">
+            {userEmail}
+          </p>
         </div>
+        <form action="/auth/signout" method="post">
+          <button
+            type="submit"
+            className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-zinc-500 transition-colors hover:bg-zinc-100/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
+          >
+            <LogOut className="h-3.5 w-3.5 shrink-0" />
+            <span>Sign out</span>
+          </button>
+        </form>
       </div>
     </aside>
   );

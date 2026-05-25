@@ -191,9 +191,9 @@ export function SignatureForm({
         {/* JSON payload — keeps socials array intact through FormData */}
         <input type="hidden" name="payload" value={JSON.stringify(data)} />
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_minmax(280px,360px)]">
-          {/* LEFT: structured editor */}
-          <div className="space-y-5">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)]">
+          {/* LEFT: structured editor — fixed comfortable width */}
+          <div className="min-w-0 space-y-5">
             {/* Logo upload */}
             <div>
               <FieldLabel htmlFor="logo-file" hint="PNG / JPG / WebP · max 512KB">
@@ -414,8 +414,9 @@ export function SignatureForm({
             </div>
           </div>
 
-          {/* RIGHT: live preview */}
-          <div className="space-y-3">
+          {/* RIGHT: live preview — flexible width so the 600px signature
+              never gets cropped */}
+          <div className="min-w-0 space-y-3 lg:sticky lg:top-6 lg:self-start">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 Live preview
@@ -425,7 +426,7 @@ export function SignatureForm({
               </span>
             </div>
             <div
-              className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+              className="overflow-x-auto rounded-2xl bg-white p-6 shadow-[0_1px_2px_0_rgb(0_0_0/0.03),0_8px_24px_-12px_rgb(0_0_0/0.08)] ring-1 ring-zinc-100 dark:bg-zinc-900 dark:ring-zinc-800"
               style={{
                 ["--accent" as string]: effectiveBrandColor,
               }}
@@ -447,7 +448,7 @@ export function SignatureForm({
             </div>
 
             {/* Preset chips */}
-            <div className="rounded-xl border border-zinc-200 bg-zinc-50/40 p-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+            <div className="rounded-xl bg-zinc-50/60 p-3 ring-1 ring-zinc-100 dark:bg-zinc-900/40 dark:ring-zinc-800/60">
               <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 Quick start
               </p>
