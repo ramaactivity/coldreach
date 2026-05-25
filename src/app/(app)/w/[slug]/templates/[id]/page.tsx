@@ -69,6 +69,11 @@ export default async function TemplateEditPage({
           initialTemplate={template}
           action={updateAction}
           submitLabel="Save Changes"
+          slug={slug}
+          workspace={{
+            signature_data: workspace.signature_data,
+            color_theme: workspace.color_theme,
+          }}
         />
       </Card>
 

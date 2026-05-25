@@ -1,13 +1,18 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Mail, AlertTriangle, Sparkles } from "lucide-react";
+import { useActionState, useMemo, useState } from "react";
+import { Mail, AlertTriangle, Sparkles, PenLine } from "lucide-react";
 import {
   SUPPORTED_VARIABLES,
   extractVariables,
   renderPreview,
   type Template,
 } from "@/lib/template-helpers";
+import {
+  renderSignatureHtml,
+  isSignatureEmpty,
+  type SignatureData,
+} from "@/lib/signature";
 import { Button } from "@/components/ui/button";
 import {
   FieldLabel,
@@ -34,10 +39,17 @@ export function TemplateForm({
   initialTemplate,
   action,
   submitLabel,
+  workspace,
+  slug,
 }: {
   initialTemplate?: Template;
   action: (state: TemplateFormState, formData: FormData) => Promise<TemplateFormState>;
   submitLabel: string;
+  workspace: {
+    signature_data: SignatureData | null;
+    color_theme: string;
+  };
+  slug: string;
 }) {
   const [state, formAction, pending] = useActionState(action, INITIAL_STATE);
   const [name, setName] = useState(initialTemplate?.name ?? "");
@@ -58,6 +70,25 @@ export function TemplateForm({
     SAMPLE_VALUES,
   );
   const bodyPreview = renderPreview(body, SAMPLE_VALUES);
+
+  const signatureEmpty = isSignatureEmpty(workspace.signature_data);
+  const signatureHtml = useMemo(
+    () =>
+      renderSignatureHtml(workspace.signature_data, {
+        fallbackBrandColor: workspace.color_theme,
+      }),
+    [workspace.signature_data, workspace.color_theme],
+  );
+
+  // Heuristic: detect inline-signature patterns in the body that would
+  // duplicate against the workspace signature when sent.
+  const inlineSignatureLikely = useMemo(() => {
+    const lower = body.toLowerCase();
+    return (
+      /\n\s*-- ?\n/.test(body) ||
+      /(hormat saya|best regards|salam hangat|cheers,|regards,|salam,)/.test(lower)
+    );
+  }, [body]);
 
   return (
     <form action={formAction} className="space-y-6">
@@ -231,8 +262,54 @@ export function TemplateForm({
                   <span className="italic text-zinc-400">— body kosong —</span>
                 )}
               </pre>
+
+              {/* Workspace signature — auto-appended at send time */}
+              {signatureEmpty ? (
+                <div className="mt-5 rounded-lg border border-dashed border-amber-300 bg-amber-50/60 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
+                  <div className="mb-1 flex items-center gap-1.5 font-semibold">
+                    <PenLine className="h-3 w-3" />
+                    Workspace signature belum di-set
+                  </div>
+                  <p className="leading-relaxed">
+                    Set di{" "}
+                    <a
+                      href={`/w/${slug}/settings`}
+                      className="font-medium underline hover:no-underline"
+                    >
+                      Settings → Email Signature
+                    </a>{" "}
+                    biar logo + kontak + sosmed otomatis muncul di setiap
+                    email — gak perlu tulis ulang di tiap template.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-5">
+                  <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    <PenLine className="h-3 w-3" />
+                    Auto-appended dari workspace signature
+                  </div>
+                  <div
+                    className="rounded-lg border border-zinc-200 bg-zinc-50/40 p-3 dark:border-zinc-800 dark:bg-zinc-900/40"
+                    dangerouslySetInnerHTML={{ __html: signatureHtml }}
+                  />
+                </div>
+              )}
             </div>
           </div>
+
+          {inlineSignatureLikely && !signatureEmpty && (
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-400">
+              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+              <span>
+                Body template lo kayaknya udah punya signature inline
+                (&ldquo;Hormat saya&rdquo; / nama / kontak). Sistem akan
+                tetap append workspace signature di bawah body —
+                kemungkinan duplikat. Hapus signature dari body biar
+                kirim sekali aja.
+              </span>
+            </div>
+          )}
+
           <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
             Sample: Bella Hs / Kreston Indonesia / HR Manager. Saat kirim,
             value diganti dari kontak masing-masing.

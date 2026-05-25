@@ -39,7 +39,15 @@ export default async function NewTemplatePage({
         description={`Buat template email untuk workspace ${workspace.name}. Attachment bisa di-upload setelah save.`}
       />
       <Card className="p-6">
-        <TemplateForm action={action} submitLabel="Save Template" />
+        <TemplateForm
+          action={action}
+          submitLabel="Save Template"
+          slug={slug}
+          workspace={{
+            signature_data: workspace.signature_data,
+            color_theme: workspace.color_theme,
+          }}
+        />
       </Card>
     </div>
   );
