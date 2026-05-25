@@ -174,24 +174,27 @@ export function renderSignatureHtml(
   // width so square / landscape / portrait logos all render without cropping.
   // border-right is the vertical divider; padding-right keeps it breathing.
   // ---------------------------------------------------------------------------
+  // Left column widened to 30% so a 140px logo gets breathing room on
+  // both sides. cell + img use valign="middle" so the logo vertically
+  // centers against the right column's identity-row + contact-bar stack.
   const logoCell = d.logo_url
-    ? `<td width="25%" align="center" valign="middle" style="width:25%;padding:8px 20px 8px 0;border-right:1px solid #cbd5e1;">` +
-        `<img src="${esc(proxyLogoUrl(d.logo_url, 240))}" alt="${esc(d.company || d.name || "Logo")}" width="110" style="display:block;border:0;width:110px;max-width:100%;height:auto;margin:0 auto;">` +
+    ? `<td width="30%" align="center" valign="middle" style="width:30%;padding:8px 22px 8px 0;border-right:1px solid #cbd5e1;vertical-align:middle;">` +
+        `<img src="${esc(proxyLogoUrl(d.logo_url, 300))}" alt="${esc(d.company || d.name || "Logo")}" width="140" style="display:block;border:0;width:140px;max-width:100%;height:auto;margin:0 auto;">` +
       `</td>`
-    : `<td width="25%" valign="middle" style="width:25%;padding:8px 20px 8px 0;border-right:1px solid #cbd5e1;">&nbsp;</td>`;
+    : `<td width="30%" valign="middle" style="width:30%;padding:8px 22px 8px 0;border-right:1px solid #cbd5e1;vertical-align:middle;">&nbsp;</td>`;
 
   // ---------------------------------------------------------------------------
   // RIGHT COLUMN — Top row: identity (left) + tagline & socials (right)
   // ---------------------------------------------------------------------------
   const nameLine = d.name
-    ? `<div style="font-family:${FONT_STACK};font-weight:700;font-size:18px;line-height:1.2;color:#0a0a0a;letter-spacing:-0.015em;">${esc(d.name)}</div>`
+    ? `<div style="font-family:${FONT_STACK};font-weight:700;font-size:19px;line-height:1.2;color:#0a0a0a;letter-spacing:-0.02em;">${esc(d.name)}</div>`
     : "";
 
   const titleParts: string[] = [];
   if (d.title) titleParts.push(`<span style="color:#0a0a0a;font-weight:500;">${esc(d.title)}</span>`);
   if (d.company) titleParts.push(`<span style="color:#525252;">${esc(d.company)}</span>`);
   const titleLine = titleParts.length
-    ? `<div style="font-family:${FONT_STACK};font-size:13px;line-height:1.4;margin-top:5px;color:#525252;">${titleParts.join(' <span style="color:#a3a3a3;">·</span> ')}</div>`
+    ? `<div style="font-family:${FONT_STACK};font-size:13px;line-height:1.4;margin-top:6px;color:#525252;">${titleParts.join(' <span style="color:#a3a3a3;">·</span> ')}</div>`
     : "";
 
   const identityCell =
@@ -310,7 +313,7 @@ export function renderSignatureHtml(
     `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="width:100%;min-width:550px;max-width:700px;border-collapse:collapse;background-color:#ffffff;font-family:${FONT_STACK};color:#0a0a0a;margin-top:24px;">`,
       `<tr>`,
         logoCell,
-        `<td width="75%" valign="middle" style="width:75%;padding:0 0 0 20px;vertical-align:middle;">`,
+        `<td width="70%" valign="middle" style="width:70%;padding:0 0 0 22px;vertical-align:middle;">`,
           rightColumnInner,
         `</td>`,
       `</tr>`,
