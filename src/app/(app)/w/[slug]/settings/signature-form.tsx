@@ -15,7 +15,9 @@ import {
   Image as ImageIcon,
   Loader2,
   GripVertical,
+  Crop,
 } from "lucide-react";
+import { LogoCropModal } from "./logo-crop-modal";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldLabel, Input } from "@/components/ui/input";
@@ -98,6 +100,10 @@ export function SignatureForm({
   const [uploadPending, startUpload] = useTransition();
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Crop modal state — opens immediately after the user picks a file so
+  // they can frame the logo before it ever touches storage.
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
 
   const effectiveBrandColor = data.brand_color || workspaceColorTheme;
 
@@ -153,9 +159,16 @@ export function SignatureForm({
   }
 
   function handleLogoFile(file: File) {
+    // Don't upload yet — open crop modal first.
+    setLogoError(null);
+    setCropFile(file);
+    setCropOpen(true);
+  }
+
+  function handleCroppedUpload(payload: { blob: Blob; file: File }) {
     setLogoError(null);
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", payload.file);
     startUpload(async () => {
       const res = await uploadWorkspaceLogo(slug, fd);
       if (!res.ok) {
@@ -241,6 +254,11 @@ export function SignatureForm({
                   )}
                 </div>
               </div>
+              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                <Crop className="-mt-0.5 mr-1 inline-block h-3 w-3" />
+                Setelah pilih file, lo bisa adjust crop & zoom dulu
+                sebelum upload — pas frame signature.
+              </p>
               <input
                 ref={fileInputRef}
                 id="logo-file"
@@ -501,6 +519,20 @@ export function SignatureForm({
           </Button>
         </div>
       </form>
+
+      {/* Logo crop modal — keyed on the file identity so each newly
+          picked logo gets a fresh crop/zoom/aspect state instead of
+          inheriting whatever the previous file was adjusted to. */}
+      <LogoCropModal
+        key={cropFile ? `${cropFile.name}:${cropFile.size}:${cropFile.lastModified}` : "empty"}
+        open={cropOpen}
+        file={cropFile}
+        onClose={() => {
+          setCropOpen(false);
+          setCropFile(null);
+        }}
+        onCrop={handleCroppedUpload}
+      />
     </Card>
   );
 }
