@@ -275,6 +275,10 @@ export default async function QueueDetailPage({
         canSend={!!account && remainingQuota > 0 && stats.pending > 0}
         pendingCount={stats.pending}
         lastShuffledAt={queue.last_shuffled_at}
+        lastRefilledAt={queue.last_refilled_at}
+        audienceType={
+          (queue.audience_filter as { type?: string } | null)?.type ?? "all"
+        }
       />
 
       {/* Follow-up sequence */}

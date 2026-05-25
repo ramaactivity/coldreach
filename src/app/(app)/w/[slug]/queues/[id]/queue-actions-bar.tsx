@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Shuffle,
   ShieldCheck,
+  RefreshCw,
 } from "lucide-react";
 import {
   pauseQueue,
@@ -38,6 +39,8 @@ export function QueueActionsBar({
   canSend,
   pendingCount,
   lastShuffledAt,
+  lastRefilledAt,
+  audienceType,
 }: {
   slug: string;
   queueId: string;
@@ -45,6 +48,8 @@ export function QueueActionsBar({
   canSend: boolean;
   pendingCount: number;
   lastShuffledAt: string | null;
+  lastRefilledAt: string | null;
+  audienceType: "all" | "tag" | "manual" | string;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
@@ -229,6 +234,28 @@ export function QueueActionsBar({
             {shuffleMsg}
           </p>
         )}
+      </div>
+
+      {/* Auto-refill (evergreen) — info-only, no controls. */}
+      <div className="border-b border-zinc-100 p-5 dark:border-zinc-800">
+        <div className="flex items-center gap-2">
+          <RefreshCw className="h-4 w-4 text-emerald-500" />
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Auto-refill
+          </h3>
+          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+            {audienceType === "manual" ? "Off (manual list)" : "On"}
+          </span>
+        </div>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+          {audienceType === "manual"
+            ? "Queue ini pakai manual contact list — gak di-refill otomatis. Bikin queue baru kalau mau target audience lain."
+            : "Sebelum batch jalan, kalau pending recipients tipis (kurang dari 2 hari kapasitas), sistem otomatis tambah kontak baru dari pool yang match audience — tanpa duplikat dari queue ini. Lo gak perlu klik apa-apa."}
+        </p>
+        <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <ShieldCheck className="h-3 w-3" />
+          Last refill: <strong className="font-medium text-zinc-700 dark:text-zinc-300">{timeAgo(lastRefilledAt)}</strong>
+        </div>
       </div>
 
       {/* Manage controls */}

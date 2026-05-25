@@ -143,6 +143,35 @@ export async function runQueue(
     .select("filename, storage_path, mime_type")
     .eq("template_id", queue.template_id);
 
+  // Evergreen auto-refill. Counter on send_queues drifts, so query the real
+  // pending count and top up when it dips below ~2 days of capacity.
+  // Audience type 'manual' is a no-op inside the RPC (fixed list).
+  {
+    const { count: actualPending } = await admin
+      .from("queue_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("queue_id", queueId)
+      .eq("status", "pending");
+    const pending = actualPending ?? 0;
+    const dailyTarget = queue.daily_target ?? 50;
+    const refillThreshold = dailyTarget * 2;
+    if (pending < refillThreshold) {
+      const targetSize = dailyTarget * 7;
+      const maxAdd = Math.max(0, targetSize - pending);
+      if (maxAdd > 0) {
+        const { error: refillErr } = await admin.rpc("refill_queue", {
+          p_queue_id: queueId,
+          p_max_add: maxAdd,
+        });
+        // Non-fatal: send proceeds with whatever pending is left rather
+        // than aborting. Refill will retry on the next cron tick.
+        if (refillErr) {
+          console.error("refill_queue rpc failed:", refillErr);
+        }
+      }
+    }
+  }
+
   const limit = Math.min(batchSize, remainingQuota);
   // Order by priority desc, then shuffle_key asc. shuffle_key is reshuffled
   // once per day (above), so today's pick is a fresh random subset of
