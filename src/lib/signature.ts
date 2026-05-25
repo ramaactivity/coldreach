@@ -143,14 +143,18 @@ function brandIconPng(slug: string, colorHex: string, size = 56): string {
   return `https://images.weserv.nl/?url=${encodeURIComponent(inner)}&w=${size}&h=${size}&fit=contain&output=png`;
 }
 
-/** Proxy a workspace logo through weserv. We resize to a target width only
- *  (no height cap, no square letterboxing) so wide / tall / square logos
- *  render at their natural aspect ratio — no white padding strips that
- *  visually shrink the actual mark inside the frame. `trim=10` still
- *  strips any solid-edge padding baked into the file itself. */
-function proxyLogoUrl(rawUrl: string, size = 240): string {
-  const stripped = rawUrl.replace(/^https?:\/\//, "");
-  return `https://images.weserv.nl/?url=${encodeURIComponent(stripped)}&trim=10&w=${size}&output=png`;
+/** Serve the workspace logo as-is from Supabase storage. We previously
+ *  routed through weserv.nl for auto-trim + downscale, but that proxy is
+ *  blocked by some ad-blockers / corporate firewalls / ISPs, breaking
+ *  the live preview for affected users. The interactive crop modal
+ *  already downsizes uploads to ≤800px and removes manual padding, so
+ *  the proxy added nothing recipients couldn't get from Supabase
+ *  directly. Direct URL = one less moving part + universally reachable.
+ *
+ *  `_size` is kept in the signature to avoid touching every call site.
+ */
+function proxyLogoUrl(rawUrl: string, _size = 240): string {
+  return rawUrl;
 }
 
 const FONT_STACK = "Helvetica,Arial,'Helvetica Neue',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif";

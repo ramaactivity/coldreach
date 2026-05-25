@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -45,6 +45,16 @@ export function GmailConnectionCard({
   const router = useRouter();
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
+  // tokenExpired must NOT depend on the in-render clock — server and client
+  // see slightly different `now` values which causes a React #418 hydration
+  // mismatch on any boundary token. Compute after mount on the client only.
+  // Declared above the early-return so the hook call order stays stable.
+  const [tokenExpired, setTokenExpired] = useState(false);
+  useEffect(() => {
+    if (!account?.token_expires_at) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setTokenExpired(new Date(account.token_expires_at) < new Date());
+  }, [account?.token_expires_at]);
 
   if (!account || !account.is_active) {
     return (
@@ -98,7 +108,6 @@ export function GmailConnectionCard({
     });
   }
 
-  const tokenExpired = new Date(account.token_expires_at) < new Date();
   const healthVariant: "success" | "warning" | "danger" | "secondary" =
     account.health_status === "healthy"
       ? "success"
