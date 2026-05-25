@@ -3,7 +3,7 @@ import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
 import { detectContactLanguage } from "@/lib/lang-detect";
-import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
+import { ensureDailyQuotaFresh, startOfTodayWibIso } from "@/lib/quota-reset";
 
 export type RunQueueResult = {
   queue_id: string;
@@ -69,6 +69,23 @@ export async function runQueue(
     return result;
   }
 
+  // Daily reshuffle. shuffle_key on queue_recipients is regenerated once
+  // per WIB day so each day's batch picks a fresh random subset across
+  // the whole pool (top / middle / bottom) instead of marching down the
+  // creation-time shuffle. Cheap RPC — single UPDATE on pending rows.
+  const wibTodayStart = startOfTodayWibIso();
+  const lastShuffled = (queue as { last_shuffled_at?: string | null })
+    .last_shuffled_at;
+  if (!lastShuffled || lastShuffled < wibTodayStart) {
+    const { error: reshuffleErr } = await admin.rpc("reshuffle_queue", {
+      p_queue_id: queueId,
+    });
+    if (reshuffleErr) {
+      // Non-fatal: send proceeds with yesterday's order rather than aborting.
+      console.error("reshuffle_queue rpc failed:", reshuffleErr);
+    }
+  }
+
   const { data: account } = await admin
     .from("email_accounts")
     .select(
@@ -126,9 +143,9 @@ export async function runQueue(
     .eq("template_id", queue.template_id);
 
   const limit = Math.min(batchSize, remainingQuota);
-  // Order by priority desc, then id (UUIDs are random) for a pseudo-random
-  // tiebreak within the same priority bucket. Combined with the queue-
-  // creation shuffle, this keeps cross-workspace overlap small.
+  // Order by priority desc, then shuffle_key asc. shuffle_key is reshuffled
+  // once per day (above), so today's pick is a fresh random subset of
+  // pending rows — not a march down the creation-time order.
   const { data: recipients } = await admin
     .from("queue_recipients")
     .select(
@@ -142,7 +159,7 @@ export async function runQueue(
     .eq("queue_id", queueId)
     .eq("status", "pending")
     .order("priority", { ascending: false })
-    .order("id", { ascending: true })
+    .order("shuffle_key", { ascending: true })
     .limit(limit);
 
   if (!recipients || recipients.length === 0) {
@@ -291,6 +308,32 @@ export async function runQueue(
         .eq("id", recipient.id);
       result.skipped++;
       continue;
+    }
+
+    // Race-window re-check: the batch-start dedup query is now stale by up
+    // to ~30-90s per recipient (delay loop). Another workspace's runner
+    // may have inserted a campaign_recipient for the same email since.
+    // One small query per send to close the window; pre-create insert
+    // happens immediately after, so the window collapses to <50ms.
+    {
+      const { data: raceRow } = await admin
+        .from("campaign_recipients")
+        .select("id")
+        .eq("user_id", queue.user_id)
+        .eq("contact_email", contact.email.toLowerCase())
+        .gte("created_at", dedupCutoffIso())
+        .in("status", ["sending", "sent", "opened", "replied"])
+        .limit(1)
+        .maybeSingle();
+      if (raceRow) {
+        await admin
+          .from("queue_recipients")
+          .update({ status: "skipped" })
+          .eq("id", recipient.id);
+        dedupedEmails.add(contact.email.toLowerCase());
+        result.skipped++;
+        continue;
+      }
     }
 
     // Resolve AI opener: cache → generate → fallback null

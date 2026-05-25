@@ -270,6 +270,7 @@ export default async function CampaignDetailPage({
           isActive={queue.is_active}
           canSend={!!account && remainingQuota > 0 && stats.pending > 0}
           pendingCount={stats.pending}
+          lastShuffledAt={queue.last_shuffled_at}
         />
       )}
 

@@ -262,6 +262,42 @@ export async function updateFollowupSequence(
   return { ok: true };
 }
 
+/**
+ * Manual "Reshuffle now" — regenerates shuffle_key on all pending
+ * recipients so the next batch picks fresh random positions across the
+ * pool. The runner also reshuffles automatically once per WIB day; this
+ * is for when the user wants a rotation between days.
+ */
+export async function reshuffleQueueAction(
+  slug: string,
+  queueId: string,
+): Promise<{ ok: true; reshuffled: number } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Ownership check before mutating
+  const { data: queue } = await supabase
+    .from("send_queues")
+    .select("id, user_id")
+    .eq("id", queueId)
+    .maybeSingle();
+  if (!queue || queue.user_id !== user.id) {
+    return { ok: false, error: "Unauthorized or queue not found" };
+  }
+
+  const { data, error } = await supabase.rpc("reshuffle_queue", {
+    p_queue_id: queueId,
+  });
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/w/${slug}/queues/${queueId}`);
+  revalidatePath(`/w/${slug}/queues`);
+  return { ok: true, reshuffled: (data as number) ?? 0 };
+}
+
 export async function runNowAction(
   slug: string,
   queueId: string,

@@ -26,6 +26,7 @@ export type SendQueue = {
   total_replied: number;
   total_bounced: number;
   last_run_at: string | null;
+  last_shuffled_at: string | null;
   next_run_at: string | null;
   paused_at: string | null;
   paused_reason: string | null;

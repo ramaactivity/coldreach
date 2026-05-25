@@ -2,16 +2,34 @@
 
 import { useState, useTransition, useOptimistic } from "react";
 import { useRouter } from "next/navigation";
-import { Play, Pause, Trash2, Zap, AlertTriangle } from "lucide-react";
+import {
+  Play,
+  Pause,
+  Trash2,
+  Zap,
+  AlertTriangle,
+  Shuffle,
+  ShieldCheck,
+} from "lucide-react";
 import {
   pauseQueue,
   resumeQueue,
   deleteQueueAction,
   runNowAction,
+  reshuffleQueueAction,
 } from "../actions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/dialog";
+
+function timeAgo(iso: string | null): string {
+  if (!iso) return "belum pernah";
+  const ms = Date.now() - new Date(iso).getTime();
+  if (ms < 60_000) return "baru saja";
+  if (ms < 3_600_000) return `${Math.floor(ms / 60_000)} menit lalu`;
+  if (ms < 86_400_000) return `${Math.floor(ms / 3_600_000)} jam lalu`;
+  return `${Math.floor(ms / 86_400_000)} hari lalu`;
+}
 
 export function QueueActionsBar({
   slug,
@@ -19,18 +37,21 @@ export function QueueActionsBar({
   isActive,
   canSend,
   pendingCount,
+  lastShuffledAt,
 }: {
   slug: string;
   queueId: string;
   isActive: boolean;
   canSend: boolean;
   pendingCount: number;
+  lastShuffledAt: string | null;
 }) {
   const router = useRouter();
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
   const [lastResult, setLastResult] = useState<string | null>(null);
   const [resultTone, setResultTone] = useState<"success" | "error" | "info">("info");
+  const [shuffleMsg, setShuffleMsg] = useState<string | null>(null);
   // Optimistic UI: flip immediately, server reconciles via revalidatePath
   const [optimisticActive, setOptimisticActive] = useOptimistic(
     isActive,
@@ -55,6 +76,21 @@ export function QueueActionsBar({
           msg += `. Errors: ${r.errors.slice(0, 2).join("; ")}`;
         }
         setLastResult(msg);
+      }
+      router.refresh();
+    });
+  }
+
+  function handleReshuffle() {
+    setShuffleMsg(null);
+    startTransition(async () => {
+      const res = await reshuffleQueueAction(slug, queueId);
+      if (res.ok) {
+        setShuffleMsg(
+          `Diacak ulang — ${res.reshuffled.toLocaleString("id-ID")} kontak pending dapat urutan baru.`,
+        );
+      } else {
+        setShuffleMsg(`Error: ${res.error}`);
       }
       router.refresh();
     });
@@ -146,6 +182,43 @@ export function QueueActionsBar({
           >
             {lastResult}
           </div>
+        )}
+      </div>
+
+      {/* Randomization & cross-account dedup */}
+      <div className="border-b border-zinc-100 p-5 dark:border-zinc-800">
+        <div className="flex items-center gap-2">
+          <Shuffle className="h-4 w-4 text-indigo-500" />
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            Random pick & cross-account dedup
+          </h3>
+        </div>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+          Pending recipients di-shuffle ulang setiap hari sebelum batch jalan,
+          jadi tiap hari pick acak dari seluruh pool (atas, tengah, atau bawah
+          list) — bukan urutan deterministik. Kalau lo punya queue di
+          workspace lain dengan akun beda, sistem otomatis skip kontak yang
+          udah disentuh akun lain dalam 3 hari terakhir.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleReshuffle}
+            disabled={pending || pendingCount === 0}
+          >
+            <Shuffle className="h-3.5 w-3.5" />
+            Reshuffle now
+          </Button>
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+            <ShieldCheck className="h-3 w-3" />
+            Last reshuffle: <strong className="font-medium text-zinc-700 dark:text-zinc-300">{timeAgo(lastShuffledAt)}</strong>
+          </span>
+        </div>
+        {shuffleMsg && (
+          <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+            {shuffleMsg}
+          </p>
         )}
       </div>
 
