@@ -6,6 +6,11 @@ import { classifyReply, type ReplyClass } from "@/lib/reply-classifier";
 
 const REPLY_LOOKBACK_DAYS = 30;
 const MAX_RECIPIENTS_PER_ACCOUNT_PER_RUN = 100;
+// Process candidates this many at a time. Gmail allows ~25 req/sec/user
+// (threads.get is 10 quota units; user has 250 units/sec budget). 8 keeps
+// us well under and slashes wall-clock — and therefore Provisioned Memory
+// charge — by roughly the same factor.
+const CONCURRENCY = 8;
 
 type EmailAccountRow = {
   id: string;
@@ -212,7 +217,18 @@ export async function pollRepliesForAccount(
 
   const accountEmailLower = account.email.toLowerCase();
 
-  for (const cand of candidates as RecipientRow[]) {
+  // Process candidates CONCURRENCY at a time. The per-candidate work is
+  // I/O-bound (Gmail API + DB) so wall-clock collapses near-linearly with
+  // parallelism, which is what Provisioned Memory is billed on.
+  const candidateRows = candidates as RecipientRow[];
+  for (let i = 0; i < candidateRows.length; i += CONCURRENCY) {
+    const batch = candidateRows.slice(i, i + CONCURRENCY);
+    await Promise.all(batch.map((cand) => processCandidate(cand)));
+  }
+
+  return result;
+
+  async function processCandidate(cand: RecipientRow): Promise<void> {
     result.checked++;
     try {
       const thread = await gmail.users.threads.get({
@@ -223,7 +239,7 @@ export async function pollRepliesForAccount(
       });
 
       const messages = thread.data.messages ?? [];
-      if (messages.length <= 1) continue; // no replies yet
+      if (messages.length <= 1) return; // no replies yet
 
       const sentAtMs = new Date(cand.sent_at).getTime();
 
@@ -244,7 +260,7 @@ export async function pollRepliesForAccount(
         return true;
       });
 
-      if (!replyMessage) continue;
+      if (!replyMessage) return;
 
       const repliedAt = new Date(
         parseInt(replyMessage.internalDate ?? Date.now().toString(), 10),
@@ -336,6 +352,4 @@ export async function pollRepliesForAccount(
       result.errors.push(`Thread ${cand.gmail_thread_id}: ${msg}`);
     }
   }
-
-  return result;
 }

@@ -1,12 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// /api/cron, /api/track, /unsubscribe are excluded at the matcher level in
+// proxy.ts and never reach updateSession.
 const PUBLIC_PATHS = [
   "/login",
   "/auth/callback",
   "/auth/signout",
-  // Token-based public routes for email recipients (no auth)
-  "/unsubscribe",
 ];
 
 function isPublicPath(pathname: string) {

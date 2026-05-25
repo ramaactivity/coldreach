@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { archiveStaleContacts } from "@/lib/stale-archiver";
 
-export const maxDuration = 60;
+// Pure SQL — bounded batch update + activity_log insert. Easily finishes
+// within seconds; 30s is a generous ceiling.
+export const maxDuration = 30;
 
 /**
  * Daily cron — archives contacts that have ignored 5+ emails over 30+ days.

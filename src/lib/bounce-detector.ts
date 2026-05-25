@@ -1,4 +1,4 @@
-import { google } from "googleapis";
+import { google, type gmail_v1 } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken, refreshAccessToken } from "@/lib/gmail";
 
@@ -9,6 +9,10 @@ const BOUNCE_QUERY =
 
 const MAX_BOUNCES_PER_RUN = 50;
 const BOUNCE_LOOKBACK_DAYS = 7;
+// Prefetch full message bodies in parallel before processing. Each get is
+// I/O-bound, so concurrency near-linearly cuts wall-clock — and therefore
+// Vercel's Provisioned Memory bill. Gmail per-user quota easily absorbs 8.
+const FETCH_CONCURRENCY = 8;
 // After this many soft bounces, treat the contact as effectively bounced.
 const SOFT_BOUNCE_THRESHOLD = 3;
 // If this many contacts at the same domain hard-bounce within the lookback,
@@ -432,23 +436,50 @@ export async function pollBouncesForAccount(
   // Contact ids freshly archived this run — used for queue cleanup batch.
   const archivedContactIds = new Set<string>();
 
-  for (const m of messages) {
-    if (!m.id) continue;
-    result.scanned++;
+  // Prefetch all bounce message bodies in parallel. Without this, the
+  // outer for-loop awaited each Gmail get sequentially — 50 × ~700ms = 35s
+  // of wall-clock just to read the inbox, which Vercel bills as provisioned
+  // memory the whole time.
+  type FetchedMessage = {
+    id: string;
+    full: { data: gmail_v1.Schema$Message } | null;
+    error: string | null;
+  };
+  const fetched: FetchedMessage[] = [];
+  for (let i = 0; i < messages.length; i += FETCH_CONCURRENCY) {
+    const batch = messages.slice(i, i + FETCH_CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map(async (m): Promise<FetchedMessage | null> => {
+        if (!m.id) return null;
+        try {
+          const full = await gmail.users.messages.get({
+            userId: "me",
+            id: m.id,
+            format: "full",
+          });
+          return { id: m.id, full, error: null };
+        } catch (err) {
+          return {
+            id: m.id,
+            full: null,
+            error: err instanceof Error ? err.message : "unknown",
+          };
+        }
+      }),
+    );
+    for (const r of batchResults) if (r) fetched.push(r);
+  }
 
-    let full;
-    try {
-      full = await gmail.users.messages.get({
-        userId: "me",
-        id: m.id,
-        format: "full",
-      });
-    } catch (err) {
-      result.errors.push(
-        `messages.get ${m.id}: ${err instanceof Error ? err.message : "unknown"}`,
-      );
+  for (const f of fetched) {
+    result.scanned++;
+    if (f.error || !f.full) {
+      if (f.error) {
+        result.errors.push(`messages.get ${f.id}: ${f.error}`);
+      }
       continue;
     }
+    const full = f.full;
+    const m = { id: f.id };
 
     const subject = extractHeaderValue(
       full.data.payload?.headers ?? undefined,

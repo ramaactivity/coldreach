@@ -7,7 +7,9 @@ import {
   todayWIB,
 } from "@/lib/holidays-id";
 
-export const maxDuration = 60;
+// 10 followups max per queue × ~1–2s per Gmail send = ~20s worst case.
+// 30s ceiling keeps Provisioned Memory budget tight.
+export const maxDuration = 30;
 
 /**
  * Cron-triggered follow-up sender. Runs every hour in production.

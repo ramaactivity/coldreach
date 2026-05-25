@@ -2,12 +2,22 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pollBouncesForAccount } from "@/lib/bounce-detector";
 
-export const maxDuration = 60;
+// Lowered from 60s default. With FETCH_CONCURRENCY=8 in bounce-detector,
+// pulling 50 message bodies in parallel finishes in seconds rather than ~35s.
+export const maxDuration = 30;
+
+// Bounces are scanned via Gmail's `newer_than:7d` filter. Anything older
+// won't show up — so don't bother polling accounts that haven't sent in
+// the lookback window plus a small grace margin.
+const ACTIVITY_LOOKBACK_DAYS = 14;
 
 /**
  * Cron-triggered bounce poller. Runs every 30 min in production.
  * Scans each connected Gmail inbox for delivery-failure / DSN messages
  * and marks the matching campaign_recipients as bounced.
+ *
+ * Idle accounts (no last_used_at within ACTIVITY_LOOKBACK_DAYS) are skipped
+ * entirely.
  *
  * Auth: X-Cron-Secret header must match CRON_SECRET env.
  *
@@ -22,12 +32,18 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
 
+  const activityCutoff = new Date(
+    Date.now() - ACTIVITY_LOOKBACK_DAYS * 24 * 3600 * 1000,
+  ).toISOString();
+
   const { data: accounts } = await admin
     .from("email_accounts")
     .select(
-      "id, user_id, email, access_token_encrypted, refresh_token_encrypted, token_expires_at",
+      "id, user_id, email, access_token_encrypted, refresh_token_encrypted, token_expires_at, last_used_at",
     )
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .not("last_used_at", "is", null)
+    .gte("last_used_at", activityCutoff);
 
   const results = [];
   for (const account of accounts ?? []) {
