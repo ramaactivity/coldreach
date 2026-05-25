@@ -359,3 +359,85 @@ export async function getContactCount(): Promise<number> {
   }
   return count ?? 0;
 }
+
+export type ContactStats = {
+  active_total: number;
+  never_contacted: number;
+  replied: number;
+  bounced: number;
+  stale_30d: number;
+  archived: number;
+  added_7d: number;
+  opened: number;
+};
+
+/**
+ * Workspace-scoped database composition stats for the Contacts page.
+ *
+ * Counts match listContacts() semantics: active segments exclude archived
+ * & soft-deleted contacts via an inner join on `contacts`. Archived count
+ * is user-scoped (cumulative pool, same as dashboard) so the user sees the
+ * full damage across workspaces.
+ */
+export async function getContactStats(
+  workspace: Workspace,
+): Promise<ContactStats> {
+  const supabase = await createClient();
+  const cutoff30 = new Date(
+    Date.now() - 30 * 24 * 3600 * 1000,
+  ).toISOString();
+  const cutoff7 = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
+
+  // Active base: cwd rows for this workspace whose underlying contact is
+  // not archived and not soft-deleted. Inner join on `contacts` lets us
+  // filter on contacts.* while still counting cwd rows.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const active = (): any =>
+    supabase
+      .from("contact_workspace_data")
+      .select("id, contacts!inner(archived_at, deleted_at, status)", {
+        count: "exact",
+        head: true,
+      })
+      .eq("workspace_id", workspace.id)
+      .is("contacts.archived_at", null)
+      .is("contacts.deleted_at", null);
+
+  const [
+    activeTotalQ,
+    neverQ,
+    repliedQ,
+    bouncedQ,
+    staleQ,
+    archivedQ,
+    added7Q,
+    openedQ,
+  ] = await Promise.all([
+    active(),
+    active().is("last_contacted_at", null),
+    active().gt("total_replies", 0),
+    active().eq("contacts.status", "bounced"),
+    active().lt("last_contacted_at", cutoff30),
+    // Archived is user-scoped (cumulative across workspaces), same
+    // semantics as the dashboard's "Archived" tile.
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", workspace.user_id)
+      .is("deleted_at", null)
+      .not("archived_at", "is", null),
+    active().gte("created_at", cutoff7),
+    active().gt("total_emails_opened", 0),
+  ]);
+
+  return {
+    active_total: activeTotalQ.count ?? 0,
+    never_contacted: neverQ.count ?? 0,
+    replied: repliedQ.count ?? 0,
+    bounced: bouncedQ.count ?? 0,
+    stale_30d: staleQ.count ?? 0,
+    archived: archivedQ.count ?? 0,
+    added_7d: added7Q.count ?? 0,
+    opened: openedQ.count ?? 0,
+  };
+}

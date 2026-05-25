@@ -8,10 +8,18 @@ import {
   ChevronRight,
   ShieldCheck,
   Tag,
+  MailX,
+  MessageCircle,
+  AlertOctagon,
+  Clock,
+  Archive,
+  Eye,
+  UserPlus,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
   listContacts,
+  getContactStats,
   type ContactSegment,
 } from "@/lib/contacts";
 import {
@@ -22,6 +30,7 @@ import { listSavedFilters } from "./saved-filter-actions";
 import { PageHeader } from "@/components/ui/page-header";
 import { ButtonLink } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { StatCard } from "@/components/ui/stat-card";
 import { FiltersBar } from "./filters-bar";
 import { ContactsTable } from "./contacts-table";
 import { ExportButton } from "./export-button";
@@ -68,7 +77,7 @@ export default async function ContactsPage({
       ? (sp.segment as ContactSegment)
       : undefined;
 
-  const [{ contacts, total }, savedFilters] = await Promise.all([
+  const [{ contacts, total }, savedFilters, stats] = await Promise.all([
     listContacts(
       workspace,
       {
@@ -82,10 +91,14 @@ export default async function ContactsPage({
       PAGE_SIZE,
     ),
     listSavedFilters(slug),
+    getContactStats(workspace),
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const hasFilter = Boolean(sp.q || sp.tag || sp.stage || sp.segment);
+  const fmt = (n: number) => n.toLocaleString("id-ID");
+  const pct = (n: number, base: number) =>
+    base > 0 ? Math.round((n / base) * 100) : 0;
 
   return (
     <div className="mx-auto max-w-7xl px-6 py-8 pb-32">
@@ -126,6 +139,91 @@ export default async function ContactsPage({
           </>
         }
       />
+
+      {/* Database snapshot — outreach funnel + composition */}
+      <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Link
+          href={`/w/${slug}/contacts?segment=never_contacted`}
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 rounded-2xl"
+        >
+          <StatCard
+            label="Belum dikontak"
+            value={fmt(stats.never_contacted)}
+            icon={MailX}
+            tone={stats.never_contacted > 0 ? "amber" : "default"}
+            hint={`${pct(stats.never_contacted, stats.active_total)}% dari aktif`}
+          />
+        </Link>
+        <Link
+          href={`/w/${slug}/contacts?segment=replied`}
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded-2xl"
+        >
+          <StatCard
+            label="Pernah reply"
+            value={fmt(stats.replied)}
+            icon={MessageCircle}
+            tone={stats.replied > 0 ? "emerald" : "default"}
+            hint={`${pct(stats.replied, stats.active_total)}% dari aktif`}
+          />
+        </Link>
+        <Link
+          href={`/w/${slug}/contacts?segment=stale_30d`}
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40 rounded-2xl"
+        >
+          <StatCard
+            label="Stale 30+ hari"
+            value={fmt(stats.stale_30d)}
+            icon={Clock}
+            hint="butuh follow-up"
+          />
+        </Link>
+        <Link
+          href={`/w/${slug}/contacts?segment=bounced`}
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 rounded-2xl"
+        >
+          <StatCard
+            label="Bounced"
+            value={fmt(stats.bounced)}
+            icon={AlertOctagon}
+            tone={stats.bounced > 0 ? "red" : "default"}
+            hint={`${pct(stats.bounced, stats.active_total)}% dari aktif`}
+          />
+        </Link>
+      </div>
+
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard
+          label="Aktif (workspace)"
+          value={fmt(stats.active_total)}
+          icon={Users}
+          hint="non-archived"
+        />
+        <StatCard
+          label="Baru (7 hari)"
+          value={fmt(stats.added_7d)}
+          icon={UserPlus}
+          tone={stats.added_7d > 0 ? "blue" : "default"}
+          hint="ditambah ke workspace"
+        />
+        <StatCard
+          label="Pernah dibuka"
+          value={fmt(stats.opened)}
+          icon={Eye}
+          hint={`${pct(stats.opened, stats.active_total)}% dari aktif`}
+        />
+        <Link
+          href={`/w/${slug}/contacts?segment=archived`}
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 rounded-2xl"
+        >
+          <StatCard
+            label="Archived"
+            value={fmt(stats.archived)}
+            icon={Archive}
+            tone={stats.archived > 0 ? "amber" : "default"}
+            hint="seluruh akun"
+          />
+        </Link>
+      </div>
 
       <FiltersBar
         slug={slug}
