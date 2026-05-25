@@ -10,9 +10,13 @@
  *   - Table-based layout (no flexbox/grid)
  *   - Inline CSS only (no <style> blocks — Gmail strips them in some surfaces)
  *   - No SVG, no data: URLs in <img> (Gmail strips)
- *   - Logos use external HTTPS PNG/JPG (workspace-logos public bucket)
- *   - Social "icons" are CSS-only colored badges with brand initials, so we
- *     don't depend on any external icon CDN that might break
+ *   - All images are external HTTPS PNG
+ *   - Logos use the workspace-logos public bucket
+ *   - Real brand icons come from cdn.simpleicons.org via the images.weserv.nl
+ *     proxy which serves them as PNG (Gmail-friendly). Both services have
+ *     years-long uptime track records; if either ever flakes we can swap
+ *     in pre-baked PNGs under /public/email-icons/ without touching the
+ *     data model.
  */
 
 export type SocialPlatform =
@@ -30,7 +34,7 @@ export type SignatureSocial = {
   platform: SocialPlatform;
   url: string;
   /** Optional display label, e.g. "@handle" or "/in/company". Not rendered
-   *  in the badge (we use brand initial) but shown in the editor + plain text. */
+   *  in the icon (we use the brand mark) but shown in plain text + editor. */
   label?: string;
 };
 
@@ -43,26 +47,33 @@ export type SignatureData = {
   /** Raw digits incl. country code, e.g. "628123456789". We auto-link to wa.me. */
   whatsapp?: string;
   website?: string;
-  /** HTTPS URL to a hosted PNG/JPG/WebP. Should be small (~96x96, <100 KB). */
+  /** HTTPS URL to a hosted PNG/JPG/WebP. Recommend square aspect, >=192px. */
   logo_url?: string;
   /** Hex with leading #. Falls back to workspace color_theme if absent. */
   brand_color?: string;
   socials?: SignatureSocial[];
 };
 
-const SOCIAL_META: Record<
-  SocialPlatform,
-  { abbr: string; color: string; label: string }
-> = {
-  instagram: { abbr: "IG", color: "#E4405F", label: "Instagram" },
-  facebook: { abbr: "f", color: "#1877F2", label: "Facebook" },
-  linkedin: { abbr: "in", color: "#0A66C2", label: "LinkedIn" },
-  twitter: { abbr: "X", color: "#000000", label: "X / Twitter" },
-  youtube: { abbr: "▶", color: "#FF0000", label: "YouTube" },
-  tiktok: { abbr: "TT", color: "#000000", label: "TikTok" },
-  threads: { abbr: "@", color: "#000000", label: "Threads" },
-  pinterest: { abbr: "P", color: "#BD081C", label: "Pinterest" },
-  custom: { abbr: "•", color: "#6b7280", label: "Link" },
+type SocialMeta = {
+  /** Simple Icons slug (https://simpleicons.org/?q=…). */
+  slug: string;
+  /** Brand color, no leading #. */
+  color: string;
+  /** Display label in plain text + editor. */
+  label: string;
+};
+
+const SOCIAL_META: Record<SocialPlatform, SocialMeta> = {
+  instagram: { slug: "instagram", color: "E4405F", label: "Instagram" },
+  facebook:  { slug: "facebook",  color: "1877F2", label: "Facebook" },
+  linkedin:  { slug: "linkedin",  color: "0A66C2", label: "LinkedIn" },
+  twitter:   { slug: "x",         color: "000000", label: "X / Twitter" },
+  youtube:   { slug: "youtube",   color: "FF0000", label: "YouTube" },
+  tiktok:    { slug: "tiktok",    color: "000000", label: "TikTok" },
+  threads:   { slug: "threads",   color: "000000", label: "Threads" },
+  pinterest: { slug: "pinterest", color: "BD081C", label: "Pinterest" },
+  // 'custom' falls back to a generic globe icon
+  custom:    { slug: "googlechrome", color: "6B7280", label: "Link" },
 };
 
 export const SOCIAL_OPTIONS: Array<{
@@ -72,10 +83,10 @@ export const SOCIAL_OPTIONS: Array<{
 }> = (Object.keys(SOCIAL_META) as SocialPlatform[]).map((p) => ({
   value: p,
   label: SOCIAL_META[p].label,
-  color: SOCIAL_META[p].color,
+  color: `#${SOCIAL_META[p].color}`,
 }));
 
-export function socialMeta(platform: SocialPlatform) {
+export function socialMeta(platform: SocialPlatform): SocialMeta {
   return SOCIAL_META[platform] ?? SOCIAL_META.custom;
 }
 
@@ -108,7 +119,6 @@ function waUrl(whatsapp: string): string {
   return `https://wa.me/${digitsOnly(whatsapp)}`;
 }
 
-/** Strip protocol/path for display. "https://www.tiska.com/path" → "tiska.com" */
 function websiteDisplay(url: string): string {
   return url
     .replace(/^https?:\/\//, "")
@@ -121,10 +131,20 @@ function normalizeWebsiteHref(url: string): string {
   return `https://${url}`;
 }
 
+/** Build a weserv proxy URL for a Simple Icons brand glyph. The `colorHex`
+ *  is passed straight to Simple Icons (no leading #) — use `ffffff` for a
+ *  white-on-color badge or any brand hex for a colored standalone glyph. */
+function brandIconPng(slug: string, colorHex: string, size = 56): string {
+  const inner = `cdn.simpleicons.org/${slug}/${colorHex}`;
+  return `https://images.weserv.nl/?url=${encodeURIComponent(inner)}&w=${size}&h=${size}&fit=contain&output=png`;
+}
+
+const FONT_STACK = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
 /**
  * Render the structured signature into an email-safe HTML fragment.
- * Output is meant to be placed inside <body>, not a full document. Renderer
- * appends it AFTER the body and BEFORE the unsubscribe footer.
+ * Output is meant to be placed inside <body>; the renderer wraps the
+ * whole thing in a single outer div so callers don't need extra spacing.
  */
 export function renderSignatureHtml(
   data: SignatureData | null | undefined,
@@ -132,72 +152,105 @@ export function renderSignatureHtml(
 ): string {
   if (isSignatureEmpty(data)) return "";
   const d = data as SignatureData;
-  const brand = d.brand_color || opts.fallbackBrandColor || "#0f172a";
+  const brand = (d.brand_color || opts.fallbackBrandColor || "#0f172a").replace("#", "");
 
+  // --- Name + title block ----------------------------------------------------
   const nameLine = d.name
-    ? `<div style="font-weight:600;font-size:14px;color:#111827;line-height:1.3;">${esc(d.name)}</div>`
+    ? `<div style="font-family:${FONT_STACK};font-weight:600;font-size:17px;line-height:1.25;color:#0f172a;letter-spacing:-0.01em;">${esc(d.name)}</div>`
     : "";
 
   const titleParts: string[] = [];
   if (d.title) titleParts.push(esc(d.title));
-  if (d.company) titleParts.push(esc(d.company));
+  if (d.company) titleParts.push(`<span style="color:#0f172a;">${esc(d.company)}</span>`);
   const titleLine = titleParts.length
-    ? `<div style="color:#6b7280;font-size:12px;line-height:1.35;margin-top:2px;">${titleParts.join(' <span style="color:#cbd5e1;">·</span> ')}</div>`
+    ? `<div style="font-family:${FONT_STACK};color:#6b7280;font-size:13px;line-height:1.4;margin-top:3px;">${titleParts.join(' <span style="color:#cbd5e1;margin:0 4px;">·</span> ')}</div>`
     : "";
 
-  // Contact rows — one <div> per row for max email-client compat.
+  // --- Contact rows ----------------------------------------------------------
+  // Each row: small monochrome glyph (unicode) + linked text. Keeping it
+  // text-glyph rather than images for the small-screen contact rows keeps
+  // file size + load time down where it matters least.
+  const contactRow = (icon: string, text: string, href: string) =>
+    `<tr><td style="padding:3px 0;font-family:${FONT_STACK};font-size:13px;line-height:1.5;color:#374151;" valign="middle">` +
+      `<span style="display:inline-block;width:18px;color:#${brand};font-weight:600;">${icon}</span>` +
+      `<a href="${esc(href)}" style="color:#374151;text-decoration:none;">${text}</a>` +
+    `</td></tr>`;
+
   const contactRows: string[] = [];
-  const linkStyle = `color:#374151;text-decoration:none;`;
   if (d.email) {
-    contactRows.push(
-      `<div style="margin-top:4px;font-size:12px;line-height:1.5;"><span style="display:inline-block;width:14px;color:${brand};">✉</span> <a href="mailto:${esc(d.email)}" style="${linkStyle}">${esc(d.email)}</a></div>`,
-    );
+    contactRows.push(contactRow("✉", esc(d.email), `mailto:${d.email}`));
   }
   if (d.phone) {
-    const telHref = `tel:${digitsOnly(d.phone)}`;
-    contactRows.push(
-      `<div style="margin-top:2px;font-size:12px;line-height:1.5;"><span style="display:inline-block;width:14px;color:${brand};">☎</span> <a href="${esc(telHref)}" style="${linkStyle}">${esc(d.phone)}</a></div>`,
-    );
+    contactRows.push(contactRow("☎", esc(d.phone), `tel:${digitsOnly(d.phone)}`));
   }
   if (d.whatsapp) {
+    // WhatsApp gets its real green glyph (other rows use unicode for
+    // consistent vertical alignment — there's no widely-supported unicode
+    // for the WA mark and brand recognition matters here).
     contactRows.push(
-      `<div style="margin-top:2px;font-size:12px;line-height:1.5;"><span style="display:inline-block;width:14px;color:#25D366;">●</span> <a href="${esc(waUrl(d.whatsapp))}" style="${linkStyle}">WhatsApp ${esc(d.whatsapp)}</a></div>`,
+      `<tr><td style="padding:3px 0;font-family:${FONT_STACK};font-size:13px;line-height:1.5;color:#374151;" valign="middle">` +
+        `<img src="${brandIconPng("whatsapp", "25D366", 36)}" alt="" width="14" height="14" style="display:inline-block;vertical-align:-3px;margin-right:6px;border:0;">` +
+        `<a href="${esc(waUrl(d.whatsapp))}" style="color:#374151;text-decoration:none;">${esc(d.whatsapp)}</a>` +
+      `</td></tr>`,
     );
   }
   if (d.website) {
-    const href = normalizeWebsiteHref(d.website);
     contactRows.push(
-      `<div style="margin-top:2px;font-size:12px;line-height:1.5;"><span style="display:inline-block;width:14px;color:${brand};">◉</span> <a href="${esc(href)}" style="${linkStyle}">${esc(websiteDisplay(d.website))}</a></div>`,
+      contactRow("◉", esc(websiteDisplay(d.website)), normalizeWebsiteHref(d.website)),
     );
   }
+  const contactsTable = contactRows.length
+    ? `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;margin-top:8px;">${contactRows.join("")}</table>`
+    : "";
 
-  // Social badges
-  const socialBadges = (d.socials ?? [])
+  // --- Social icons row ------------------------------------------------------
+  // Real brand PNG via weserv → simpleicons proxy. Each icon sits in a
+  // brand-colored 32×32 rounded square so they remain visible against any
+  // background.
+  const socialIcons = (d.socials ?? [])
     .filter((s) => s.url && s.url.trim())
     .map((s) => {
       const meta = socialMeta(s.platform);
-      const safeHref = esc(normalizeWebsiteHref(s.url));
-      return `<a href="${safeHref}" style="display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;border-radius:6px;font-size:11px;font-weight:700;color:#ffffff;background-color:${meta.color};text-decoration:none;margin-right:6px;margin-top:4px;">${esc(meta.abbr)}</a>`;
+      const href = esc(normalizeWebsiteHref(s.url));
+      const iconPng = brandIconPng(meta.slug, "ffffff", 56);
+      return (
+        `<a href="${href}" style="display:inline-block;margin-right:6px;text-decoration:none;" aria-label="${esc(meta.label)}">` +
+          `<img src="${iconPng}" alt="${esc(meta.label)}" width="28" height="28" ` +
+          `style="display:block;border:0;border-radius:8px;background-color:#${meta.color};padding:6px;box-sizing:border-box;width:28px;height:28px;">` +
+        `</a>`
+      );
     })
     .join("");
-  const socialsBlock = socialBadges
-    ? `<div style="margin-top:10px;font-size:0;line-height:0;">${socialBadges}</div>`
+  const socialsBlock = socialIcons
+    ? `<div style="margin-top:14px;line-height:0;font-size:0;">${socialIcons}</div>`
     : "";
 
+  // --- Logo cell -------------------------------------------------------------
+  // 96×96 displayed, rounded, with a soft shadow ring. We don't show a
+  // placeholder when no logo is set — keep the layout clean.
   const logoCell = d.logo_url
-    ? `<td valign="top" style="padding:0 14px 0 0;width:64px;"><img src="${esc(d.logo_url)}" alt="${esc(d.company || d.name || "Logo")}" width="56" height="56" style="display:block;border:0;border-radius:8px;object-fit:cover;"></td>`
+    ? `<td valign="top" style="padding:0 22px 0 0;width:96px;">
+         <img src="${esc(d.logo_url)}" alt="${esc(d.company || d.name || "Logo")}" width="96" height="96" style="display:block;border:0;border-radius:14px;object-fit:cover;width:96px;height:96px;background:#ffffff;">
+       </td>`
     : "";
 
+  const dividerCell = d.logo_url
+    ? `<td valign="middle" style="padding:0 22px 0 0;width:1px;">
+         <div style="width:2px;height:84px;background:#${brand};border-radius:2px;opacity:0.85;"></div>
+       </td>`
+    : "";
+
+  // --- Outer wrapper ---------------------------------------------------------
   return [
-    // Two newlines so Apple Mail/Outlook keep the gap above signature.
-    `<div style="margin-top:24px;padding-top:14px;border-top:2px solid ${brand};max-width:520px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">`,
+    `<div style="margin-top:28px;padding-top:18px;border-top:1px solid #e5e7eb;font-family:${FONT_STACK};color:#0f172a;max-width:560px;">`,
     `<table cellpadding="0" cellspacing="0" border="0" role="presentation" style="border-collapse:collapse;">`,
     `<tr>`,
     logoCell,
+    dividerCell,
     `<td valign="top">`,
     nameLine,
     titleLine,
-    contactRows.join(""),
+    contactsTable,
     socialsBlock,
     `</td>`,
     `</tr>`,
