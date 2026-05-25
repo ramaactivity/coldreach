@@ -178,9 +178,13 @@ export function renderSignatureHtml(
   // Left column widened to 30% so a 140px logo gets breathing room on
   // both sides. cell + img use valign="middle" so the logo vertically
   // centers against the right column's identity-row + contact-bar stack.
+  // Explicit width="160" HTML attribute keeps Outlook + older mail clients
+  // honoring the intended size even when their CSS pipeline ignores
+  // width:100% on images. Max-height cap stops very tall logos (e.g. a
+  // square logo) from dominating the row.
   const logoCell = d.logo_url
     ? `<td width="30%" align="center" valign="middle" style="width:30%;padding:12px 22px 12px 0;border-right:1px solid #cbd5e1;vertical-align:middle;">` +
-        `<img src="${esc(proxyLogoUrl(d.logo_url, 320))}" alt="${esc(d.company || d.name || "Logo")}" style="display:block;border:0;width:100%;max-width:160px;height:auto;margin:0 auto;">` +
+        `<img src="${esc(proxyLogoUrl(d.logo_url, 320))}" alt="${esc(d.company || d.name || "Logo")}" width="160" style="display:block;border:0;width:160px;max-width:100%;height:auto;max-height:160px;margin:0 auto;object-fit:contain;">` +
       `</td>`
     : `<td width="30%" valign="middle" style="width:30%;padding:12px 22px 12px 0;border-right:1px solid #cbd5e1;vertical-align:middle;">&nbsp;</td>`;
 
