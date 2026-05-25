@@ -123,7 +123,7 @@ export function TemplateForm({
           </div>
 
           <div>
-            <FieldLabel htmlFor="subject_lines" required hint="Satu per baris">
+            <FieldLabel htmlFor="subject_lines" required hint="Satu per baris = satu variant">
               Subject Lines
             </FieldLabel>
             <Textarea
@@ -132,16 +132,23 @@ export function TemplateForm({
               value={subjects}
               onChange={(e) => setSubjects(e.target.value)}
               required
-              rows={3}
+              rows={4}
               className="font-mono text-xs"
               placeholder={`Penawaran catering untuk {company}\nIde catering untuk event {company}\nKolaborasi catering, {first_name}?`}
             />
+
+            {/* Variant chips — surfaces each non-empty line as its own
+                A/B variant so the user actually sees what's being rotated. */}
+            <SubjectVariantList raw={subjects} />
+
             <FieldDescription>
-              Sistem random pilih saat kirim (A/B testing manual). Variable dalam{" "}
+              Tulis 1 baris untuk subject tunggal, atau{" "}
+              <strong>multiple baris untuk A/B testing</strong> — sistem
+              random pilih satu variant tiap kirim. Variable{" "}
               <code className="rounded bg-zinc-100 px-1 font-mono text-[11px] dark:bg-zinc-800">
                 {`{curly_braces}`}
-              </code>
-              .
+              </code>{" "}
+              di-replace per kontak.
             </FieldDescription>
             <FieldError>{state.fieldErrors?.subject_lines}</FieldError>
           </div>
@@ -360,6 +367,59 @@ function Field({
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+/**
+ * Surfaces each non-empty line of the subject textarea as a numbered chip
+ * so the user can actually see what gets rotated. Falls back to a single
+ * neutral status when only one (or zero) variants exist.
+ */
+function SubjectVariantList({ raw }: { raw: string }) {
+  const variants = raw
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (variants.length === 0) {
+    return (
+      <div className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+        Belum ada subject. Tulis minimal satu di atas.
+      </div>
+    );
+  }
+
+  if (variants.length === 1) {
+    return (
+      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+        <Sparkles className="h-3 w-3" />
+        1 variant aktif · tambahin baris lagi untuk A/B testing
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2.5">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+        <Sparkles className="h-3 w-3" />
+        {variants.length} variant aktif — sistem rotate random per kirim
+      </div>
+      <ul className="space-y-1">
+        {variants.map((v, i) => (
+          <li
+            key={i}
+            className="flex items-start gap-2 rounded-lg border border-zinc-200/70 bg-white px-2.5 py-1.5 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+          >
+            <span className="inline-flex h-4 min-w-[16px] shrink-0 items-center justify-center rounded bg-zinc-100 px-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+              {String.fromCharCode(65 + i)}
+            </span>
+            <span className="min-w-0 flex-1 truncate font-mono text-[11px]">
+              {v}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
