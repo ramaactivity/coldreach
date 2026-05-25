@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { Mail, AlertTriangle, Sparkles, PenLine } from "lucide-react";
 import {
   SUPPORTED_VARIABLES,
@@ -79,6 +79,13 @@ export function TemplateForm({
       }),
     [workspace.signature_data, workspace.color_theme],
   );
+  // Defer client-only render — see signature-form for full rationale.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // Canonical "isHydrated" flip — intentionally a setState in effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   // Heuristic: detect inline-signature patterns in the body that would
   // duplicate against the workspace signature when sent.
@@ -295,10 +302,14 @@ export function TemplateForm({
                     <PenLine className="h-3 w-3" />
                     Auto-appended dari workspace signature
                   </div>
-                  <div
-                    className="overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50/40 p-3 dark:border-zinc-800 dark:bg-zinc-900/40"
-                    dangerouslySetInnerHTML={{ __html: signatureHtml }}
-                  />
+                  {mounted ? (
+                    <div
+                      className="overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50/40 p-3 dark:border-zinc-800 dark:bg-zinc-900/40"
+                      dangerouslySetInnerHTML={{ __html: signatureHtml }}
+                    />
+                  ) : (
+                    <div className="h-32 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+                  )}
                 </div>
               )}
             </div>

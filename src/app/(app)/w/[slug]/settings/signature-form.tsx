@@ -2,6 +2,7 @@
 
 import {
   useActionState,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -116,6 +117,17 @@ export function SignatureForm({
       renderSignatureHtml(data, { fallbackBrandColor: workspaceColorTheme }),
     [data, workspaceColorTheme],
   );
+  // Defer dangerouslySetInnerHTML to client-only mount. The preview uses
+  // weserv-proxied image URLs whose `?v=` cache-buster can drift between a
+  // cached SSR payload and a freshly-fetched client RSC tree after upload
+  // → React #418 hydration error. Rendering only post-mount sidesteps the
+  // comparison entirely.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    // Canonical "isHydrated" flip — intentionally a setState in effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   function setField<K extends keyof SignatureData>(key: K, value: SignatureData[K]) {
     setData((prev) => ({ ...prev, [key]: value }));
@@ -462,12 +474,14 @@ export function SignatureForm({
                 <p className="italic text-xs text-zinc-400 dark:text-zinc-500">
                   Isi field di kiri untuk lihat preview.
                 </p>
-              ) : (
+              ) : mounted ? (
                 <div
                   // The renderer output is already sanitized (esc all user
                   // strings) — safe for preview.
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
+              ) : (
+                <div className="h-32 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
               )}
             </div>
 
