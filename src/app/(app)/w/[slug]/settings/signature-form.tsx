@@ -7,6 +7,7 @@ import {
   useState,
   useTransition,
 } from "react";
+import { useRouter } from "next/navigation";
 import {
   Upload,
   Trash2,
@@ -91,6 +92,7 @@ export function SignatureForm({
   initial: { signature_data: SignatureData | null };
   workspaceColorTheme: string;
 }) {
+  const router = useRouter();
   const [state, action, saving] = useActionState(
     updateWorkspaceSignature.bind(null, slug),
     INITIAL,
@@ -176,6 +178,9 @@ export function SignatureForm({
         return;
       }
       setField("logo_url", res.url);
+      // Also pull the freshly-revalidated server data so the preview's
+      // weserv-proxied URL definitely picks up the new cache-buster.
+      router.refresh();
     });
   }
 
@@ -184,6 +189,7 @@ export function SignatureForm({
     startUpload(async () => {
       await removeWorkspaceLogo(slug);
       setField("logo_url", undefined);
+      router.refresh();
     });
   }
 
