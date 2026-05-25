@@ -87,7 +87,9 @@ export function QueueActionsBar({
       const res = await reshuffleQueueAction(slug, queueId);
       if (res.ok) {
         setShuffleMsg(
-          `Diacak ulang — ${res.reshuffled.toLocaleString("id-ID")} kontak pending dapat urutan baru.`,
+          res.reshuffled > 0
+            ? `Diacak ulang — ${res.reshuffled.toLocaleString("id-ID")} kontak pending dapat urutan baru.`
+            : "0 kontak pending — gak ada yang di-shuffle. Queue sudah selesai atau semua recipient sudah sent/skipped.",
         );
       } else {
         setShuffleMsg(`Error: ${res.error}`);
@@ -205,7 +207,12 @@ export function QueueActionsBar({
             size="sm"
             variant="outline"
             onClick={handleReshuffle}
-            disabled={pending || pendingCount === 0}
+            disabled={pending}
+            title={
+              pendingCount === 0
+                ? "Gak ada pending recipients — RPC tetap jalan tapi 0 row ke-shuffle"
+                : `${pendingCount.toLocaleString("id-ID")} pending recipients akan dapat urutan acak baru`
+            }
           >
             <Shuffle className="h-3.5 w-3.5" />
             Reshuffle now
@@ -213,6 +220,8 @@ export function QueueActionsBar({
           <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
             <ShieldCheck className="h-3 w-3" />
             Last reshuffle: <strong className="font-medium text-zinc-700 dark:text-zinc-300">{timeAgo(lastShuffledAt)}</strong>
+            <span className="text-zinc-400 dark:text-zinc-600">·</span>
+            <strong className="font-medium text-zinc-700 dark:text-zinc-300">{pendingCount.toLocaleString("id-ID")}</strong> pending
           </span>
         </div>
         {shuffleMsg && (
