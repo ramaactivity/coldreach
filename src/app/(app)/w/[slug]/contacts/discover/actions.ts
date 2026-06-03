@@ -8,6 +8,7 @@ import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
   apolloSearchPeople,
   apolloBulkMatch,
+  apolloCounts,
   type ApolloPerson,
   type ApolloSearchCriteria,
 } from "@/lib/apollo";
@@ -20,6 +21,8 @@ export type SearchState = {
   page?: number;
   totalPages?: number;
   totalEntries?: number;
+  counts?: { total: number; netNew: number; saved: number };
+  existingOnPage?: number; // of the current page, how many already in ColdReach
 };
 
 export type ImportResult = {
@@ -51,8 +54,12 @@ export async function searchApollo(
   if (!workspace) return { error: "Workspace not found" };
 
   let res;
+  let counts;
   try {
-    res = await apolloSearchPeople(criteria, page);
+    [res, counts] = await Promise.all([
+      apolloSearchPeople(criteria, page),
+      apolloCounts(criteria),
+    ]);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Apollo search gagal" };
   }
@@ -79,6 +86,8 @@ export async function searchApollo(
     page: res.page,
     totalPages: res.totalPages,
     totalEntries: res.totalEntries,
+    counts,
+    existingOnPage: existing.size,
   };
 }
 

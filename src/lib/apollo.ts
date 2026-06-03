@@ -71,6 +71,8 @@ export type ApolloSearchCriteria = {
   // which excludes people you likely already exported to ColdReach and saves
   // reveal credits. Set false to also include already-saved people.
   netNewOnly?: boolean;
+  // Explicit prospected scope, overrides netNewOnly. Used for the count tiles.
+  prospected?: "net_new" | "saved" | "all";
 };
 
 export type ApolloSearchResult = {
@@ -128,8 +130,16 @@ export async function apolloSearchPeople(
   if (criteria.keywords?.trim()) body.q_keywords = criteria.keywords.trim();
   if (criteria.employeeRanges?.length)
     body.organization_num_employees_ranges = criteria.employeeRanges;
-  // Net New only (exclude people already saved/prospected by your team).
-  if (criteria.netNewOnly !== false) body.prospected_by_current_team = ["no"];
+  // Prospected scope. Explicit `prospected` wins (used by count tiles); else
+  // fall back to the Net New toggle (default net-new only).
+  if (criteria.prospected === "net_new") body.prospected_by_current_team = ["no"];
+  else if (criteria.prospected === "saved")
+    body.prospected_by_current_team = ["yes"];
+  else if (criteria.prospected === "all") {
+    /* no filter */
+  } else if (criteria.netNewOnly !== false) {
+    body.prospected_by_current_team = ["no"];
+  }
 
   const data = (await apolloPost("/mixed_people/api_search", body)) as Record<
     string,
@@ -155,6 +165,25 @@ export async function apolloSearchPeople(
     totalPages,
     totalEntries,
   };
+}
+
+/** Total / Net New / Saved counts for a query (free, 3 lightweight calls). */
+export async function apolloCounts(
+  criteria: ApolloSearchCriteria,
+): Promise<{ total: number; netNew: number; saved: number }> {
+  const one = async (prospected: "all" | "net_new" | "saved") => {
+    const r = await apolloSearchPeople(
+      { ...criteria, prospected, perPage: 1 },
+      1,
+    );
+    return r.totalEntries;
+  };
+  const [total, netNew, saved] = await Promise.all([
+    one("all"),
+    one("net_new"),
+    one("saved"),
+  ]);
+  return { total, netNew, saved };
 }
 
 export type ApolloMatch = {
