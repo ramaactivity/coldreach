@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CalendarOff } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -124,6 +125,17 @@ export async function HolidayNotice() {
             )}
           </ul>
         )}
+        <Link
+          href="/holidays"
+          prefetch={true}
+          className={`mt-2 inline-block text-xs font-medium underline-offset-2 hover:underline ${
+            isToday
+              ? "text-amber-800 dark:text-amber-300"
+              : "text-blue-800 dark:text-blue-300"
+          }`}
+        >
+          Kelola hari libur →
+        </Link>
       </div>
     </div>
   );
