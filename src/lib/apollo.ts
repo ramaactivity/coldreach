@@ -189,6 +189,7 @@ export async function apolloCounts(
 export type ApolloMatch = {
   id: string | null;
   email: string | null;
+  email_status: string | null; // verified | likely | unverified | unavailable | ...
   first_name: string | null;
   last_name: string | null;
   name: string | null;
@@ -217,6 +218,7 @@ function normalizeMatch(raw: Record<string, unknown>): ApolloMatch {
   return {
     id: str(raw.id),
     email: realEmail(raw.email),
+    email_status: str(raw.email_status),
     first_name: str(raw.first_name),
     last_name: str(raw.last_name),
     name: str(raw.name),
@@ -249,6 +251,64 @@ export async function apolloBulkMatch(ids: string[]): Promise<ApolloMatch[]> {
       : [];
     for (const m of matchesRaw) {
       if (m && typeof m === "object") out.push(normalizeMatch(m));
+    }
+  }
+  return out;
+}
+
+export type EnrichRecord = {
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  company?: string | null;
+};
+
+/**
+ * Verify/refresh existing contacts by EMAIL (most legacy contacts have no
+ * apollo id). Sends name + company too for a more reliable match. Returns
+ * one ApolloMatch per input record, in order (email null = not revealed).
+ * ~1 credit per revealed record.
+ */
+export async function apolloBulkEnrichByEmail(
+  records: EnrichRecord[],
+): Promise<ApolloMatch[]> {
+  const out: ApolloMatch[] = [];
+  for (let i = 0; i < records.length; i += 10) {
+    const chunk = records.slice(i, i + 10);
+    const data = (await apolloPost("/people/bulk_match", {
+      reveal_personal_emails: false,
+      details: chunk.map((r) => ({
+        email: r.email,
+        first_name: r.firstName ?? undefined,
+        last_name: r.lastName ?? undefined,
+        organization_name: r.company ?? undefined,
+      })),
+    })) as Record<string, unknown>;
+    const matchesRaw = Array.isArray(data.matches)
+      ? (data.matches as Array<Record<string, unknown> | null>)
+      : [];
+    for (let j = 0; j < chunk.length; j++) {
+      const m = matchesRaw[j];
+      // Keep alignment with input order even when Apollo returns a null slot.
+      out.push(
+        m && typeof m === "object"
+          ? normalizeMatch(m)
+          : {
+              id: null,
+              email: null,
+              email_status: "not_found",
+              first_name: null,
+              last_name: null,
+              name: null,
+              title: null,
+              linkedin_url: null,
+              city: null,
+              state: null,
+              country: null,
+              organization_name: null,
+              organization_website: null,
+            },
+      );
     }
   }
   return out;

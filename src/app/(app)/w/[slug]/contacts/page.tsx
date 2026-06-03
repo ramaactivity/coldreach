@@ -45,6 +45,8 @@ const VALID_SEGMENTS = new Set<ContactSegment>([
   "bounced",
   "stale_30d",
   "archived",
+  "unverified",
+  "risky",
 ]);
 
 export default async function ContactsPage({
