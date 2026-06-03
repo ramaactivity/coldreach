@@ -47,7 +47,7 @@ export function LoginForm() {
       <button
         onClick={handleGoogleSignIn}
         disabled={loading}
-        className="group inline-flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:border-zinc-600 dark:hover:bg-zinc-700 active:scale-[0.99]"
+        className="group inline-flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink transition-all hover:border-border-strong hover:bg-surface-sunken hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.99]"
       >
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -58,7 +58,7 @@ export function LoginForm() {
       </button>
 
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+        <div className="flex items-start gap-2 rounded-lg border border-danger-soft bg-danger-soft p-3 text-xs text-danger-text">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>{error}</span>
         </div>

@@ -41,7 +41,7 @@ export default async function WorkspaceInboxPage({
       />
 
       {/* Tabs */}
-      <div className="mb-4 flex gap-1 rounded-lg border border-zinc-200/80 bg-zinc-50/50 p-1 dark:border-zinc-800/80 dark:bg-zinc-900/50">
+      <div className="mb-4 flex gap-1 rounded-lg border border-border/80 bg-surface-sunken/50 p-1">
         {TABS.map((t) => {
           const Icon = t.icon;
           const active = tab === t.value;
@@ -52,18 +52,18 @@ export default async function WorkspaceInboxPage({
               href={`/w/${slug}/inbox${t.value === "pending" ? "" : `?tab=${t.value}`}`}
               className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-all ${
                 active
-                  ? "bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-zinc-100"
-                  : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
+                  ? "bg-surface text-ink"
+                  : "text-muted hover:text-ink"
               }`}
             >
               <Icon className="h-3.5 w-3.5" />
               <span>{t.label}</span>
               {count > 0 && (
                 <span
-                  className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold tabular-nums ${
+                  className={`inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold tabular ${
                     active
-                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                      : "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
+                      ? "bg-action text-on-action"
+                      : "bg-surface-hover text-ink-secondary"
                   }`}
                 >
                   {count}
@@ -94,7 +94,7 @@ export default async function WorkspaceInboxPage({
         />
       ) : (
         <Card className="overflow-visible p-0">
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+          <ul className="divide-y divide-border">
             {items.map((item) => (
               <InboxRow
                 key={item.id}

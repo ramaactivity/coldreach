@@ -116,12 +116,12 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
     <li
       className={`group relative px-5 py-4 transition-all ${
         pending ? "opacity-60" : ""
-      } hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40`}
+      } hover:bg-surface-sunken/80`}
     >
       <div className="flex items-start gap-3">
         {/* Avatar */}
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase text-white shadow-sm ring-2 ring-white dark:ring-zinc-900"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase text-on-action ring-2 ring-white"
           style={{ backgroundColor: item.workspace_color }}
         >
           {initial}
@@ -130,38 +130,38 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
         {/* Main info */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <p className="truncate text-sm font-semibold text-ink">
               {displayName}
             </p>
             {showWorkspace && item.workspace_name && (
               <span
-                className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                className="inline-flex items-center gap-1 rounded-full bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted"
                 style={{ borderLeft: `2px solid ${item.workspace_color}` }}
               >
                 {item.workspace_name}
               </span>
             )}
             {tab === "snoozed" && item.snoozed_until && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:bg-amber-950/40 dark:text-amber-400">
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warning-text">
                 <AlarmClock className="h-2.5 w-2.5" />
                 {formatUntil(item.snoozed_until)}
               </span>
             )}
             {tab === "handled" && item.handled_at && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-950/40 dark:text-emerald-400">
+              <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-success-text">
                 <CheckCircle2 className="h-2.5 w-2.5" />
                 Handled {formatRelative(item.handled_at)}
               </span>
             )}
           </div>
 
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted">
             {item.contact_company && (
               <span className="inline-flex items-center gap-1">
                 <Building2 className="h-3 w-3" />
                 {item.contact_company}
                 {item.contact_position && (
-                  <span className="text-zinc-400 dark:text-zinc-500">
+                  <span className="text-faint">
                     · {item.contact_position}
                   </span>
                 )}
@@ -200,7 +200,7 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
             {item.workspace_slug && (
               <a
                 href={`/w/${item.workspace_slug}/contacts/${item.contact_id}`}
-                className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-xs font-medium text-muted transition-colors hover:bg-surface-sunken hover:text-ink"
               >
                 Detail
               </a>
@@ -212,7 +212,7 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
                 href={gmailUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-xs font-medium text-muted transition-colors hover:bg-surface-sunken hover:text-ink"
               >
                 <ExternalLink className="h-3 w-3" />
                 Gmail
@@ -229,19 +229,19 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
                     type="button"
                     onClick={() => setShowSnooze((v) => !v)}
                     disabled={pending}
-                    className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                    className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-xs font-medium text-muted transition-colors hover:bg-surface-sunken hover:text-ink"
                   >
                     <AlarmClock className="h-3 w-3" />
                     Snooze
                   </button>
                   {showSnooze && (
-                    <div className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
+                    <div className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-lg border border-border bg-surface py-1 shadow-lg">
                       {SNOOZE_OPTIONS.map((opt) => (
                         <button
                           key={opt.hours}
                           type="button"
                           onClick={() => onSnooze(opt.hours)}
-                          className="block w-full px-3 py-1.5 text-left text-xs text-zinc-700 transition-colors hover:bg-zinc-50 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                          className="block w-full px-3 py-1.5 text-left text-xs text-ink-secondary transition-colors hover:bg-surface-sunken"
                         >
                           {opt.label}
                         </button>
@@ -254,7 +254,7 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
                   type="button"
                   onClick={onMarkHandled}
                   disabled={pending}
-                  className="inline-flex h-7 items-center gap-1 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                  className="inline-flex h-7 items-center gap-1 rounded-md bg-action px-2.5 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-50"
                 >
                   {pending ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -271,7 +271,7 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
                 type="button"
                 onClick={onUnsnooze}
                 disabled={pending}
-                className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
               >
                 <RotateCcw className="h-3 w-3" />
                 Unsnooze
@@ -283,7 +283,7 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
                 type="button"
                 onClick={onUnmark}
                 disabled={pending}
-                className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
               >
                 <RotateCcw className="h-3 w-3" />
                 Re-open
