@@ -7,6 +7,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ScrapeClient } from "./scrape-client";
 
 export const dynamic = "force-dynamic";
+// The JS-render fallback (Jina) can take ~20s per page; give the action room.
+export const maxDuration = 60;
 
 export default async function ScrapePage({
   params,

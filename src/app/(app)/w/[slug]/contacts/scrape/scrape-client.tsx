@@ -193,6 +193,7 @@ export function ScrapeClient({ slug }: { slug: string }) {
             <Globe className="h-3.5 w-3.5" />
             <span className="text-muted">{result.url}</span>
             <span>· {result.fetchedPages?.length ?? 0} halaman dipindai</span>
+            {result.rendered && <Badge variant="info">JS render</Badge>}
           </div>
 
           {/* Importable contacts */}

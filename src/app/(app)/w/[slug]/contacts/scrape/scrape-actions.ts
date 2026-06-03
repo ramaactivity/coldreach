@@ -14,6 +14,7 @@ export type ScrapeState = {
   url?: string;
   fetchedPages?: string[];
   blocked?: boolean;
+  rendered?: boolean;
   contacts?: (ScrapedContact & { alreadyImported?: boolean })[];
 };
 
@@ -75,6 +76,7 @@ export async function scrapeWebsite(
     url: res.url,
     fetchedPages: res.fetchedPages,
     blocked: res.blocked,
+    rendered: res.rendered,
     contacts: res.contacts.map((c) => ({
       ...c,
       alreadyImported: c.email ? existing.has(c.email) : false,

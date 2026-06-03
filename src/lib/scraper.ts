@@ -21,9 +21,25 @@
 const USER_AGENT =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 const PER_REQUEST_TIMEOUT_MS = 12_000;
+const RENDER_TIMEOUT_MS = 22_000; // Jina renders with a headless browser — slower.
 const MAX_PAGES = 8;
+const MAX_RENDER_PAGES = 2; // bound the JS-render fallback (Vercel Hobby budget)
 const FETCH_CONCURRENCY = 3;
 const MAX_BYTES = 3_000_000;
+
+// A fuller Chrome fingerprint slips past naive UA-only bot blocks.
+const BROWSER_HEADERS: Record<string, string> = {
+  "User-Agent": USER_AGENT,
+  "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
+  "Upgrade-Insecure-Requests": "1",
+  "Sec-CH-UA": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+  "Sec-CH-UA-Mobile": "?0",
+  "Sec-CH-UA-Platform": '"macOS"',
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "none",
+  "Sec-Fetch-User": "?1",
+};
 
 export type ScrapedSocials = {
   linkedin?: string;
@@ -52,6 +68,7 @@ export type ScrapeResult = {
   fetchedPages: string[];
   contacts: ScrapedContact[];
   blocked?: boolean;
+  rendered?: boolean; // a JS-render fallback (Jina) was used
   error?: string;
 };
 
@@ -122,6 +139,23 @@ class BlockedError extends Error {
   }
 }
 
+/** Decode a response honoring its declared (or <meta>) charset, not just UTF-8. */
+async function readBody(res: Response): Promise<string> {
+  const full = await res.arrayBuffer();
+  const buf = full.byteLength > MAX_BYTES ? full.slice(0, MAX_BYTES) : full;
+  const ctype = res.headers.get("content-type") ?? "";
+  let charset = (ctype.match(/charset=([^;]+)/i)?.[1] ?? "").trim().toLowerCase();
+  if (!charset) {
+    const head = new TextDecoder("latin1").decode(buf.slice(0, 2048));
+    charset = (head.match(/<meta[^>]+charset=["']?([\w-]+)/i)?.[1] ?? "utf-8").toLowerCase();
+  }
+  try {
+    return new TextDecoder(charset).decode(buf);
+  } catch {
+    return new TextDecoder("utf-8").decode(buf);
+  }
+}
+
 /** Fetch a URL as text. `htmlOnly` rejects non-HTML responses (used for pages). */
 async function rawFetch(
   url: string,
@@ -135,11 +169,10 @@ async function rawFetch(
       redirect: "follow",
       signal,
       headers: {
-        "User-Agent": USER_AGENT,
+        ...BROWSER_HEADERS,
         Accept: htmlOnly
           ? "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
           : "*/*",
-        "Accept-Language": "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7",
       },
       cache: "no-store",
     });
@@ -155,10 +188,37 @@ async function rawFetch(
     const ctype = res.headers.get("content-type") ?? "";
     if (ctype && !ctype.includes("html")) return null;
   }
-  const len = Number(res.headers.get("content-length") ?? "0");
-  if (len && len > MAX_BYTES) return null;
-  const text = await res.text();
-  return text.length > MAX_BYTES ? text.slice(0, MAX_BYTES) : text;
+  return readBody(res);
+}
+
+/**
+ * JS-render fallback via Jina Reader (r.jina.ai) — free, no API key. It renders
+ * the page in a headless browser and returns the post-JS HTML, which we feed to
+ * the same extractors. Used only when the native fetch yields zero emails.
+ */
+async function fetchRendered(url: string): Promise<string | null> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), RENDER_TIMEOUT_MS);
+  try {
+    const res = await fetch(`https://r.jina.ai/${url}`, {
+      method: "GET",
+      redirect: "follow",
+      signal: controller.signal,
+      cache: "no-store",
+      headers: {
+        "User-Agent": USER_AGENT,
+        Accept: "text/html",
+        "X-Return-Format": "html", // give us rendered DOM, not markdown
+        "X-Timeout": "18",
+      },
+    });
+    if (!res.ok) return null;
+    return readBody(res);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 export async function fetchHtml(
@@ -349,6 +409,14 @@ export function extractEmails(html: string): string[] {
   // Visible-text scan on script-stripped, de-obfuscated, entity-decoded HTML.
   const text = deobfuscate(decodeEntities(stripCode(html)));
   for (const m of text.matchAll(EMAIL_RE)) add(m[0]);
+
+  // Hidden data: __NEXT_DATA__, __NUXT__, inline config JSON. The strict
+  // validator filters minified-bundle noise; we just sweep inline scripts.
+  for (const m of html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)) {
+    const body = m[1];
+    if (body.length > 800_000 || !body.includes("@")) continue;
+    for (const em of body.matchAll(EMAIL_RE)) add(em[0]);
+  }
 
   return [...out];
 }
@@ -645,19 +713,19 @@ export async function scrapeWebsite(rawUrl: string): Promise<ScrapeResult> {
     });
   }
 
-  const phoneArr = [...sitePhones];
-  let contacts: ScrapedContact[] = mergeContacts(candidates).map((c) => ({
-    ...c,
-    company: c.company ?? company,
-    socials: mergeSocials(siteSocials, c.socials),
-    phone: c.phone ?? phoneArr[0],
-  }));
-
-  // No email anywhere → surface phone/social-only info (not importable).
-  if (contacts.length === 0) {
+  // Assemble emails → importable contacts; fall back to phone/social-only info.
+  const assemble = (): ScrapedContact[] => {
+    const phoneArr = [...sitePhones];
+    const out = mergeContacts(candidates).map((c) => ({
+      ...c,
+      company: c.company ?? company,
+      socials: mergeSocials(siteSocials, c.socials),
+      phone: c.phone ?? phoneArr[0],
+    }));
+    if (out.length > 0) return out;
     const hasSocials = Object.keys(siteSocials).length > 0;
     if (phoneArr.length > 0) {
-      contacts = phoneArr.map((phone) => ({
+      return phoneArr.map((phone) => ({
         phone,
         website: originStr,
         company,
@@ -665,8 +733,9 @@ export async function scrapeWebsite(rawUrl: string): Promise<ScrapeResult> {
         source_page: originStr,
         importable: false,
       }));
-    } else if (hasSocials) {
-      contacts = [
+    }
+    if (hasSocials) {
+      return [
         {
           website: originStr,
           company,
@@ -676,7 +745,29 @@ export async function scrapeWebsite(rawUrl: string): Promise<ScrapeResult> {
         },
       ];
     }
+    return [];
+  };
+
+  let contacts = assemble();
+
+  // JS-render fallback: only when native crawl found NO email. Render the
+  // homepage and (if any) one contact page via Jina, then re-extract.
+  let rendered = false;
+  if (contacts.filter((c) => c.importable).length === 0) {
+    const targets = [
+      originStr,
+      ...pages.filter((p) => p !== originStr && CONTACT_KEYWORD.test(p)),
+    ].slice(0, MAX_RENDER_PAGES);
+    for (const pg of targets) {
+      const html = await fetchRendered(pg);
+      if (html) {
+        rendered = true;
+        if (!fetchedPages.includes(pg)) fetchedPages.push(pg);
+        harvest(html, pg);
+      }
+    }
+    if (rendered) contacts = assemble();
   }
 
-  return { url: originStr, fetchedPages, contacts };
+  return { url: originStr, fetchedPages, contacts, rendered };
 }
