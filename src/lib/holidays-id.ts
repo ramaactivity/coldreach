@@ -1,58 +1,34 @@
-// Indonesian national holidays (libur nasional + cuti bersama). Used to
-// skip queue runs on days where corporate inboxes are dead anyway.
+// Indonesian national holidays — **offline fallback only**.
 //
-// This hardcoded set is the **offline fallback**. The runtime path also
-// queries the `id_holidays` table which gets refreshed daily from a public
-// API (api-harilibur.vercel.app), so the user never has to update this
-// file manually. The hardcoded set keeps the app safe when:
-//   - API is down or returns garbage
-//   - DB hasn't been refreshed yet (fresh deploy, table empty)
-//   - Network is unreachable from the cron route
+// The runtime source of truth is the `id_holidays` table: refreshed daily
+// from public APIs (date.nager.at + dayoffapi) and editable by users via
+// /holidays (add / correct / disable). This hardcoded set is a thin safety
+// net used ONLY on a cold start — before the very first refresh has
+// populated the table (e.g. a fresh deploy with an empty DB). Once the DB
+// has any rows, it is authoritative and this set is NOT overlaid.
+//
+// IMPORTANT: keep this to FIXED-DATE civil holidays that are correct every
+// year. Movable feasts (Idul Fitri, Idul Adha, Imlek, Nyepi, Jumat Agung,
+// Paskah, Kenaikan, Tahun Baru Islam, Maulid) shift on lunar/liturgical
+// calendars — hardcoding estimates here caused a real bug (Idul Adha 1447 H
+// shown on the wrong date, 2026-06-08, leaking into the dashboard banner).
+// Those dates come from the API or are added manually instead.
 //
 // Format: ISO date string YYYY-MM-DD in WIB local time.
 
 export const FALLBACK_HOLIDAYS: ReadonlyMap<string, string> = new Map([
-  // ===== 2026 — libur nasional (SKB 3 Menteri) + cuti bersama yang umum =====
+  // 2026 — fixed-date national holidays only.
   ["2026-01-01", "Tahun Baru Masehi"],
-  ["2026-01-29", "Isra Mikraj Nabi Muhammad"],
-  ["2026-02-17", "Tahun Baru Imlek 2577"],
-  ["2026-03-19", "Hari Suci Nyepi"],
-  ["2026-03-20", "Wafat Isa Almasih (Jumat Agung)"],
-  ["2026-03-21", "Hari Paskah"],
-  // Idul Fitri 1447 H — pemerintah biasanya menetapkan H-1/H+1 sbg cuti
-  // bersama. Tambahkan estimasi yang umum supaya outreach gak nekat
-  // ngirim di long weekend Lebaran. Verifikasi via SKB resmi.
-  ["2026-03-30", "Cuti bersama Idul Fitri (perkiraan)"],
-  ["2026-03-31", "Cuti bersama Idul Fitri (perkiraan)"],
-  ["2026-04-01", "Idul Fitri 1447 H — Hari Pertama"],
-  ["2026-04-02", "Idul Fitri 1447 H — Hari Kedua"],
-  ["2026-04-03", "Cuti bersama Idul Fitri (perkiraan)"],
   ["2026-05-01", "Hari Buruh Internasional"],
-  ["2026-05-14", "Kenaikan Isa Almasih"],
-  ["2026-05-15", "Cuti bersama Kenaikan Isa Almasih (perkiraan)"],
   ["2026-06-01", "Hari Lahir Pancasila"],
-  ["2026-06-08", "Idul Adha 1447 H (perkiraan)"],
-  ["2026-06-29", "Tahun Baru Islam 1448 H"],
   ["2026-08-17", "Hari Kemerdekaan RI"],
-  ["2026-09-07", "Maulid Nabi Muhammad"],
-  ["2026-12-24", "Cuti bersama Natal (perkiraan)"],
   ["2026-12-25", "Hari Raya Natal"],
-  ["2026-12-31", "Cuti bersama akhir tahun (perkiraan)"],
 
-  // ===== 2027 (perkiraan — update sesuai SKB resmi nanti) =====
+  // 2027 — fixed-date national holidays only.
   ["2027-01-01", "Tahun Baru Masehi"],
-  ["2027-02-06", "Tahun Baru Imlek 2578 (perkiraan)"],
-  ["2027-03-08", "Hari Suci Nyepi (perkiraan)"],
-  ["2027-03-21", "Idul Fitri 1448 H — Hari Pertama (perkiraan)"],
-  ["2027-03-22", "Idul Fitri 1448 H — Hari Kedua (perkiraan)"],
-  ["2027-04-02", "Wafat Isa Almasih"],
-  ["2027-05-01", "Hari Buruh"],
-  ["2027-05-13", "Kenaikan Isa Almasih (perkiraan)"],
-  ["2027-05-28", "Idul Adha 1448 H (perkiraan)"],
+  ["2027-05-01", "Hari Buruh Internasional"],
   ["2027-06-01", "Hari Lahir Pancasila"],
-  ["2027-06-18", "Tahun Baru Islam 1449 H (perkiraan)"],
   ["2027-08-17", "Hari Kemerdekaan RI"],
-  ["2027-08-27", "Maulid Nabi (perkiraan)"],
   ["2027-12-25", "Hari Raya Natal"],
 ]);
 
@@ -106,33 +82,58 @@ export type HolidayHit = {
 };
 
 /**
- * DB-first holiday lookup with hardcoded fallback. Use this from cron route
- * handlers — they already run in async context.
+ * True if the id_holidays table has any row at all. Used to distinguish a
+ * cold start (empty table — trust the hardcoded fallback) from a populated
+ * DB (authoritative — a date absent from it is genuinely not a holiday).
+ */
+async function dbHasAnyHoliday(admin: SupabaseClient): Promise<boolean> {
+  try {
+    const { count } = await admin
+      .from("id_holidays")
+      .select("date", { count: "exact", head: true });
+    return (count ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * DB-first holiday lookup. The id_holidays table is the source of truth
+ * (auto-refreshed + user-managed via /holidays). Rules:
+ *   - row exists & enabled  -> holiday
+ *   - row exists & disabled -> NOT a holiday (user opted to send that day;
+ *     authoritative, no fallback)
+ *   - no row, DB populated   -> NOT a holiday (absent = genuinely none)
+ *   - no row, DB empty/down  -> hardcoded fallback (cold-start safety net)
+ * Use this from cron route handlers — they already run in async context.
  */
 export async function getHolidayWIBAsync(
   admin: SupabaseClient,
   isoDate: string,
 ): Promise<HolidayHit | null> {
-  // 1. Database — refreshed daily from api-harilibur.
   try {
     const { data } = await admin
       .from("id_holidays")
-      .select("name, is_cuti_bersama")
+      .select("name, is_cuti_bersama, enabled")
       .eq("date", isoDate)
       .maybeSingle();
-    if (data && typeof data.name === "string") {
-      return {
-        date: isoDate,
-        name: data.name,
-        source: "db",
-        is_cuti_bersama: !!data.is_cuti_bersama,
-      };
+    if (data) {
+      if (!data.enabled) return null; // user-disabled — authoritative
+      if (typeof data.name === "string") {
+        return {
+          date: isoDate,
+          name: data.name,
+          source: "db",
+          is_cuti_bersama: !!data.is_cuti_bersama,
+        };
+      }
     }
+    // No row for this date: only fall back on a cold start (empty table).
+    if (await dbHasAnyHoliday(admin)) return null;
   } catch {
-    // Fall through to hardcoded — DB unreachable or table missing.
+    // DB unreachable or table missing — fall through to hardcoded net.
   }
 
-  // 2. Hardcoded fallback.
   const fallbackName = FALLBACK_HOLIDAYS.get(isoDate);
   if (fallbackName) {
     return {
@@ -153,10 +154,11 @@ export async function isTodayHolidayWIBAsync(
 }
 
 /**
- * Return holidays in the next `daysAhead` days (inclusive of today). Used by
- * the dashboard banner. DB-first; for any date not in DB, we patch in the
- * hardcoded fallback so the banner stays accurate even when refresh hasn't
- * fired yet.
+ * Return enabled holidays in the next `daysAhead` days (inclusive of today).
+ * Used by the dashboard banner. The DB is authoritative once populated — we
+ * do NOT overlay the hardcoded fallback on top of it (that used to leak a
+ * wrong estimated date into the banner). Fallback is consulted only on a
+ * cold start (empty table). Disabled rows are skipped.
  */
 export async function getUpcomingHolidaysWIB(
   admin: SupabaseClient,
@@ -166,40 +168,47 @@ export async function getUpcomingHolidaysWIB(
   const end = addDaysWIB(today, daysAhead);
 
   const byDate = new Map<string, HolidayHit>();
+  let dbAlive = false;
 
-  // Hardcoded fallback first — keeps the banner working before the very
-  // first DB refresh has happened (fresh deploys).
-  for (let i = 0; i <= daysAhead; i++) {
-    const d = addDaysWIB(today, i);
-    const fb = FALLBACK_HOLIDAYS.get(d);
-    if (fb) {
-      byDate.set(d, {
-        date: d,
-        name: fb,
-        source: "fallback",
-        is_cuti_bersama: fb.toLowerCase().includes("cuti bersama"),
-      });
-    }
-  }
-
-  // DB overrides fallback wherever it has data.
   try {
     const { data } = await admin
       .from("id_holidays")
-      .select("date, name, is_cuti_bersama")
+      .select("date, name, is_cuti_bersama, enabled")
       .gte("date", today)
       .lte("date", end)
       .order("date", { ascending: true });
-    for (const row of data ?? []) {
-      byDate.set(row.date, {
-        date: row.date,
-        name: row.name,
-        source: "db",
-        is_cuti_bersama: !!row.is_cuti_bersama,
-      });
+    if (data) {
+      // Table-wide existence check — a populated DB is authoritative even
+      // when this particular window happens to hold no holidays.
+      dbAlive = await dbHasAnyHoliday(admin);
+      for (const row of data) {
+        if (!row.enabled) continue; // disabled — not a skip day
+        byDate.set(row.date, {
+          date: row.date,
+          name: row.name,
+          source: "db",
+          is_cuti_bersama: !!row.is_cuti_bersama,
+        });
+      }
     }
   } catch {
-    // Fall through with just the fallback set.
+    // DB unreachable — fall through to the cold-start fallback below.
+  }
+
+  // Cold-start safety net: overlay fallback only when the DB has no data.
+  if (!dbAlive) {
+    for (let i = 0; i <= daysAhead; i++) {
+      const d = addDaysWIB(today, i);
+      const fb = FALLBACK_HOLIDAYS.get(d);
+      if (fb && !byDate.has(d)) {
+        byDate.set(d, {
+          date: d,
+          name: fb,
+          source: "fallback",
+          is_cuti_bersama: fb.toLowerCase().includes("cuti bersama"),
+        });
+      }
+    }
   }
 
   return Array.from(byDate.values()).sort((a, b) =>
