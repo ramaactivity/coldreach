@@ -26,19 +26,13 @@ export function TimePicker({
   step?: 5 | 10 | 15 | 30 | 60;
   className?: string;
 }) {
-  const initial = (value ?? "09:00").slice(0, 5);
-  const [internalH, setInternalH] = React.useState(initial.split(":")[0]);
-  const [internalM, setInternalM] = React.useState(initial.split(":")[1]);
-
-  React.useEffect(() => {
-    if (value) {
-      const [h, m] = value.slice(0, 5).split(":");
-      setInternalH(h);
-      setInternalM(m);
-    }
-  }, [value]);
-
-  const composed = `${internalH}:${internalM}`;
+  // Derive current H:M from the controlled `value` when provided, else from
+  // internal state (uncontrolled). No effect = no cascading-render lint issue.
+  const [internal, setInternal] = React.useState(
+    (value ?? "09:00").slice(0, 5),
+  );
+  const composed = value !== undefined ? value.slice(0, 5) : internal;
+  const [internalH, internalM] = composed.split(":");
 
   const hours = React.useMemo(
     () => Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0")),
@@ -46,17 +40,16 @@ export function TimePicker({
   );
   const minutes = React.useMemo(
     () =>
-      Array.from(
-        { length: Math.floor(60 / step) },
-        (_, i) => String(i * step).padStart(2, "0"),
+      Array.from({ length: Math.floor(60 / step) }, (_, i) =>
+        String(i * step).padStart(2, "0"),
       ),
     [step],
   );
 
   function update(h: string, m: string) {
-    setInternalH(h);
-    setInternalM(m);
-    onValueChange?.(`${h}:${m}`);
+    const next = `${h}:${m}`;
+    if (value === undefined) setInternal(next);
+    onValueChange?.(next);
   }
 
   return (
@@ -64,7 +57,7 @@ export function TimePicker({
       {name && (
         <input type="hidden" name={name} value={composed} required={required} />
       )}
-      <Clock className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+      <Clock className="h-3.5 w-3.5 shrink-0 text-muted" />
       <div className="flex flex-1 items-center gap-1">
         <Select
           value={internalH}
@@ -79,7 +72,7 @@ export function TimePicker({
             </SelectItem>
           ))}
         </Select>
-        <span className="text-sm text-zinc-500 dark:text-zinc-400">:</span>
+        <span className="text-sm text-muted">:</span>
         <Select
           value={internalM}
           onValueChange={(m) => update(internalH, m)}

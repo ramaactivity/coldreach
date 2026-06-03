@@ -169,3 +169,21 @@
   animation: shimmer 1.6s ease-in-out infinite;
   border-radius: var(--radius-sm);
 }
+
+/* =============================================================================
+   react-day-picker (DatePicker) — themed to the accent contract.
+   ============================================================================= */
+.rdp-cold {
+  --rdp-accent-color: var(--color-accent);
+  --rdp-accent-background-color: var(--color-accent-soft);
+  --rdp-today-color: var(--color-accent-text);
+  --rdp-font-size: 13px;
+  --rdp-day-width: 36px;
+  --rdp-day-height: 36px;
+  --rdp-day_button-border-radius: var(--radius-md);
+  color: var(--color-ink);
+}
+.rdp-cold .rdp-chevron { fill: var(--color-muted); }
+.rdp-cold .rdp-weekday { color: var(--color-faint); font-weight: 500; }
+.rdp-cold .rdp-day_button:hover { background: var(--color-surface-hover); }
+.rdp-cold .rdp-outside { color: var(--color-faint); }

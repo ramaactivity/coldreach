@@ -7,9 +7,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "./button";
 
 /**
- * Replaces window.confirm() with a styled, async-friendly modal.
- * Use either declaratively (open/onOpenChange) or imperatively via
- * the useConfirm() hook.
+ * Floating layer: rounded-xl surface over a scrim, shadow-lg (allowed — it
+ * genuinely floats). Replaces window.confirm() via the useConfirm() hook.
  */
 
 export const Dialog = RDialog.Root;
@@ -25,18 +24,14 @@ export function DialogContent({
   className?: string;
   size?: "sm" | "md" | "lg";
 }) {
-  const widthClass = {
-    sm: "max-w-sm",
-    md: "max-w-md",
-    lg: "max-w-lg",
-  }[size];
+  const widthClass = { sm: "max-w-sm", md: "max-w-md", lg: "max-w-lg" }[size];
 
   return (
     <RDialog.Portal>
-      <RDialog.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
+      <RDialog.Overlay className="fixed inset-0 z-50 bg-zinc-950/45 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
       <RDialog.Content
         className={cn(
-          "fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl ring-1 ring-black/5 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 dark:border-zinc-800 dark:bg-zinc-900 dark:ring-white/5",
+          "fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-xl border border-border bg-surface shadow-[var(--shadow-lg)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
           widthClass,
           className,
         )}
@@ -44,7 +39,7 @@ export function DialogContent({
         {children}
         <RDialog.Close
           aria-label="Close"
-          className="absolute right-3 top-3 inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          className="absolute right-3 top-3 inline-flex size-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-hover hover:text-ink"
         >
           <X className="h-4 w-4" />
         </RDialog.Close>
@@ -66,25 +61,25 @@ export function DialogHeader({
 }) {
   const ringClass =
     tone === "destructive"
-      ? "bg-red-50 ring-red-100 text-red-600 dark:bg-red-950/30 dark:ring-red-900/50 dark:text-red-400"
-      : "bg-zinc-100 ring-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:ring-zinc-700 dark:text-zinc-300";
+      ? "bg-danger-soft text-danger"
+      : "bg-surface-sunken text-muted";
   return (
     <div className="px-5 pt-5">
       {icon && (
         <div
           className={cn(
-            "mb-3 inline-flex h-10 w-10 items-center justify-center rounded-full ring-4",
+            "mb-3 inline-flex size-10 items-center justify-center rounded-full",
             ringClass,
           )}
         >
           {icon}
         </div>
       )}
-      <RDialog.Title className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+      <RDialog.Title className="text-[15px] font-semibold text-ink">
         {title}
       </RDialog.Title>
       {description && (
-        <RDialog.Description className="mt-1 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+        <RDialog.Description className="mt-1 text-sm leading-relaxed text-ink-secondary">
           {description}
         </RDialog.Description>
       )}
@@ -106,7 +101,7 @@ export function DialogFooter({
   return (
     <div
       className={cn(
-        "flex flex-row-reverse items-center gap-2 border-t border-zinc-100 bg-zinc-50/50 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-900/40",
+        "flex flex-row-reverse items-center gap-2 border-t border-border bg-surface-sunken px-5 py-3",
         className,
       )}
     >
@@ -157,7 +152,11 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             <DialogHeader
               title={opts.title}
               description={opts.description}
-              icon={opts.destructive ? <AlertTriangle className="h-5 w-5" /> : undefined}
+              icon={
+                opts.destructive ? (
+                  <AlertTriangle className="h-5 w-5" />
+                ) : undefined
+              }
               tone={opts.destructive ? "destructive" : "default"}
             />
             <DialogFooter>
@@ -169,7 +168,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                 {opts.confirmLabel ?? "Confirm"}
               </Button>
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={() => handleClose(false)}
               >

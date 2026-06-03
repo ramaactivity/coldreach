@@ -1,19 +1,23 @@
-import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import {
+  forwardRef,
+  type InputHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from "react";
 import { cn } from "@/lib/utils";
 
+/** Shared field shell: white fill, border-strong hairline, accent focus ring. */
 const baseFieldClasses =
-  "w-full rounded-lg border border-zinc-200/80 bg-white px-3 py-2 text-sm text-zinc-900 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] transition-all duration-150 placeholder:text-zinc-400 hover:border-zinc-300 focus:border-zinc-900 focus:outline-none focus:ring-4 focus:ring-zinc-900/10 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800/80 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:hover:border-zinc-700 dark:focus:border-zinc-100 dark:focus:ring-zinc-100/15";
+  "w-full rounded-md border border-border-strong bg-surface px-3 text-sm text-ink " +
+  "placeholder:text-faint transition-shadow " +
+  "focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft " +
+  "disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-faint";
 
 export const Input = forwardRef<
   HTMLInputElement,
   InputHTMLAttributes<HTMLInputElement>
 >(function Input({ className, ...props }, ref) {
   return (
-    <input
-      ref={ref}
-      className={cn(baseFieldClasses, "h-9", className)}
-      {...props}
-    />
+    <input ref={ref} className={cn(baseFieldClasses, "h-9", className)} {...props} />
   );
 });
 
@@ -24,14 +28,13 @@ export const Textarea = forwardRef<
   return (
     <textarea
       ref={ref}
-      className={cn(baseFieldClasses, "min-h-20", className)}
+      className={cn(baseFieldClasses, "min-h-20 py-2", className)}
       {...props}
     />
   );
 });
 
-// Custom Select primitive lives at @/components/ui/select.
-// Native <select> shouldn't be used in this app — replace with Radix-based Select.
+// Native <select> shouldn't be used in this app — use @/components/ui/select.
 
 export function FieldLabel({
   htmlFor,
@@ -47,17 +50,17 @@ export function FieldLabel({
   className?: string;
 }) {
   return (
-    <div className={cn("mb-1.5 flex items-center justify-between gap-2", className)}>
+    <div
+      className={cn("mb-1.5 flex items-center justify-between gap-2", className)}
+    >
       <label
         htmlFor={htmlFor}
-        className="block text-sm font-medium text-zinc-900 dark:text-zinc-100"
+        className="block text-sm font-medium text-ink"
       >
         {children}
-        {required && <span className="ml-0.5 text-red-500">*</span>}
+        {required && <span className="ml-0.5 text-danger">*</span>}
       </label>
-      {hint && (
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">{hint}</span>
-      )}
+      {hint && <span className="text-xs text-muted">{hint}</span>}
     </div>
   );
 }
@@ -65,16 +68,10 @@ export function FieldLabel({
 export function FieldError({ children }: { children?: React.ReactNode }) {
   if (!children) return null;
   return (
-    <p className="mt-1.5 text-xs font-medium text-red-600 dark:text-red-400">
-      {children}
-    </p>
+    <p className="mt-1.5 text-[13px] font-medium text-danger-text">{children}</p>
   );
 }
 
 export function FieldDescription({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-      {children}
-    </p>
-  );
+  return <p className="mt-1 text-[13px] leading-relaxed text-muted">{children}</p>;
 }

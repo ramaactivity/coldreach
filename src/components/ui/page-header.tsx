@@ -24,15 +24,13 @@ export function PageHeader({
     >
       <div className="min-w-0 flex-1">
         {eyebrow && (
-          <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          <div className="label-eyebrow mb-2 flex items-center gap-2">
             {eyebrow}
           </div>
         )}
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl dark:text-zinc-50">
-          {title}
-        </h1>
+        <h1 className="text-ink">{title}</h1>
         {description && (
-          <p className="mt-1.5 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1.5 text-[13px] leading-relaxed text-muted">
             {description}
           </p>
         )}

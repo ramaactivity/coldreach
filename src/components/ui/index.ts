@@ -1,6 +1,7 @@
 export { Button, ButtonLink } from "./button";
 export {
   Card,
+  CardBody,
   CardHeader,
   CardTitle,
   CardDescription,
@@ -8,6 +9,16 @@ export {
   CardFooter,
 } from "./card";
 export { Badge } from "./badge";
+export { Checkbox } from "./checkbox";
+export { Toggle } from "./toggle";
+export { Chip } from "./chip";
+export { FilterChip } from "./filter-chip";
+export { SegmentedTabs } from "./segmented-tabs";
+export { Progress } from "./progress";
+export { Notice } from "./notice";
+export { WorkspaceAvatar, UserAvatar } from "./avatar";
+export { DataTable, Th, Tr, Td, CellStack } from "./data-table";
+export { KanbanCard } from "./kanban-card";
 export { EmptyState } from "./empty-state";
 export { StatCard } from "./stat-card";
 export { PageHeader } from "./page-header";

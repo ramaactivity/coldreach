@@ -21,22 +21,18 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "relative flex flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed border-zinc-300/70 bg-zinc-50/40 px-6 py-14 text-center dark:border-zinc-800/70 dark:bg-zinc-900/30",
+        "flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-6 py-16 text-center",
         className,
       )}
     >
-      {/* Subtle radial glow behind the icon */}
-      <div className="pointer-events-none absolute left-1/2 top-1/4 h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full bg-zinc-900/[0.025] blur-2xl dark:bg-zinc-100/[0.03]" />
       {Icon && (
-        <div className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-[0_1px_3px_0_rgb(0_0_0/0.06)] ring-1 ring-zinc-200/70 dark:bg-zinc-800 dark:ring-zinc-700/70">
-          <Icon className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
-        </div>
+        <span className="grid size-14 place-items-center rounded-xl bg-surface-sunken text-faint">
+          <Icon className="h-5 w-5" />
+        </span>
       )}
-      <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-        {title}
-      </p>
+      <h3 className="mt-4 text-[15px] font-semibold text-ink">{title}</h3>
       {description && (
-        <p className="mt-1 max-w-sm text-sm leading-relaxed text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 max-w-sm text-[13px] leading-relaxed text-muted">
           {description}
         </p>
       )}

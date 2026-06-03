@@ -1,44 +1,37 @@
 "use client";
 
 import { Toaster, toast as sonnerToast } from "sonner";
-import { useEffect, useState } from "react";
 
 /**
- * Wraps Sonner Toaster with our app's visual style. Mount once at the
- * root layout. Components dispatch via the exported `toast` helper.
+ * Sonner styled to the toast spec: dark zinc-900 surface, white text,
+ * rounded-lg, shadow-lg (floating), with a 2px left accent-bar per tone
+ * (info/default = accent, success, error = danger). Toast = ephemeral.
+ * Mount once at the root layout; dispatch via the exported `toast` helper.
  */
 export function ToastProvider() {
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    setTheme(mq.matches ? "dark" : "light");
-    const handler = (e: MediaQueryListEvent) =>
-      setTheme(e.matches ? "dark" : "light");
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
   return (
     <Toaster
       position="bottom-right"
-      theme={theme}
-      richColors
-      closeButton
+      theme="dark"
       gap={8}
       offset={16}
       duration={4500}
       toastOptions={{
         classNames: {
           toast:
-            "rounded-2xl border border-zinc-200/70 bg-white/95 backdrop-blur-xl shadow-[0_8px_24px_-4px_rgb(0_0_0/0.12),0_2px_6px_-2px_rgb(0_0_0/0.06)] dark:border-zinc-800/70 dark:bg-zinc-900/95",
-          title: "text-[13px] font-semibold tracking-[-0.005em]",
-          description: "text-[11.5px] leading-relaxed",
-          actionButton:
-            "rounded-lg !bg-zinc-900 !text-white hover:!bg-zinc-800 dark:!bg-zinc-100 dark:!text-zinc-900",
-          cancelButton:
-            "rounded-lg !bg-zinc-100 !text-zinc-700 hover:!bg-zinc-200 dark:!bg-zinc-800 dark:!text-zinc-300",
+            "rounded-lg border-0 border-l-2 border-l-accent !bg-zinc-900 !text-on-action shadow-[var(--shadow-lg)]",
+          title: "text-[13px] font-semibold !text-on-action",
+          description: "text-[12px] leading-relaxed !text-zinc-300",
+          success: "border-l-success",
+          error: "border-l-danger",
+          warning: "border-l-warning",
+          info: "border-l-accent",
+          actionButton: "rounded-md !bg-on-action !text-ink hover:!bg-zinc-200",
+          cancelButton: "rounded-md !bg-zinc-700 !text-zinc-200 hover:!bg-zinc-600",
+          closeButton: "!bg-zinc-800 !text-zinc-300 !border-zinc-700",
         },
       }}
+      closeButton
     />
   );
 }

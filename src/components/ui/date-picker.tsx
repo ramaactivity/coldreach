@@ -61,17 +61,15 @@ export function DatePicker({
             type="button"
             disabled={disabled}
             className={cn(
-              "inline-flex h-9 w-full items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium shadow-sm outline-none transition-colors hover:bg-zinc-50 focus-visible:border-zinc-900 focus-visible:ring-2 focus-visible:ring-zinc-900/10 disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:focus-visible:border-zinc-100",
+              "inline-flex h-9 w-full items-center gap-2 rounded-md border border-border-strong bg-surface px-3 text-sm font-medium text-ink outline-none transition-colors hover:bg-surface-hover focus:border-accent focus:ring-[3px] focus:ring-accent-soft disabled:cursor-not-allowed disabled:bg-surface-sunken disabled:text-faint",
               className,
             )}
           >
-            <Calendar className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />
+            <Calendar className="h-3.5 w-3.5 shrink-0 text-muted" />
             <span
               className={cn(
-                "flex-1 truncate text-left",
-                display
-                  ? "text-zinc-900 dark:text-zinc-100"
-                  : "text-zinc-400 dark:text-zinc-500",
+                "flex-1 truncate text-left tabular",
+                display ? "text-ink" : "text-faint",
               )}
             >
               {display || placeholder}
@@ -86,7 +84,7 @@ export function DatePicker({
                   setValue("");
                   setOpen(false);
                 }}
-                className="inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+                className="inline-flex size-5 cursor-pointer items-center justify-center rounded-md text-faint transition-colors hover:bg-surface-hover hover:text-ink"
               >
                 <X className="h-3 w-3" />
               </span>
@@ -98,7 +96,7 @@ export function DatePicker({
           <Popover.Content
             sideOffset={4}
             align="start"
-            className="z-50 rounded-xl border border-zinc-200 bg-white p-3 shadow-lg ring-1 ring-black/5 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 dark:border-zinc-800 dark:bg-zinc-900 dark:ring-white/5"
+            className="z-50 rounded-lg border border-border bg-surface p-3 shadow-[var(--shadow-md)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95"
           >
             <DayPicker
               mode="single"

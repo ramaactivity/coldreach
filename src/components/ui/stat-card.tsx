@@ -1,36 +1,55 @@
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-type Tone = "default" | "emerald" | "blue" | "amber" | "red";
+/**
+ * Metric color rule: the number is ink by default and only takes a semantic
+ * color when the metric carries valence (bounce -> danger, reply -> success).
+ * Legacy tone names (emerald/blue/amber/red) are mapped onto the semantic
+ * tokens; prefer the semantic names (success/info/warning/danger) going forward.
+ */
+type Tone =
+  | "default"
+  | "neutral"
+  | "success"
+  | "info"
+  | "warning"
+  | "danger"
+  | "emerald"
+  | "blue"
+  | "amber"
+  | "red";
 
-const toneAccents: Record<Tone, string> = {
-  default: "text-zinc-900 dark:text-zinc-50",
-  emerald: "text-emerald-600 dark:text-emerald-400",
-  blue: "text-blue-600 dark:text-blue-400",
-  amber: "text-amber-600 dark:text-amber-400",
-  red: "text-red-600 dark:text-red-400",
+const numberTone: Record<Tone, string> = {
+  default: "text-ink",
+  neutral: "text-ink",
+  success: "text-success",
+  emerald: "text-success",
+  info: "text-info",
+  blue: "text-info",
+  warning: "text-warning",
+  amber: "text-warning",
+  danger: "text-danger",
+  red: "text-danger",
 };
 
-const toneIconBg: Record<Tone, string> = {
-  default:
-    "bg-zinc-100 text-zinc-600 dark:bg-zinc-800/60 dark:text-zinc-400",
-  emerald:
-    "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400",
-  blue:
-    "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
-  amber:
-    "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
-  red:
-    "bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400",
+const iconTone: Record<Tone, string> = {
+  default: "bg-surface-sunken text-muted",
+  neutral: "bg-surface-sunken text-muted",
+  success: "bg-success-soft text-success",
+  emerald: "bg-success-soft text-success",
+  info: "bg-info-soft text-info",
+  blue: "bg-info-soft text-info",
+  warning: "bg-warning-soft text-warning",
+  amber: "bg-warning-soft text-warning",
+  danger: "bg-danger-soft text-danger",
+  red: "bg-danger-soft text-danger",
 };
 
-const toneRing: Record<Tone, string> = {
-  default: "",
-  emerald: "ring-emerald-100 dark:ring-emerald-900/30",
-  blue: "ring-blue-100 dark:ring-blue-900/30",
-  amber: "ring-amber-100 dark:ring-amber-900/30",
-  red: "ring-red-100 dark:ring-red-900/30",
-};
+const trendTone = {
+  up: "text-success-text",
+  down: "text-danger-text",
+  flat: "text-muted",
+} as const;
 
 type StatCardProps = {
   label: string;
@@ -38,10 +57,7 @@ type StatCardProps = {
   hint?: string;
   icon?: LucideIcon;
   tone?: Tone;
-  trend?: {
-    direction: "up" | "down" | "flat";
-    value: string;
-  };
+  trend?: { direction: "up" | "down" | "flat"; value: string };
   className?: string;
 };
 
@@ -57,47 +73,38 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] transition-all duration-200",
-        "hover:-translate-y-px hover:border-zinc-300/80 hover:shadow-[0_4px_12px_-2px_rgb(0_0_0/0.06),0_2px_4px_-2px_rgb(0_0_0/0.04)]",
-        "dark:border-zinc-800/70 dark:bg-zinc-900",
-        "dark:hover:border-zinc-700/80",
+        "rounded-lg border border-border bg-surface p-5",
         className,
       )}
     >
       <div className="flex items-start justify-between gap-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
-          {label}
-        </p>
+        <span className="label-eyebrow">{label}</span>
         {Icon && (
-          <div
+          <span
             className={cn(
-              "flex h-8 w-8 items-center justify-center rounded-xl ring-1 ring-inset ring-zinc-200/60 transition-transform duration-200 group-hover:scale-105 dark:ring-zinc-800/60",
-              toneIconBg[tone],
-              toneRing[tone],
+              "grid size-8 shrink-0 place-items-center rounded-md",
+              iconTone[tone],
             )}
           >
             <Icon className="h-4 w-4" />
-          </div>
+          </span>
         )}
       </div>
       <p
         className={cn(
-          "mt-3.5 text-[28px] font-semibold leading-none tracking-tight tabular-nums",
-          toneAccents[tone],
+          "mt-3 text-3xl font-semibold leading-none tracking-tight tabular",
+          numberTone[tone],
         )}
       >
         {value}
       </p>
       {(hint || trend) && (
-        <div className="mt-2 flex items-center gap-2 text-xs">
+        <div className="mt-2 flex items-center gap-2 text-[13px]">
           {trend && (
             <span
               className={cn(
-                "inline-flex items-center gap-0.5 font-medium tabular-nums",
-                trend.direction === "up" &&
-                  "text-emerald-600 dark:text-emerald-400",
-                trend.direction === "down" && "text-red-600 dark:text-red-400",
-                trend.direction === "flat" && "text-zinc-500 dark:text-zinc-400",
+                "inline-flex items-center gap-0.5 font-medium tabular",
+                trendTone[trend.direction],
               )}
             >
               {trend.direction === "up" && "↑"}
@@ -105,11 +112,7 @@ export function StatCard({
               {trend.direction === "flat" && "→"} {trend.value}
             </span>
           )}
-          {hint && (
-            <span className="truncate text-zinc-500 dark:text-zinc-400">
-              {hint}
-            </span>
-          )}
+          {hint && <span className="truncate text-muted">{hint}</span>}
         </div>
       )}
     </div>
