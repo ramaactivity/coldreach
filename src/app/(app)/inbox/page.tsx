@@ -41,7 +41,7 @@ export default async function GlobalInboxPage({
   return (
     <>
       <SimpleTopbar email={user.email ?? ""} />
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
         <PageHeader
           title="Reply Inbox"
           description={`Semua balasan dari ${workspaces.length} workspace, terkonsolidasi di satu tempat.`}

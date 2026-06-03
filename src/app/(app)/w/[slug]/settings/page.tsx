@@ -54,7 +54,7 @@ export default async function WorkspaceSettingsPage({
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-10">
+    <div className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
       <PageHeader
         title="Settings"
         description={`Konfigurasi workspace dan Gmail account untuk ${workspace.name}.`}

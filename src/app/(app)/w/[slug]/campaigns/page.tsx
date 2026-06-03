@@ -37,7 +37,7 @@ export default async function CampaignsPage({
   const campaigns = (data ?? []) as SendQueue[];
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
       <PageHeader
         title="Campaigns"
         description="One-shot blast — kirim sekali ke audience tertentu, lalu selesai. Beda dari Queue yang berulang harian."

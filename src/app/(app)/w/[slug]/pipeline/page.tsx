@@ -71,7 +71,7 @@ export default async function PipelinePage({
   }
 
   return (
-    <div className="px-6 py-8">
+    <div className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
       <PageHeader
         title="Pipeline"
         description={`${workspace.pipeline_stages.length} stages · klik kontak buat ganti stage. Stages custom per workspace.`}

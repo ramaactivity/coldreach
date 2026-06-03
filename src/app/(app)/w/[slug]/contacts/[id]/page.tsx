@@ -112,7 +112,7 @@ export default async function ContactDetailPage({
   };
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-8">
+    <div className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
       <Link
         href={`/w/${slug}/contacts`}
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"

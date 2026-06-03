@@ -104,7 +104,7 @@ export default async function ContactsPage({
     base > 0 ? Math.round((n / base) * 100) : 0;
 
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8 pb-32">
+    <div className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8 pb-32">
       <PageHeader
         title="Contacts"
         description={`${total.toLocaleString("id-ID")} contacts · shared antar workspace, status untuk ${workspace.name}`}

@@ -34,7 +34,7 @@ export default async function WorkspaceInboxPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
       <PageHeader
         title="Reply Inbox"
         description={`Semua balasan untuk ${workspace.name}. Mark Handled biar inbox bersih, atau snooze untuk follow-up nanti.`}

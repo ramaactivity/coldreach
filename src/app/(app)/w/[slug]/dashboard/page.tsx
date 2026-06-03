@@ -58,7 +58,7 @@ export default async function WorkspaceDashboardPage({
       : 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-6 py-10">
+    <div className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
       {/* Workspace hero — the one place the display (30px) title is used. */}
       <div className="mb-8">
         <div className="flex flex-wrap items-end justify-between gap-6">

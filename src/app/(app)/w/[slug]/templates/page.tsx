@@ -22,7 +22,7 @@ export default async function TemplatesPage({
   ]);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-8">
+    <div className="mx-auto w-full max-w-7xl px-6 py-8 lg:px-8">
       <PageHeader
         title="Templates"
         description={`${templates.length} template${templates.length === 1 ? "" : "s"} · workspace-specific (${workspace.name})`}
