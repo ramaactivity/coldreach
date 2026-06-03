@@ -11,6 +11,7 @@ const TemplateSchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter").max(100),
   category: z.string().optional(),
   subject_lines: z.string().min(1, "Minimal 1 subject line"),
+  subject_lines_en: z.string().optional(),
   body_plain: z.string().min(10, "Body minimal 10 karakter"),
   body_plain_en: z.string().optional(),
 });
@@ -52,15 +53,30 @@ export async function createTemplate(
     return { fieldErrors };
   }
 
-  const { name, category, subject_lines, body_plain, body_plain_en } =
-    parsed.data;
+  const {
+    name,
+    category,
+    subject_lines,
+    subject_lines_en,
+    body_plain,
+    body_plain_en,
+  } = parsed.data;
   const subjectArray = parseSubjectLines(subject_lines);
   if (subjectArray.length === 0) {
     return { fieldErrors: { subject_lines: "Minimal 1 subject line" } };
   }
+  const subjectEnArray = subject_lines_en
+    ? parseSubjectLines(subject_lines_en)
+    : [];
+  const subjectEn = subjectEnArray.length > 0 ? subjectEnArray : null;
   const variables = extractVariables(body_plain);
   const enBody = body_plain_en?.trim() ? body_plain_en : null;
-  const allText = [...subjectArray, body_plain, enBody ?? ""].join(" ");
+  const allText = [
+    ...subjectArray,
+    ...subjectEnArray,
+    body_plain,
+    enBody ?? "",
+  ].join(" ");
   const allVariables = Array.from(
     new Set([...variables, ...extractVariables(allText)]),
   );
@@ -74,6 +90,7 @@ export async function createTemplate(
       name,
       category: category || null,
       subject_lines: subjectArray,
+      subject_lines_en: subjectEn,
       body_plain,
       body_plain_en: enBody,
       body_html: bodyHtml,
@@ -114,11 +131,26 @@ export async function updateTemplate(
     return { fieldErrors };
   }
 
-  const { name, category, subject_lines, body_plain, body_plain_en } =
-    parsed.data;
+  const {
+    name,
+    category,
+    subject_lines,
+    subject_lines_en,
+    body_plain,
+    body_plain_en,
+  } = parsed.data;
   const subjectArray = parseSubjectLines(subject_lines);
+  const subjectEnArray = subject_lines_en
+    ? parseSubjectLines(subject_lines_en)
+    : [];
+  const subjectEn = subjectEnArray.length > 0 ? subjectEnArray : null;
   const enBody = body_plain_en?.trim() ? body_plain_en : null;
-  const allText = [...subjectArray, body_plain, enBody ?? ""].join(" ");
+  const allText = [
+    ...subjectArray,
+    ...subjectEnArray,
+    body_plain,
+    enBody ?? "",
+  ].join(" ");
   const allVariables = extractVariables(allText);
   const bodyHtml = plainToHtml(body_plain);
 
@@ -128,6 +160,7 @@ export async function updateTemplate(
       name,
       category: category || null,
       subject_lines: subjectArray,
+      subject_lines_en: subjectEn,
       body_plain,
       body_plain_en: enBody,
       body_html: bodyHtml,

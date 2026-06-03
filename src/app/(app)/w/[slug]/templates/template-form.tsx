@@ -57,6 +57,9 @@ export function TemplateForm({
   const [subjects, setSubjects] = useState(
     initialTemplate?.subject_lines?.join("\n") ?? "",
   );
+  const [subjectsEn, setSubjectsEn] = useState(
+    initialTemplate?.subject_lines_en?.join("\n") ?? "",
+  );
   const [body, setBody] = useState(initialTemplate?.body_plain ?? "");
   const [bodyEn, setBodyEn] = useState(initialTemplate?.body_plain_en ?? "");
 
@@ -185,7 +188,28 @@ export function TemplateForm({
             <FieldError>{state.fieldErrors?.body_plain}</FieldError>
           </div>
 
-          {/* Optional English variant */}
+          {/* Optional English variants — subject + body */}
+          <div>
+            <FieldLabel htmlFor="subject_lines_en" hint="Satu per baris = satu variant">
+              Subject Lines (English){" "}
+              <span className="font-normal text-zinc-500">— opsional</span>
+            </FieldLabel>
+            <Textarea
+              id="subject_lines_en"
+              name="subject_lines_en"
+              value={subjectsEn}
+              onChange={(e) => setSubjectsEn(e.target.value)}
+              rows={4}
+              className="font-mono text-xs"
+              placeholder={`Catering for your {company} events\nLet's collaborate on your next event, {first_name}\nProfessional catering for {company}`}
+            />
+            <SubjectVariantList raw={subjectsEn} />
+            <FieldDescription>
+              Subject untuk kontak yang ke-detect Bahasa Inggris. Kosong berarti
+              kontak EN pakai Subject Lines (Indonesia) di atas.
+            </FieldDescription>
+          </div>
+
           <div>
             <FieldLabel htmlFor="body_plain_en">
               Body (English) <span className="font-normal text-zinc-500">— opsional</span>
@@ -200,9 +224,9 @@ export function TemplateForm({
               placeholder={`Hi {first_name},\n\n{ai_opener}\n\nI'm Muhamad from Tiska Catering.\n...`}
             />
             <FieldDescription>
-              Kalau diisi, kontak yang ke-detect Bahasa Inggris (domain
-              .com/.org/.io tanpa nama Indonesian) akan dapat versi ini. Kosong
-              berarti semua kontak pakai body utama di atas.
+              Otomatis dipakai untuk kontak yang ke-detect Bahasa Inggris (domain
+              perusahaan/internasional; domain .id & webmail seperti gmail
+              dianggap Indonesia). Kosong berarti semua kontak pakai body utama.
             </FieldDescription>
           </div>
 

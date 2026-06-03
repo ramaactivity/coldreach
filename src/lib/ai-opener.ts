@@ -16,11 +16,43 @@ function getClient(): GoogleGenerativeAI {
   return new GoogleGenerativeAI(key);
 }
 
-function buildPrompt(input: OpenerInput): string {
+function buildPrompt(input: OpenerInput, language: "id" | "en"): string {
   const businessContext = describeBusinessType(
     input.workspace_business_type,
     input.workspace_name,
+    language,
   );
+
+  if (language === "en") {
+    const recipientEn = [
+      input.contact_first_name && `name ${input.contact_first_name}`,
+      input.contact_position && `role ${input.contact_position}`,
+      input.contact_company && `at ${input.contact_company}`,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    return `Write 1 natural, personal opening sentence for a cold outreach email, in casual-professional English.
+
+Sender context: ${businessContext}
+Recipient: ${recipientEn || "a contact whose details are unknown"}.
+
+IMPORTANT rules:
+- ONLY 1 sentence (max 25 words).
+- Tone: friendly, casual, not salesy — like a colleague chatting.
+- Do NOT mention any product/offer/pitch.
+- Do NOT open with "Hello" / "Hi" / "Good morning" — the greeting lives in a separate template.
+- You MAY use public info about ${input.contact_company || "the recipient's company"} if you know it (general industry, business type). If unsure, focus on the recipient's role.
+- AVOID specific unverifiable claims (e.g. "I saw the news about X").
+- Output only the opening sentence, with NO prefix/suffix/quotes.
+
+Good example outputs:
+- "I'm genuinely impressed by the ${input.contact_position || "work"} at ${input.contact_company || "your company"} — demanding but truly important."
+- "Just wanted to say, real respect for the ${input.contact_company || "your"} team staying consistent even in a tough market."
+
+Opening sentence:`;
+  }
+
   const recipient = [
     input.contact_first_name && `nama ${input.contact_first_name}`,
     input.contact_position && `posisi ${input.contact_position}`,
@@ -54,7 +86,22 @@ Kalimat pembuka:`;
 function describeBusinessType(
   type: string | null,
   workspaceName: string,
+  language: "id" | "en",
 ): string {
+  if (language === "en") {
+    switch (type) {
+      case "catering":
+        return `${workspaceName} — a corporate catering business doing B2B outreach`;
+      case "photography":
+        return `${workspaceName} — a photobooth/photography business for corporate events and weddings`;
+      case "design":
+        return `${workspaceName} — a design/creative studio serving corporate clients`;
+      case "consulting":
+        return `${workspaceName} — a consulting business`;
+      default:
+        return `${workspaceName} — a business doing B2B outreach`;
+    }
+  }
   switch (type) {
     case "catering":
       return `${workspaceName} — usaha catering corporate yang lagi mau outreach ke target B2B`;
@@ -75,6 +122,7 @@ function describeBusinessType(
  */
 export async function generateOpener(
   input: OpenerInput,
+  language: "id" | "en" = "id",
 ): Promise<string | null> {
   try {
     const client = getClient();
@@ -87,7 +135,7 @@ export async function generateOpener(
       },
     });
 
-    const prompt = buildPrompt(input);
+    const prompt = buildPrompt(input, language);
     const result = await model.generateContent(prompt);
     const text = result.response.text().trim();
 
