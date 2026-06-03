@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   Archive,
   RotateCcw,
+  ShieldCheck,
 } from "lucide-react";
 import type { ContactWithWorkspaceData } from "@/lib/contacts";
 import type { PipelineStage } from "@/lib/workspace-constants";
@@ -24,6 +25,7 @@ import {
   bulkArchive,
   bulkUnarchive,
 } from "./bulk-actions";
+import { bulkEnrichContacts } from "./enrich-actions";
 
 type Props = {
   slug: string;
@@ -31,7 +33,14 @@ type Props = {
   stages: PipelineStage[];
 };
 
-type Mode = null | "tag" | "stage" | "delete" | "archive" | "unarchive";
+type Mode =
+  | null
+  | "tag"
+  | "stage"
+  | "delete"
+  | "archive"
+  | "unarchive"
+  | "enrich";
 
 export function ContactsTable({ slug, contacts, stages }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -96,6 +105,23 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
       } else {
         showFeedback("err", res.error ?? "Gagal");
       }
+    });
+  }
+
+  function runEnrich() {
+    startTransition(async () => {
+      const res = await bulkEnrichContacts(slug, Array.from(selected));
+      if (res.error) {
+        showFeedback("err", res.error);
+        return;
+      }
+      const parts = [`${res.verified ?? 0} terverifikasi`];
+      if (res.email_updated) parts.push(`${res.email_updated} email diperbarui`);
+      if (res.risky) parts.push(`${res.risky} berisiko`);
+      if (res.skipped) parts.push(`${res.skipped} dilewati`);
+      parts.push(`${res.credits_used ?? 0} kredit`);
+      showFeedback("ok", parts.join(" · "));
+      setMode(null);
     });
   }
 
@@ -278,6 +304,12 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                   />
                 )}
                 <ActionBtn
+                  active={mode === "enrich"}
+                  onClick={() => setMode(mode === "enrich" ? null : "enrich")}
+                  icon={ShieldCheck}
+                  label="Verifikasi"
+                />
+                <ActionBtn
                   active={mode === "delete"}
                   onClick={() => setMode(mode === "delete" ? null : "delete")}
                   icon={Trash2}
@@ -427,6 +459,31 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                     <RotateCcw className="h-3 w-3" />
                   )}
                   Restore
+                </button>
+              </div>
+            )}
+
+            {mode === "enrich" && (
+              <div className="flex items-center gap-2 border-t border-zinc-100 bg-blue-50/60 px-4 py-3 dark:border-blue-900/30 dark:bg-blue-950/20">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-blue-700 dark:text-blue-400" />
+                <p className="flex-1 text-xs text-blue-800 dark:text-blue-300">
+                  Verifikasi {ids.length} kontak via Apollo? Email yang berubah
+                  diperbarui otomatis (lama disimpan ke alt), yang gagal ditandai
+                  berisiko. Yang baru diverifikasi (&lt;30 hari) dilewati gratis.
+                  Sekitar 1 kredit per kontak yang dicek.
+                </p>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={runEnrich}
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-800 shadow-sm transition-colors hover:bg-blue-50 disabled:opacity-50 dark:border-blue-900/50 dark:bg-zinc-900 dark:text-blue-400 dark:hover:bg-blue-950/30"
+                >
+                  {pending ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="h-3 w-3" />
+                  )}
+                  Verifikasi sekarang
                 </button>
               </div>
             )}

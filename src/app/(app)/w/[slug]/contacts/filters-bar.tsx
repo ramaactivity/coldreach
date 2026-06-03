@@ -17,6 +17,8 @@ import {
   AlertOctagon,
   Clock,
   Archive,
+  ShieldQuestion,
+  ShieldAlert,
 } from "lucide-react";
 import {
   CONTACTS_SORT_OPTIONS,
@@ -41,6 +43,8 @@ const SEGMENTS: {
   { value: "replied", label: "Pernah reply", icon: MessageCircle, tone: "blue" },
   { value: "bounced", label: "Bounced", icon: AlertOctagon, tone: "red" },
   { value: "stale_30d", label: "Stale 30+ hari", icon: Clock, tone: "zinc" },
+  { value: "unverified", label: "Belum diverifikasi", icon: ShieldQuestion, tone: "zinc" },
+  { value: "risky", label: "Email berisiko", icon: ShieldAlert, tone: "red" },
   { value: "archived", label: "Archived", icon: Archive, tone: "zinc" },
 ];
 

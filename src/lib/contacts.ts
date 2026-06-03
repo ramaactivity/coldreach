@@ -64,7 +64,9 @@ export type ContactSegment =
   | "replied"
   | "bounced"
   | "stale_30d"
-  | "archived";
+  | "archived"
+  | "unverified"
+  | "risky";
 
 export type ContactsFilter = {
   search?: string;
@@ -161,6 +163,14 @@ export async function listContacts(
       }
       case "archived":
         query = query.not("archived_at", "is", null);
+        break;
+      case "unverified":
+        query = query.is("enriched_at", null);
+        break;
+      case "risky":
+        query = query
+          .not("enriched_at", "is", null)
+          .is("email_verified_at", null);
         break;
     }
   }
@@ -309,6 +319,14 @@ export async function listAllContactsForExport(
       }
       case "archived":
         query = query.not("archived_at", "is", null);
+        break;
+      case "unverified":
+        query = query.is("enriched_at", null);
+        break;
+      case "risky":
+        query = query
+          .not("enriched_at", "is", null)
+          .is("email_verified_at", null);
         break;
     }
   }
