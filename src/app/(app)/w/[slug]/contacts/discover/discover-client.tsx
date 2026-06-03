@@ -9,6 +9,7 @@ import { Input, FieldLabel } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast-provider";
 import { useConfirm } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import type { ApolloCreditStatus } from "@/lib/apollo-credits";
 import {
   searchApollo,
@@ -53,14 +54,33 @@ export function DiscoverClient({
   const [totalEntries, setTotalEntries] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searched, setSearched] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   function criteria() {
     return {
       titles: splitTitles(titles),
       locations: location.trim() ? [location.trim()] : undefined,
       keywords: keywords.trim() || undefined,
-      perPage: 25,
+      perPage: 50,
     };
+  }
+
+  // Candidates on the current page that can still be imported.
+  function selectable() {
+    return people.filter((p) => !p.alreadyImported);
+  }
+  // Quick-select the first N selectable (prefer ones Apollo has an email for).
+  function selectTopN(n: number) {
+    const pool = [...selectable()].sort(
+      (a, b) => Number(b.has_email) - Number(a.has_email),
+    );
+    setSelected(new Set(pool.slice(0, n).map((p) => p.id)));
+  }
+  function selectAllOnPage() {
+    setSelected(new Set(selectable().map((p) => p.id)));
+  }
+  function clearSelection() {
+    setSelected(new Set());
   }
 
   function runSearch(toPage: number) {
@@ -114,7 +134,14 @@ export function DiscoverClient({
       confirmLabel: "Import",
     });
     if (!ok) return;
-    startTransition(async () => report(await importApollo(slug, ids)));
+    setImporting(true);
+    startTransition(async () => {
+      try {
+        report(await importApollo(slug, ids));
+      } finally {
+        setImporting(false);
+      }
+    });
   }
 
   async function runQuick() {
@@ -125,7 +152,14 @@ export function DiscoverClient({
       confirmLabel: "Ambil",
     });
     if (!ok) return;
-    startTransition(async () => report(await quickImportApollo(slug, criteria(), n)));
+    setImporting(true);
+    startTransition(async () => {
+      try {
+        report(await quickImportApollo(slug, criteria(), n));
+      } finally {
+        setImporting(false);
+      }
+    });
   }
 
   function doSync() {
@@ -197,6 +231,19 @@ export function DiscoverClient({
             Update
           </Button>
         </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-zinc-400 dark:text-zinc-500">
+          Estimasi dari pemakaian via ColdReach — Apollo tidak membuka saldo
+          kredit lewat API. Angka aktual:{" "}
+          <a
+            href="https://developer.apollo.io/keys#/usage"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-zinc-600 underline underline-offset-2 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+          >
+            portal Apollo → Usage
+          </a>
+          , lalu tempel di kolom di atas untuk sinkron.
+        </p>
       </Card>
 
       {/* Search form */}
@@ -261,19 +308,62 @@ export function DiscoverClient({
       {/* Results */}
       {searched && (
         <Card className="p-0">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              {totalEntries.toLocaleString("id-ID")} hasil · halaman {page}/
-              {totalPages} · {selCount} dipilih
-            </p>
-            <Button
-              size="sm"
-              onClick={importSelected}
-              disabled={pending || selCount === 0}
-            >
-              <Download className="h-3.5 w-3.5" />
-              Import {selCount > 0 ? `${selCount} (≈${selCount} kredit)` : ""}
-            </Button>
+          <div className="space-y-2.5 border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                {totalEntries.toLocaleString("id-ID")} hasil · halaman {page}/
+                {totalPages} ·{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">
+                  {selCount} dipilih
+                </strong>
+              </p>
+              <Button
+                size="sm"
+                onClick={importSelected}
+                disabled={pending || selCount === 0}
+              >
+                <Download className="h-3.5 w-3.5" />
+                Import {selCount > 0 ? `${selCount} (≈${selCount} kredit)` : ""}
+              </Button>
+            </div>
+            {/* Quick-select — no more one-by-one ticking */}
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              <span className="text-zinc-500 dark:text-zinc-400">
+                Pilih cepat:
+              </span>
+              {[10, 25].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => selectTopN(n)}
+                  className="rounded-full border border-zinc-200 px-2.5 py-0.5 font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
+                  {n} teratas
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={selectAllOnPage}
+                className="rounded-full border border-zinc-200 px-2.5 py-0.5 font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Semua di halaman ({selectable().length})
+              </button>
+              {selCount > 0 && (
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="rounded-full px-2.5 py-0.5 font-medium text-zinc-500 underline-offset-2 hover:underline dark:text-zinc-400"
+                >
+                  Hapus pilihan
+                </button>
+              )}
+              <span className="ml-auto text-zinc-400 dark:text-zinc-500">
+                <span className="text-emerald-600 dark:text-emerald-400">
+                  ✓ Email
+                </span>{" "}
+                = Apollo punya email · <span className="text-amber-600 dark:text-amber-400">Email?</span> = belum tentu (reveal bisa gagal, tetap kena kredit)
+              </span>
+            </div>
           </div>
 
           {people.length === 0 ? (
@@ -306,8 +396,10 @@ export function DiscoverClient({
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1.5">
-                    {!p.has_email && (
-                      <Badge variant="outline">email?</Badge>
+                    {p.has_email ? (
+                      <Badge variant="success">✓ Email</Badge>
+                    ) : (
+                      <Badge variant="warning">Email?</Badge>
                     )}
                     {p.alreadyImported && (
                       <Badge variant="secondary">Sudah ada</Badge>
@@ -343,6 +435,24 @@ export function DiscoverClient({
             </div>
           )}
         </Card>
+      )}
+
+      {/* Import progress — blocking overlay so it's obvious something runs */}
+      {importing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="flex max-w-sm items-center gap-4 rounded-2xl border border-zinc-200 bg-white px-6 py-5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+            <Spinner />
+            <div>
+              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                Mengimpor kontak…
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+                Reveal email lewat Apollo (≈1 kredit/lead) lalu simpan ke
+                Contacts. Jangan tutup halaman ini.
+              </p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
