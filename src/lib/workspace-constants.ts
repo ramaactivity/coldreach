@@ -75,6 +75,59 @@ export const COLOR_THEMES = [
 ] as const;
 
 /**
+ * Workspace accent presets (design system). The 8 named presets are AA-safe
+ * (white text passes contrast on the solid) and are themeable identity only —
+ * never the action color. Keys match the CSS `[data-accent="…"]` presets in
+ * globals.css 1:1.
+ */
+export type AccentTheme =
+  | "orange"
+  | "pink"
+  | "purple"
+  | "blue"
+  | "cyan"
+  | "green"
+  | "red"
+  | "gray";
+
+/**
+ * Maps a stored `workspace.color_theme` hex (the COLOR_THEMES picker values) to
+ * its named accent preset. Frontend-only — the DB still stores the hex (zod
+ * schema unchanged). The rendered accent is the AA-safe preset, NOT the literal
+ * hex, so e.g. amber `#f59e0b` renders as the `orange` preset (`#ea580c`).
+ */
+export const HEX_TO_ACCENT: Record<string, AccentTheme> = {
+  "#f59e0b": "orange",
+  "#ec4899": "pink",
+  "#a855f7": "purple",
+  "#3b82f6": "blue",
+  "#06b6d4": "cyan",
+  "#10b981": "green",
+  "#f43f5e": "red",
+  "#71717a": "gray",
+};
+
+/** Resolve a workspace's stored color_theme to a `data-accent` preset name. */
+export function accentFromColorTheme(
+  colorTheme: string | null | undefined,
+): AccentTheme {
+  if (!colorTheme) return "orange";
+  return HEX_TO_ACCENT[colorTheme.toLowerCase()] ?? "orange";
+}
+
+/** The AA-safe solid hex a given accent preset actually renders as (for the swatch picker). */
+export const ACCENT_PRESET_HEX: Record<AccentTheme, string> = {
+  orange: "#ea580c",
+  pink: "#db2777",
+  purple: "#9333ea",
+  blue: "#2563eb",
+  cyan: "#0d9488",
+  green: "#16a34a",
+  red: "#dc2626",
+  gray: "#475569",
+};
+
+/**
  * Default schedule per business type (Tiska=morning, Photobooth=lunch,
  * Visual=afternoon).
  */

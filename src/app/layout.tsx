@@ -30,7 +30,7 @@ export default function RootLayout({
       lang="id"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body data-accent="orange" className="min-h-full flex flex-col">
         <ConfirmProvider>{children}</ConfirmProvider>
         <ToastProvider />
       </body>

@@ -3,7 +3,10 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import type { Workspace } from "@/lib/workspace-constants";
+import {
+  accentFromColorTheme,
+  type Workspace,
+} from "@/lib/workspace-constants";
 
 /**
  * Wraps the sidebar + main content. On md+ screens it renders the
@@ -41,7 +44,10 @@ export function WorkspaceShell({
   }, [open]);
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div
+      data-accent={accentFromColorTheme(workspace.color_theme)}
+      className="flex h-screen overflow-hidden"
+    >
       {/* Sidebar wrapper:
           - md+: static column, always visible
           - sm:  fixed off-canvas drawer, slides in when open */}

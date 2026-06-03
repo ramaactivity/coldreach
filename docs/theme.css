@@ -1,13 +1,11 @@
-@import "tailwindcss";
-
 /* =============================================================================
    ColdReach — Design Token Layer  (Tailwind v4)
-   SINGLE SOURCE OF TRUTH (merged from docs/theme.css).
+   SINGLE SOURCE OF TRUTH. Import this from src/app/globals.css (after `@import "tailwindcss";`).
    Components reference these tokens only — never raw hex / px.
 
-   Fonts: Geist + Geist Mono loaded via next/font in layout.tsx, exposed as
-   --font-geist-sans / --font-geist-mono. The @theme below points the family
-   tokens at those variables.
+   Fonts: load Geist + Geist Mono via next/font in layout.tsx and expose as
+   --font-geist-sans / --font-geist-mono (Next.js does this automatically when you
+   pass `variable`). The @theme below points the family tokens at those variables.
    ============================================================================= */
 
 @theme {
@@ -94,19 +92,18 @@
 
 /* =============================================================================
    Workspace accent presets
-   Applied to a wrapper that contains the app (<body> default + app-shell),
-   driven by the workspace's saved color theme via HEX_TO_ACCENT.
-   Keys mirror COLOR_THEMES labels 1:1 (orange/pink/purple/blue/cyan/green/red/gray);
-   values are the AA-safe design presets (white text passes contrast).
+   Apply ONE of these to a wrapper that contains the app (e.g. on <body> or the
+   app-shell <div>), driven by the workspace's saved color theme.
+   Usage:  <div data-accent="orange"> ... </div>
    ============================================================================= */
 [data-accent="orange"] { --color-accent:#ea580c; --color-accent-soft:#fff7ed; --color-accent-border:#fed7aa; --color-accent-text:#c2410c; --color-accent-fg:#ffffff; }
 [data-accent="pink"]   { --color-accent:#db2777; --color-accent-soft:#fdf2f8; --color-accent-border:#fbcfe8; --color-accent-text:#be185d; --color-accent-fg:#ffffff; }
 [data-accent="purple"] { --color-accent:#9333ea; --color-accent-soft:#faf5ff; --color-accent-border:#e9d5ff; --color-accent-text:#7e22ce; --color-accent-fg:#ffffff; }
 [data-accent="blue"]   { --color-accent:#2563eb; --color-accent-soft:#eff6ff; --color-accent-border:#bfdbfe; --color-accent-text:#1d4ed8; --color-accent-fg:#ffffff; }
-[data-accent="cyan"]   { --color-accent:#0d9488; --color-accent-soft:#f0fdfa; --color-accent-border:#99f6e4; --color-accent-text:#0f766e; --color-accent-fg:#ffffff; }
+[data-accent="teal"]   { --color-accent:#0d9488; --color-accent-soft:#f0fdfa; --color-accent-border:#99f6e4; --color-accent-text:#0f766e; --color-accent-fg:#ffffff; }
 [data-accent="green"]  { --color-accent:#16a34a; --color-accent-soft:#f0fdf4; --color-accent-border:#bbf7d0; --color-accent-text:#15803d; --color-accent-fg:#ffffff; }
 [data-accent="red"]    { --color-accent:#dc2626; --color-accent-soft:#fef2f2; --color-accent-border:#fecaca; --color-accent-text:#b91c1c; --color-accent-fg:#ffffff; }
-[data-accent="gray"]   { --color-accent:#475569; --color-accent-soft:#f8fafc; --color-accent-border:#cbd5e1; --color-accent-text:#334155; --color-accent-fg:#ffffff; }
+[data-accent="slate"]  { --color-accent:#475569; --color-accent-soft:#f8fafc; --color-accent-border:#cbd5e1; --color-accent-text:#334155; --color-accent-fg:#ffffff; }
 
 /* =============================================================================
    Base layer
@@ -121,7 +118,6 @@
     font-size: 14px;          /* 14px UI base */
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
 
@@ -134,7 +130,6 @@
     box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-accent);
     border-radius: var(--radius-sm);
   }
-  :focus:not(:focus-visible) { outline: none; }
 
   ::selection { background: var(--color-accent-soft); color: var(--color-accent-text); }
 
@@ -148,24 +143,4 @@
     font-size: 12px; font-weight: 500; line-height: 1.4;
     letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted);
   }
-}
-
-/* =============================================================================
-   Skeleton shimmer — neutral value step (surface-sunken → border → surface-sunken).
-   NOT an atmospheric/gradient background; just a loading shimmer over tokens.
-   ============================================================================= */
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-sunken) 0%,
-    var(--color-border) 50%,
-    var(--color-surface-sunken) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
-  border-radius: var(--radius-sm);
 }
