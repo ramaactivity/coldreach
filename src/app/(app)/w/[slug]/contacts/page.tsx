@@ -6,8 +6,6 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  ShieldCheck,
-  Tag,
   MailX,
   MessageCircle,
   AlertOctagon,
@@ -15,7 +13,6 @@ import {
   Archive,
   Eye,
   UserPlus,
-  Sparkles,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
@@ -110,39 +107,7 @@ export default async function ContactsPage({
         description={`${total.toLocaleString("id-ID")} contacts · shared antar workspace, status untuk ${workspace.name}`}
         actions={
           <>
-            <ButtonLink
-              href={`/w/${slug}/contacts/tags`}
-              variant="secondary"
-              size="md"
-            >
-              <Tag className="h-4 w-4" />
-              Tags
-            </ButtonLink>
-            <ButtonLink
-              href={`/w/${slug}/contacts/duplicates`}
-              variant="secondary"
-              size="md"
-            >
-              <ShieldCheck className="h-4 w-4" />
-              Duplicates
-            </ButtonLink>
             <ExportButton slug={slug} />
-            <ButtonLink
-              href={`/w/${slug}/contacts/discover`}
-              variant="secondary"
-              size="md"
-            >
-              <Sparkles className="h-4 w-4" />
-              Cari Lead (Apollo)
-            </ButtonLink>
-            <ButtonLink
-              href={`/w/${slug}/contacts/import`}
-              variant="secondary"
-              size="md"
-            >
-              <Upload className="h-4 w-4" />
-              Import CSV
-            </ButtonLink>
             <ButtonLink href={`/w/${slug}/contacts/new`} size="md">
               <Plus className="h-4 w-4" />
               New Contact
