@@ -28,6 +28,19 @@ import {
 
 const GENERIC = /^(info|sales|hello|contact|admin|support|cs|marketing|halo|kontak)@/i;
 
+const SOCIAL_LABELS: Record<string, string> = {
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+  twitter: "Twitter/X",
+  facebook: "Facebook",
+  youtube: "YouTube",
+  tiktok: "TikTok",
+};
+
+function socialEntries(socials: Record<string, string | undefined>) {
+  return Object.entries(socials).filter(([, v]) => Boolean(v)) as [string, string][];
+}
+
 export function ScrapeClient({ slug }: { slug: string }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -256,11 +269,11 @@ export function ScrapeClient({ slug }: { slug: string }) {
                               {c.phone}
                             </span>
                           )}
-                          {(c.socials.linkedin || c.socials.instagram) && (
+                          {socialEntries(c.socials).length > 0 && (
                             <span className="inline-flex items-center gap-1">
                               <Link2 className="h-3 w-3" />
-                              {[c.socials.linkedin && "LinkedIn", c.socials.instagram && "IG"]
-                                .filter(Boolean)
+                              {socialEntries(c.socials)
+                                .map(([k]) => SOCIAL_LABELS[k] ?? k)
                                 .join(", ")}
                             </span>
                           )}
@@ -302,22 +315,15 @@ export function ScrapeClient({ slug }: { slug: string }) {
                         onCopy={() => copy(c.phone as string)}
                       />
                     )}
-                    {c.socials.linkedin && (
+                    {socialEntries(c.socials).map(([k, v]) => (
                       <CopyChip
-                        label="LinkedIn"
+                        key={k}
+                        label={SOCIAL_LABELS[k] ?? k}
                         icon={<Link2 className="h-3 w-3" />}
-                        copied={copied === c.socials.linkedin}
-                        onCopy={() => copy(c.socials.linkedin as string)}
+                        copied={copied === v}
+                        onCopy={() => copy(v)}
                       />
-                    )}
-                    {c.socials.instagram && (
-                      <CopyChip
-                        label="Instagram"
-                        icon={<Link2 className="h-3 w-3" />}
-                        copied={copied === c.socials.instagram}
-                        onCopy={() => copy(c.socials.instagram as string)}
-                      />
-                    )}
+                    ))}
                   </li>
                 ))}
               </ul>
