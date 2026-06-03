@@ -35,6 +35,9 @@ export function CreateQueueForm({
   const [state, formAction, pending] = useActionState(action, INITIAL_STATE);
   const [audienceType, setAudienceType] = useState<"all" | "tag">("all");
   const [selectedTag, setSelectedTag] = useState(tags[0] ?? "");
+  const [selectedTemplates, setSelectedTemplates] = useState<string[]>(
+    templates[0] ? [templates[0].id] : [],
+  );
 
   return (
     <form action={formAction} className="space-y-6">
@@ -53,26 +56,59 @@ export function CreateQueueForm({
         <FieldError>{state.fieldErrors?.name}</FieldError>
       </div>
 
-      {/* Template */}
+      {/* Templates — rotation pool */}
       <div>
         <FieldLabel required>Template Email</FieldLabel>
-        <Select
-          name="template_id"
-          required
-          defaultValue={templates[0]?.id}
-          placeholder="Pilih template..."
-        >
-          {templates.map((t) => (
-            <SelectItem
-              key={t.id}
-              value={t.id}
-              hint={t.attachmentCount > 0 ? `📎 ${t.attachmentCount}` : undefined}
-            >
-              {t.name}
-            </SelectItem>
-          ))}
-        </Select>
-        <FieldError>{state.fieldErrors?.template_id}</FieldError>
+        <FieldDescription>
+          Pilih satu atau lebih. Kalau pilih lebih dari satu, queue otomatis
+          merotasi template acak-merata tiap kirim — buat lihat body mana yang
+          paling efektif (A/B test).
+        </FieldDescription>
+        <div className="mt-2 space-y-1.5">
+          {templates.map((t) => {
+            const checked = selectedTemplates.includes(t.id);
+            return (
+              <label
+                key={t.id}
+                className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
+                  checked
+                    ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-800/50"
+                    : "border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/30"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  name="template_ids"
+                  value={t.id}
+                  checked={checked}
+                  onChange={(e) =>
+                    setSelectedTemplates((prev) =>
+                      e.target.checked
+                        ? [...prev, t.id]
+                        : prev.filter((id) => id !== t.id),
+                    )
+                  }
+                  className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/40 dark:border-zinc-700"
+                />
+                <span className="flex-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  {t.name}
+                </span>
+                {t.attachmentCount > 0 && (
+                  <span className="text-xs text-zinc-400">
+                    📎 {t.attachmentCount}
+                  </span>
+                )}
+              </label>
+            );
+          })}
+        </div>
+        {selectedTemplates.length > 1 && (
+          <p className="mt-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            {selectedTemplates.length} template — dirotasi acak-merata per
+            kirim.
+          </p>
+        )}
+        <FieldError>{state.fieldErrors?.template_ids}</FieldError>
       </div>
 
       {/* Audience */}
