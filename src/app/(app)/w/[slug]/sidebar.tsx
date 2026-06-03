@@ -14,6 +14,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { WorkspaceSwitcher } from "./workspace-switcher";
+import { UserAvatar } from "@/components/ui";
+import { cn } from "@/lib/utils";
 import type { Workspace } from "@/lib/workspace-constants";
 
 type NavItem = {
@@ -26,6 +28,20 @@ type NavGroup = {
   heading: string;
   items: NavItem[];
 };
+
+const navItemClass = (active: boolean) =>
+  cn(
+    "group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors",
+    active
+      ? "bg-action text-on-action"
+      : "text-ink-secondary hover:bg-surface-hover hover:text-ink",
+  );
+
+const navIconClass = (active: boolean) =>
+  cn(
+    "h-[15px] w-[15px] shrink-0 transition-colors",
+    active ? "" : "text-muted group-hover:text-ink-secondary",
+  );
 
 export function Sidebar({
   slug,
@@ -71,48 +87,29 @@ export function Sidebar({
   const settingsActive = isActive(settingsHref);
 
   return (
-    <aside className="relative flex h-screen w-[244px] shrink-0 flex-col border-r border-zinc-200/60 bg-white/90 backdrop-blur-xl dark:border-zinc-800/60 dark:bg-zinc-950/85">
-      {/* Workspace color accent — top hairline + soft glow */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{ backgroundColor: workspace.color_theme, opacity: 0.5 }}
-      />
-      <div
-        className="pointer-events-none absolute -top-32 left-1/2 h-64 w-64 -translate-x-1/2 rounded-full opacity-[0.05] blur-3xl"
-        style={{ backgroundColor: workspace.color_theme }}
-      />
-
-      {/* Brand row */}
-      <div className="relative flex items-center px-5 pb-3 pt-5">
+    <aside className="flex h-screen w-[248px] shrink-0 flex-col border-r border-border bg-surface">
+      {/* Brand row — 8px accent dot + wordmark */}
+      <div className="flex items-center px-5 pb-3 pt-5">
         <Link
           href="/dashboard"
           prefetch={true}
-          className="group flex items-center gap-2 text-[15px] font-semibold tracking-tight text-zinc-900 transition-opacity hover:opacity-80 dark:text-zinc-50"
+          className="group flex items-center gap-2 text-[15px] font-semibold text-ink transition-opacity hover:opacity-80"
         >
-          <span className="relative flex h-2 w-2">
-            <span
-              className="absolute inset-0 animate-ping rounded-full opacity-60"
-              style={{ backgroundColor: workspace.color_theme }}
-            />
-            <span
-              className="relative inline-block h-2 w-2 rounded-full"
-              style={{ backgroundColor: workspace.color_theme }}
-            />
-          </span>
+          <span className="inline-block size-2 shrink-0 rounded-full bg-accent" />
           <span>ColdReach</span>
         </Link>
       </div>
 
       {/* Workspace switcher */}
-      <div className="relative px-3 pb-3">
+      <div className="px-3 pb-3">
         <WorkspaceSwitcher current={workspace} workspaces={workspaces} />
       </div>
 
       {/* Nav with grouping */}
-      <nav className="relative flex-1 overflow-y-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <nav className="flex-1 overflow-y-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {groups.map((group, gi) => (
           <div key={group.heading} className={gi > 0 ? "mt-5" : ""}>
-            <p className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400 dark:text-zinc-500">
+            <p className="label-eyebrow mb-1.5 px-2.5 text-faint">
               {group.heading}
             </p>
             <ul className="space-y-0.5">
@@ -125,20 +122,10 @@ export function Sidebar({
                       href={item.href}
                       prefetch={true}
                       aria-current={active ? "page" : undefined}
-                      className={`group relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] transition-all duration-150 ${
-                        active
-                          ? "bg-zinc-900 text-white shadow-sm shadow-zinc-900/10 dark:bg-zinc-100 dark:text-zinc-900"
-                          : "text-zinc-600 hover:bg-zinc-100/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
-                      }`}
+                      className={navItemClass(active)}
                     >
-                      <Icon
-                        className={`h-[15px] w-[15px] shrink-0 transition-colors ${
-                          active
-                            ? ""
-                            : "text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300"
-                        }`}
-                      />
-                      <span className="truncate font-medium">{item.label}</span>
+                      <Icon className={navIconClass(active)} />
+                      <span className="truncate">{item.label}</span>
                     </Link>
                   </li>
                 );
@@ -148,48 +135,34 @@ export function Sidebar({
         ))}
       </nav>
 
-      {/* Settings link sits with the rest of the nav, not bundled with the
-          footer — visually reads as one continuous list. */}
-      <div className="relative px-3 pb-2 pt-1">
+      {/* Settings link sits with the rest of the nav. */}
+      <div className="px-3 pb-2 pt-1">
         <Link
           href={settingsHref}
           prefetch={true}
           aria-current={settingsActive ? "page" : undefined}
-          className={`group flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13px] transition-all duration-150 ${
-            settingsActive
-              ? "bg-zinc-900 text-white shadow-sm shadow-zinc-900/10 dark:bg-zinc-100 dark:text-zinc-900"
-              : "text-zinc-600 hover:bg-zinc-100/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
-          }`}
+          className={navItemClass(settingsActive)}
         >
-          <SettingsIcon
-            className={`h-[15px] w-[15px] shrink-0 transition-colors ${
-              settingsActive
-                ? ""
-                : "text-zinc-500 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300"
-            }`}
-          />
-          <span className="truncate font-medium">Settings</span>
+          <SettingsIcon className={navIconClass(settingsActive)} />
+          <span className="truncate">Settings</span>
         </Link>
       </div>
 
-      {/* Account footer — anchored to the absolute bottom by mt-auto.
-          Inline layout (no nested card) reads as part of the shell. */}
-      <div className="relative mt-auto border-t border-zinc-200/60 px-3 py-3 dark:border-zinc-800/60">
-        <div className="flex items-center gap-2.5 rounded-lg px-2 py-1.5">
-          <div
-            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold uppercase text-white shadow-sm"
-            style={{ backgroundColor: workspace.color_theme }}
-          >
-            {userEmail[0]?.toUpperCase() ?? "U"}
-          </div>
-          <p className="min-w-0 flex-1 truncate text-[11px] leading-tight text-zinc-700 dark:text-zinc-300">
+      {/* Account footer — anchored to the absolute bottom by mt-auto. */}
+      <div className="mt-auto border-t border-border px-3 py-3">
+        <div className="flex items-center gap-2.5 px-2 py-1.5">
+          <UserAvatar
+            initial={userEmail[0]?.toUpperCase() ?? "U"}
+            className="size-7 text-[11px]"
+          />
+          <p className="min-w-0 flex-1 truncate text-[11px] leading-tight text-ink-secondary">
             {userEmail}
           </p>
         </div>
         <form action="/auth/signout" method="post">
           <button
             type="submit"
-            className="mt-1 flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-zinc-500 transition-colors hover:bg-zinc-100/70 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800/60 dark:hover:text-zinc-100"
+            className="mt-1 flex w-full items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium text-muted transition-colors hover:bg-surface-hover hover:text-ink"
           >
             <LogOut className="h-3.5 w-3.5 shrink-0" />
             <span>Sign out</span>

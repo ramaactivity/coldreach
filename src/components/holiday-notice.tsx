@@ -6,6 +6,7 @@ import {
   todayWIB,
   type HolidayHit,
 } from "@/lib/holidays-id";
+import { Notice } from "@/components/ui";
 
 const LOOKAHEAD_DAYS = 7;
 
@@ -56,70 +57,43 @@ export async function HolidayNotice() {
   const first = upcoming[0];
   const daysAway = daysBetween(today, first.date);
   const isToday = daysAway === 0;
-
   const others = upcoming.slice(1);
 
   return (
-    <div
-      className={`mb-6 flex items-start gap-3 rounded-2xl border p-4 ${
-        isToday
-          ? "border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-950/30"
-          : "border-blue-200 bg-blue-50/70 dark:border-blue-900/60 dark:bg-blue-950/30"
-      }`}
-    >
-      <div
-        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+    <div className="mb-6">
+      <Notice
+        tone={isToday ? "warning" : "info"}
+        icon={<CalendarOff className="h-4 w-4" />}
+        title={
           isToday
-            ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
-            : "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-        }`}
-      >
-        <CalendarOff className="h-4 w-4" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p
-          className={`text-sm font-semibold ${
-            isToday
-              ? "text-amber-900 dark:text-amber-200"
-              : "text-blue-900 dark:text-blue-200"
-          }`}
-        >
-          {isToday
             ? `Hari ini libur: ${first.name}`
-            : `${relativeDayLabel(daysAway)} libur: ${first.name}`}
-        </p>
-        <p
-          className={`mt-0.5 text-xs ${
-            isToday
-              ? "text-amber-800/90 dark:text-amber-300/80"
-              : "text-blue-800/90 dark:text-blue-300/80"
-          }`}
-        >
+            : `${relativeDayLabel(daysAway)} libur: ${first.name}`
+        }
+      >
+        <p className="mt-0.5 text-[13px] text-muted">
           {formatWibDate(first.date)}
           {first.is_cuti_bersama ? " · cuti bersama" : ""} — queue & follow-up
           auto-skip pada tanggal ini.
         </p>
         {others.length > 0 && (
-          <ul className="mt-2 space-y-0.5 text-[11px] text-zinc-600 dark:text-zinc-400">
+          <ul className="mt-2 space-y-0.5 text-[11px] text-muted">
             {others.slice(0, 3).map((h) => {
               const offset = daysBetween(today, h.date);
               return (
                 <li key={h.date}>
-                  <span className="tabular-nums">{formatWibDate(h.date)}</span>
-                  <span className="ml-1.5 text-zinc-400 dark:text-zinc-600">
+                  <span className="tabular">{formatWibDate(h.date)}</span>
+                  <span className="ml-1.5 text-faint">
                     · {relativeDayLabel(offset)}
                   </span>
                   <span className="ml-1.5">— {h.name}</span>
                   {h.is_cuti_bersama && (
-                    <span className="ml-1 text-zinc-400 dark:text-zinc-600">
-                      (cuti bersama)
-                    </span>
+                    <span className="ml-1 text-faint">(cuti bersama)</span>
                   )}
                 </li>
               );
             })}
             {others.length > 3 && (
-              <li className="text-zinc-400 dark:text-zinc-600">
+              <li className="text-faint">
                 + {others.length - 3} libur lainnya dalam 7 hari ke depan
               </li>
             )}
@@ -128,15 +102,11 @@ export async function HolidayNotice() {
         <Link
           href="/holidays"
           prefetch={true}
-          className={`mt-2 inline-block text-xs font-medium underline-offset-2 hover:underline ${
-            isToday
-              ? "text-amber-800 dark:text-amber-300"
-              : "text-blue-800 dark:text-blue-300"
-          }`}
+          className="mt-2 inline-block text-xs font-medium text-accent-text underline-offset-2 hover:underline"
         >
           Kelola hari libur →
         </Link>
-      </div>
+      </Notice>
     </div>
   );
 }
