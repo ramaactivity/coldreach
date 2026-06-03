@@ -91,16 +91,14 @@ export function DiscoverClient({
   const [personaList, setPersonaList] = useState<ApolloPersona[]>(personas);
   const [activePersona, setActivePersona] = useState("");
 
-  const [people, setPeople] = useState<DiscoverPerson[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [people, setPeople] = useState<DiscoverPerson[]>([]); // accumulated
   const [totalEntries, setTotalEntries] = useState(0);
+  const [nextPage, setNextPage] = useState<number | null>(null);
   const [counts, setCounts] = useState<{
     total: number;
     netNew: number;
     saved: number;
   } | null>(null);
-  const [existingOnPage, setExistingOnPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [searched, setSearched] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -200,21 +198,36 @@ export function DiscoverClient({
   }
 
   // --- Search / import ---
-  function runSearch(toPage: number) {
+  // Fresh search (reset) replaces; "Muat lebih" appends the next Apollo page,
+  // so filter/sort below span everything loaded, not a single page.
+  function runSearch() {
     startTransition(async () => {
-      const res = await searchApollo(slug, criteria(), toPage);
+      const res = await searchApollo(slug, criteria(), 1, true);
       if (res.error) {
         toast.error(res.error);
         return;
       }
       setPeople(res.people ?? []);
-      setPage(res.page ?? toPage);
-      setTotalPages(res.totalPages ?? 1);
       setTotalEntries(res.totalEntries ?? 0);
+      setNextPage(res.nextPage ?? null);
       setCounts(res.counts ?? null);
-      setExistingOnPage(res.existingOnPage ?? 0);
       setSelected(new Set());
       setSearched(true);
+    });
+  }
+  function loadMore() {
+    if (!nextPage) return;
+    startTransition(async () => {
+      const res = await searchApollo(slug, criteria(), nextPage, false);
+      if (res.error) {
+        toast.error(res.error);
+        return;
+      }
+      setPeople((prev) => {
+        const seen = new Set(prev.map((p) => p.id));
+        return [...prev, ...(res.people ?? []).filter((p) => !seen.has(p.id))];
+      });
+      setNextPage(res.nextPage ?? null);
     });
   }
 
@@ -291,6 +304,7 @@ export function DiscoverClient({
 
   const selCount = selected.size;
   const pct = credit.limit > 0 ? (credit.remainingEst / credit.limit) * 100 : 0;
+  const existingLoaded = people.filter((p) => p.alreadyImported).length;
 
   return (
     <div className="space-y-5">
@@ -437,7 +451,7 @@ export function DiscoverClient({
             sudah disimpan di Apollo, hemat kredit)
           </Toggle>
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={() => runSearch(1)} disabled={disabled || pending}>
+            <Button onClick={runSearch} disabled={disabled || pending}>
               <Search className="h-4 w-4" />
               Cari (gratis)
             </Button>
@@ -482,8 +496,8 @@ export function DiscoverClient({
               <Stat label="Net New" value={counts.netNew} accent="emerald" />
               <Stat label="Saved (Apollo)" value={counts.saved} />
               <Stat
-                label="Di ColdReach (hal. ini)"
-                value={existingOnPage}
+                label="Di ColdReach (dimuat)"
+                value={existingLoaded}
                 muted
               />
             </div>
@@ -561,10 +575,9 @@ export function DiscoverClient({
               </button>
             )}
             <span className="ml-auto text-zinc-400 dark:text-zinc-500">
-              {idr(totalEntries)} hasil · hal {page}/{totalPages} ·{" "}
-              <span className="text-emerald-600 dark:text-emerald-400">
-                ✓
-              </span>{" "}
+              {idr(displayedPeople.length)} tampil / {idr(people.length)} dimuat
+              dari {idr(totalEntries)} ·{" "}
+              <span className="text-emerald-600 dark:text-emerald-400">✓</span>{" "}
               punya email ·{" "}
               <span className="text-amber-600 dark:text-amber-400">?</span> belum
               tentu
@@ -576,7 +589,7 @@ export function DiscoverClient({
             <p className="px-5 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
               {people.length === 0
                 ? "Belum ada hasil. Atur kriteria lalu klik Cari."
-                : "Semua hasil di halaman ini tersembunyi oleh filter. Longgarkan filter atau ke halaman berikutnya."}
+                : "Tidak ada yang cocok filter saat ini. Longgarkan filter, atau klik Muat lebih banyak untuk memindai halaman berikutnya."}
             </p>
           ) : (
             <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
@@ -628,28 +641,27 @@ export function DiscoverClient({
             </ul>
           )}
 
-          {/* Pager */}
+          {/* Load more */}
           {people.length > 0 && (
-            <div className="flex items-center justify-between border-t border-zinc-100 px-5 py-3 dark:border-zinc-800">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => runSearch(page - 1)}
-                disabled={pending || page <= 1}
-              >
-                ← Sebelumnya
-              </Button>
-              <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                {page} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => runSearch(page + 1)}
-                disabled={pending || page >= totalPages}
-              >
-                Berikutnya →
-              </Button>
+            <div className="flex items-center justify-center border-t border-zinc-100 px-5 py-3 dark:border-zinc-800">
+              {nextPage ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={loadMore}
+                  disabled={pending}
+                >
+                  {pending ? (
+                    <Spinner />
+                  ) : (
+                    <>Muat lebih banyak (akumulasi)</>
+                  )}
+                </Button>
+              ) : (
+                <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                  Semua hasil sudah dimuat.
+                </span>
+              )}
             </div>
           )}
         </Card>

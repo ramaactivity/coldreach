@@ -22,7 +22,7 @@ export type SearchState = {
   totalPages?: number;
   totalEntries?: number;
   counts?: { total: number; netNew: number; saved: number };
-  existingOnPage?: number; // of the current page, how many already in ColdReach
+  nextPage?: number | null; // next Apollo page to load, or null when exhausted
 };
 
 export type ImportResult = {
@@ -44,11 +44,16 @@ async function authWorkspace(slug: string) {
   return { supabase, user, workspace };
 }
 
-/** Free People Search. Flags candidates already sourced (by apollo_id). */
+/**
+ * Free People Search for one page. The client accumulates pages (Load more)
+ * so client-side filter/sort span everything loaded, not just one page.
+ * `withCounts` only on the first (fresh) call to save 3 extra count calls.
+ */
 export async function searchApollo(
   slug: string,
   criteria: ApolloSearchCriteria,
   page: number = 1,
+  withCounts: boolean = true,
 ): Promise<SearchState> {
   const { supabase, user, workspace } = await authWorkspace(slug);
   if (!workspace) return { error: "Workspace not found" };
@@ -57,8 +62,8 @@ export async function searchApollo(
   let counts;
   try {
     [res, counts] = await Promise.all([
-      apolloSearchPeople(criteria, page),
-      apolloCounts(criteria),
+      apolloSearchPeople({ ...criteria, perPage: 100 }, page),
+      withCounts ? apolloCounts(criteria) : Promise.resolve(undefined),
     ]);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Apollo search gagal" };
@@ -86,8 +91,8 @@ export async function searchApollo(
     page: res.page,
     totalPages: res.totalPages,
     totalEntries: res.totalEntries,
+    nextPage: res.page < res.totalPages ? res.page + 1 : null,
     counts,
-    existingOnPage: existing.size,
   };
 }
 
