@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Download, Zap, Coins, RefreshCw } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "@/components/ui/toast-provider";
 import { useConfirm } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
+import { TagInput } from "./tag-input";
 import type { ApolloCreditStatus } from "@/lib/apollo-credits";
 import {
   searchApollo,
@@ -32,9 +33,8 @@ function splitTitles(s: string): string[] {
 
 // City names → "City, Indonesia" so Apollo never matches a same-named city
 // abroad. Drops a bare "indonesia" token and won't double-append.
-function buildLocations(s: string): string[] {
-  const out = s
-    .split(/[,\n]/)
+function buildLocations(cities: string[]): string[] {
+  const out = cities
     .map((t) => t.trim())
     .filter(Boolean)
     .filter((t) => t.toLowerCase() !== "indonesia")
@@ -61,13 +61,21 @@ export function DiscoverClient({
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
 
-  const [titles, setTitles] = useState(presetTitles);
-  const [location, setLocation] = useState(presetLocations);
-  const [keywords, setKeywords] = useState("");
+  const [titles, setTitles] = useState<string[]>(splitTitles(presetTitles));
+  const [location, setLocation] = useState<string[]>(
+    splitTitles(presetLocations),
+  );
+  const [keywords, setKeywords] = useState<string[]>([]);
   const [netNewOnly, setNetNewOnly] = useState(true);
   const [quickN, setQuickN] = useState(25);
   const [selectN, setSelectN] = useState(50);
   const [syncVal, setSyncVal] = useState("");
+
+  // Result view controls. Default sort = email-first (has_email).
+  const [onlyEmail, setOnlyEmail] = useState(false);
+  const [sortBy, setSortBy] = useState<
+    "email" | "name_asc" | "name_desc" | "company_asc"
+  >("email");
 
   const [personaList, setPersonaList] = useState<ApolloPersona[]>(personas);
   const [activePersona, setActivePersona] = useState("");
@@ -82,9 +90,9 @@ export function DiscoverClient({
 
   function criteria() {
     return {
-      titles: splitTitles(titles),
+      titles,
       locations: buildLocations(location), // each city forced to ", Indonesia"
-      keywords: keywords.trim() || undefined,
+      keywords: keywords.join(" ") || undefined,
       netNewOnly,
       perPage: 50,
     };
@@ -94,9 +102,9 @@ export function DiscoverClient({
     setActivePersona(id);
     const p = personaList.find((x) => x.id === id);
     if (!p) return;
-    setTitles(p.titles);
-    setLocation(p.locations);
-    setKeywords(p.keywords);
+    setTitles(splitTitles(p.titles));
+    setLocation(splitTitles(p.locations));
+    setKeywords(p.keywords ? splitTitles(p.keywords) : []);
     setNetNewOnly(p.netNewOnly);
   }
 
@@ -106,9 +114,9 @@ export function DiscoverClient({
     startTransition(async () => {
       const res = await saveApolloPersona(slug, {
         name: name.trim(),
-        titles,
-        locations: location,
-        keywords,
+        titles: titles.join(", "),
+        locations: location.join(", "),
+        keywords: keywords.join(", "),
         netNewOnly,
       });
       if (res.error) toast.error(res.error);
@@ -139,16 +147,30 @@ export function DiscoverClient({
     });
   }
 
-  // Candidates on the current page that can still be imported.
+  // Apply the view's filter + sort to the current page.
+  const displayedPeople = useMemo(() => {
+    let list = onlyEmail ? people.filter((p) => p.has_email) : [...people];
+    const cmp: Record<string, (a: DiscoverPerson, b: DiscoverPerson) => number> =
+      {
+        email: (a, b) => Number(b.has_email) - Number(a.has_email),
+        name_asc: (a, b) =>
+          (a.first_name ?? "").localeCompare(b.first_name ?? ""),
+        name_desc: (a, b) =>
+          (b.first_name ?? "").localeCompare(a.first_name ?? ""),
+        company_asc: (a, b) =>
+          (a.organization_name ?? "").localeCompare(b.organization_name ?? ""),
+      };
+    list = list.sort(cmp[sortBy] ?? cmp.email);
+    return list;
+  }, [people, onlyEmail, sortBy]);
+
+  // Selectable = visible (filtered/sorted) + not already imported.
   function selectable() {
-    return people.filter((p) => !p.alreadyImported);
+    return displayedPeople.filter((p) => !p.alreadyImported);
   }
-  // Quick-select the first N selectable (prefer ones Apollo has an email for).
+  // Quick-select the first N selectable, in the current view order.
   function selectTopN(n: number) {
-    const pool = [...selectable()].sort(
-      (a, b) => Number(b.has_email) - Number(a.has_email),
-    );
-    setSelected(new Set(pool.slice(0, n).map((p) => p.id)));
+    setSelected(new Set(selectable().slice(0, n).map((p) => p.id)));
   }
   function selectAllOnPage() {
     setSelected(new Set(selectable().map((p) => p.id)));
@@ -361,32 +383,37 @@ export function DiscoverClient({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <FieldLabel htmlFor="titles">Jabatan target (pisah koma)</FieldLabel>
-            <Input
+            <FieldLabel htmlFor="titles">
+              Jabatan target{" "}
+              <span className="font-normal text-zinc-400">
+                — ketik lalu Enter/koma jadi pill
+              </span>
+            </FieldLabel>
+            <TagInput
               id="titles"
               value={titles}
-              onChange={(e) => setTitles(e.target.value)}
-              placeholder="HR Manager, Procurement Manager"
+              onChange={setTitles}
+              placeholder="HR Manager, Procurement Manager…"
             />
           </div>
           <div>
             <FieldLabel htmlFor="loc">
-              Lokasi — kota saja, pisah koma (negara otomatis Indonesia)
+              Lokasi — kota saja (negara otomatis Indonesia)
             </FieldLabel>
-            <Input
+            <TagInput
               id="loc"
               value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Bogor, Jakarta, Bekasi, Cikarang, Karawang"
+              onChange={setLocation}
+              placeholder="Bogor, Jakarta, Bekasi…"
             />
           </div>
           <div>
             <FieldLabel htmlFor="kw">Keyword industri/perusahaan (opsional)</FieldLabel>
-            <Input
+            <TagInput
               id="kw"
               value={keywords}
-              onChange={(e) => setKeywords(e.target.value)}
-              placeholder="hotel, manufaktur, dll"
+              onChange={setKeywords}
+              placeholder="hotel, manufaktur…"
             />
           </div>
         </div>
@@ -515,15 +542,44 @@ export function DiscoverClient({
                 = Apollo punya email · <span className="text-amber-600 dark:text-amber-400">Email?</span> = belum tentu (reveal bisa gagal, tetap kena kredit)
               </span>
             </div>
+            {/* Filter + sort */}
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <label className="flex cursor-pointer items-center gap-1.5 text-zinc-600 dark:text-zinc-400">
+                <input
+                  type="checkbox"
+                  checked={onlyEmail}
+                  onChange={(e) => setOnlyEmail(e.target.checked)}
+                  className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/40 dark:border-zinc-700"
+                />
+                Hanya yang punya email
+              </label>
+              <span className="text-zinc-500 dark:text-zinc-400">Urutkan:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="h-7 rounded-lg border border-zinc-200 bg-white px-2 text-xs text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+              >
+                <option value="email">Punya email dulu</option>
+                <option value="name_asc">Nama A–Z</option>
+                <option value="name_desc">Nama Z–A</option>
+                <option value="company_asc">Perusahaan A–Z</option>
+              </select>
+              <span className="text-zinc-400 dark:text-zinc-500">
+                menampilkan {displayedPeople.length} dari {people.length} di
+                halaman ini
+              </span>
+            </div>
           </div>
 
-          {people.length === 0 ? (
+          {displayedPeople.length === 0 ? (
             <p className="px-5 py-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-              Tidak ada hasil. Coba ubah kriteria.
+              {people.length === 0
+                ? "Tidak ada hasil. Coba ubah kriteria."
+                : "Tidak ada yang cocok filter. Matikan 'hanya punya email' atau ubah kriteria."}
             </p>
           ) : (
             <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-              {people.map((p) => (
+              {displayedPeople.map((p) => (
                 <li
                   key={p.id}
                   className="flex items-center gap-3 px-5 py-3"
