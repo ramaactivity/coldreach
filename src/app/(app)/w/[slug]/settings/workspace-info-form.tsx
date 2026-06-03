@@ -2,7 +2,11 @@
 
 import { useActionState, useState } from "react";
 import { Check } from "lucide-react";
-import { BUSINESS_TYPES, COLOR_THEMES } from "@/lib/workspace-constants";
+import {
+  BUSINESS_TYPES,
+  COLOR_THEMES,
+  accentFromColorTheme,
+} from "@/lib/workspace-constants";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { FieldLabel, FieldError, Input } from "@/components/ui/input";
@@ -30,10 +34,8 @@ export function WorkspaceInfoForm({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          Workspace Info
-        </h3>
+      <div className="border-b border-border px-5 py-3">
+        <h3 className="text-[15px] font-semibold text-ink">Workspace Info</h3>
       </div>
       <form action={action} className="space-y-5 p-5">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -70,6 +72,8 @@ export function WorkspaceInfoForm({
             Color Theme
           </FieldLabel>
           <input type="hidden" name="color_theme" value={colorTheme} />
+          {/* Swatch renders the AA-safe preset (via data-accent + bg-accent) so the
+              dot you pick == the accent that renders. Stored value stays the hex. */}
           <div className="flex flex-wrap gap-2">
             {COLOR_THEMES.map((c) => {
               const selected = colorTheme === c.value;
@@ -79,14 +83,14 @@ export function WorkspaceInfoForm({
                   key={c.value}
                   onClick={() => setColorTheme(c.value)}
                   title={c.label}
-                  className={`flex h-9 w-9 items-center justify-center rounded-full transition-all ${
+                  data-accent={accentFromColorTheme(c.value)}
+                  className={`grid size-9 place-items-center rounded-full bg-accent transition-transform ${
                     selected
-                      ? "ring-2 ring-zinc-900 ring-offset-2 dark:ring-zinc-100 dark:ring-offset-zinc-900"
+                      ? "ring-2 ring-ink ring-offset-2 ring-offset-surface"
                       : "hover:scale-110"
                   }`}
-                  style={{ backgroundColor: c.value }}
                 >
-                  {selected && <Check className="h-4 w-4 text-white" />}
+                  {selected && <Check className="h-4 w-4 text-accent-fg" />}
                 </button>
               );
             })}
@@ -94,12 +98,12 @@ export function WorkspaceInfoForm({
         </div>
 
         {state.error && (
-          <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+          <p className="rounded-md border border-danger-soft bg-danger-soft p-3 text-[13px] font-medium text-danger-text">
             {state.error}
           </p>
         )}
         {state.success && (
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400">
+          <p className="rounded-md border border-success-soft bg-success-soft p-3 text-[13px] font-medium text-success-text">
             ✓ Saved
           </p>
         )}

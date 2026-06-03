@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { Pencil, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { FieldError } from "@/components/ui/input";
+import { FieldError, Input } from "@/components/ui/input";
 import { updateGmailQuota, type FormState } from "./actions";
 
 const INITIAL: FormState = {};
@@ -27,14 +27,16 @@ export function QuotaForm({
   if (!editing) {
     return (
       <div className="flex items-baseline gap-2">
-        <p className="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100">
+        <p className="text-2xl font-semibold tabular tracking-tight text-ink">
           {emailsSentToday}{" "}
-          <span className="text-base font-normal text-zinc-500">/ {initialQuota}</span>
+          <span className="text-base font-normal text-muted">
+            / {initialQuota}
+          </span>
         </p>
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-ink"
         >
           <Pencil className="h-3 w-3" />
           Edit
@@ -52,16 +54,16 @@ export function QuotaForm({
       }}
     >
       <div className="flex items-center gap-2">
-        <input
+        <Input
           type="number"
           name="daily_quota"
           min={1}
           max={500}
           value={value}
           onChange={(e) => setValue(parseInt(e.target.value, 10) || 1)}
-          className="h-9 w-24 rounded-lg border border-zinc-200 bg-white px-2 text-sm tabular-nums text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-100"
+          className="w-24 tabular"
         />
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">/ hari</span>
+        <span className="text-xs text-muted">/ hari</span>
         <Button
           size="sm"
           type="submit"
@@ -78,17 +80,17 @@ export function QuotaForm({
             setEditing(false);
             setValue(initialQuota);
           }}
-          className="inline-flex h-7 items-center gap-1 rounded-lg px-2 text-xs text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+          className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted hover:bg-surface-hover"
         >
           <X className="h-3 w-3" />
         </button>
       </div>
       <FieldError>{state.fieldErrors?.daily_quota}</FieldError>
       {state.error && (
-        <p className="text-xs text-red-600 dark:text-red-400">{state.error}</p>
+        <p className="text-xs text-danger-text">{state.error}</p>
       )}
       {state.success && (
-        <p className="text-xs text-emerald-600 dark:text-emerald-400">✓ Saved</p>
+        <p className="text-xs text-success-text">✓ Saved</p>
       )}
     </form>
   );

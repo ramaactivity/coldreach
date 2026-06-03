@@ -126,19 +126,19 @@ export function CustomFieldsEditor({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
+      <div className="flex items-center justify-between border-b border-border px-5 py-3">
         <div>
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="text-sm font-semibold text-ink">
             Custom Fields
           </h3>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-0.5 text-xs text-muted">
             {fields.length}/20 field. Muncul di form contact untuk workspace
             ini.
           </p>
         </div>
         <div className="flex items-center gap-2">
           {savedFlash && (
-            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 text-xs text-success-text">
               <Check className="h-3 w-3" />
               Tersimpan
             </span>
@@ -147,7 +147,7 @@ export function CustomFieldsEditor({
             type="button"
             onClick={handleSave}
             disabled={pending || !dirty}
-            className="inline-flex h-7 items-center gap-1 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="inline-flex h-7 items-center gap-1 rounded-md bg-action px-2.5 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-40"
           >
             {pending ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -161,11 +161,11 @@ export function CustomFieldsEditor({
 
       <div className="p-3">
         {fields.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50/40 px-4 py-6 text-center dark:border-zinc-800 dark:bg-zinc-900/30">
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">
+          <div className="rounded-lg border border-dashed border-border-strong bg-surface-sunken/40 px-4 py-6 text-center">
+            <p className="text-sm text-ink-secondary">
               Belum ada custom field
             </p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-1 text-xs text-muted">
               Contoh untuk catering: Budget Estimasi (number), Tanggal Tasting
               (date), Tipe Acara (select).
             </p>
@@ -192,14 +192,14 @@ export function CustomFieldsEditor({
           type="button"
           onClick={addField}
           disabled={fields.length >= 20}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-zinc-300 px-3 py-2.5 text-xs font-medium text-zinc-500 transition-all hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/40 dark:hover:text-zinc-100"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-strong px-3 py-2.5 text-xs font-medium text-muted transition-all hover:border-border-strong hover:bg-surface-sunken hover:text-ink disabled:opacity-50"
         >
           <Plus className="h-3.5 w-3.5" />
           Tambah field
         </button>
 
         {error && (
-          <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-danger-soft bg-danger-soft px-3 py-2 text-xs text-danger-text">
             <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
             <span>{error}</span>
           </div>
@@ -231,7 +231,7 @@ function FieldRow({
   const [showOptions, setShowOptions] = useState(field.type === "select");
 
   return (
-    <li className="rounded-lg border border-zinc-200/80 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+    <li className="rounded-lg border border-border/80 bg-surface p-3">
       <div className="flex items-center gap-2">
         <div className="flex shrink-0 flex-col gap-0.5">
           <button
@@ -239,7 +239,7 @@ function FieldRow({
             onClick={onMoveUp}
             disabled={isFirst}
             title="Move up"
-            className="inline-flex h-4 w-5 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className="inline-flex h-4 w-5 items-center justify-center rounded text-faint transition-colors hover:bg-surface-sunken hover:text-ink-secondary disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ArrowUp className="h-3 w-3" />
           </button>
@@ -248,13 +248,13 @@ function FieldRow({
             onClick={onMoveDown}
             disabled={isLast}
             title="Move down"
-            className="inline-flex h-4 w-5 items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+            className="inline-flex h-4 w-5 items-center justify-center rounded text-faint transition-colors hover:bg-surface-sunken hover:text-ink-secondary disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ArrowDown className="h-3 w-3" />
           </button>
         </div>
 
-        <GripVertical className="h-4 w-4 shrink-0 text-zinc-300 dark:text-zinc-700" />
+        <GripVertical className="h-4 w-4 shrink-0 text-faint" />
 
         <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_auto]">
           <input
@@ -262,7 +262,7 @@ function FieldRow({
             value={field.label}
             onChange={(e) => onLabelChange(e.target.value)}
             placeholder="Label (e.g., Budget Estimasi)"
-            className="h-8 rounded-md border border-zinc-200 bg-white px-2.5 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+            className="h-8 rounded-md border border-border bg-surface px-2.5 text-sm text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
           />
 
           <div className="w-[140px]">
@@ -283,7 +283,7 @@ function FieldRow({
             </Select>
           </div>
 
-          <label className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-700 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+          <label className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md border border-border bg-surface px-2.5 text-xs text-ink-secondary">
             <input
               type="checkbox"
               checked={field.required ?? false}
@@ -298,7 +298,7 @@ function FieldRow({
           type="button"
           onClick={onRemove}
           title="Hapus field"
-          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-faint transition-colors hover:bg-danger-soft hover:text-danger-text"
         >
           <X className="h-3.5 w-3.5" />
         </button>
@@ -306,7 +306,7 @@ function FieldRow({
 
       {/* ID + hint */}
       <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-[200px_1fr]">
-        <div className="flex items-center gap-1.5 rounded-md border border-zinc-100 bg-zinc-50/60 px-2 py-1 text-[10px] font-mono text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-500">
+        <div className="flex items-center gap-1.5 rounded-md border border-border bg-surface-sunken/60 px-2 py-1 text-[10px] font-mono text-muted">
           id:
           <input
             type="text"
@@ -314,7 +314,7 @@ function FieldRow({
             onChange={(e) =>
               onChange({ id: e.target.value.toLowerCase().replace(/\s/g, "_") })
             }
-            className="h-5 flex-1 bg-transparent text-zinc-700 outline-none dark:text-zinc-300"
+            className="h-5 flex-1 bg-transparent text-ink-secondary outline-none"
           />
         </div>
         <input
@@ -322,7 +322,7 @@ function FieldRow({
           value={field.hint ?? ""}
           onChange={(e) => onChange({ hint: e.target.value })}
           placeholder="Help text (optional)"
-          className="h-7 rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-700 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300"
+          className="h-7 rounded-md border border-border bg-surface px-2.5 text-xs text-ink-secondary placeholder:text-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
         />
       </div>
 
@@ -330,8 +330,8 @@ function FieldRow({
       {field.type === "select" && (
         <div className="mt-2">
           {showOptions && (
-            <div className="rounded-md border border-zinc-100 bg-zinc-50/60 p-2 dark:border-zinc-800 dark:bg-zinc-900/40">
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <div className="rounded-md border border-border bg-surface-sunken/60 p-2">
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
                 Options (1 per baris)
               </p>
               <textarea
@@ -346,7 +346,7 @@ function FieldRow({
                 }
                 rows={3}
                 placeholder={"Wedding\nCorporate\nBirthday"}
-                className="w-full resize-y rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                className="w-full resize-y rounded-md border border-border bg-surface px-2 py-1 text-xs text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
               />
             </div>
           )}

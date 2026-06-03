@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import {
   Mail,
-  Layers,
   CheckCircle2,
   AlertCircle,
   Calendar,
@@ -62,7 +61,7 @@ export default async function WorkspaceSettingsPage({
       />
 
       {sp.gmail_success && (
-        <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-sm text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+        <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-success-soft bg-success-soft p-3.5 text-sm text-success-text">
           <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
           <span>
             Gmail <strong>{sp.gmail_success}</strong> berhasil terhubung ke
@@ -71,7 +70,7 @@ export default async function WorkspaceSettingsPage({
         </div>
       )}
       {sp.gmail_error && (
-        <div className="mb-6 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+        <div className="mb-6 flex items-start gap-2.5 rounded-lg border border-danger-soft bg-danger-soft p-3.5 text-sm text-danger-text">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>Gmail connect gagal: {sp.gmail_error}</span>
         </div>
@@ -103,9 +102,9 @@ export default async function WorkspaceSettingsPage({
               color_theme: workspace.color_theme,
             }}
           />
-          <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 text-xs text-muted">
             Slug{" "}
-            <code className="rounded bg-zinc-100 px-1 font-mono text-[11px] dark:bg-zinc-800">
+            <code className="rounded bg-surface-sunken px-1 font-mono text-[11px]">
               {workspace.slug}
             </code>{" "}
             tidak bisa diubah karena ini bagian URL workspace.
@@ -186,14 +185,10 @@ function SectionHeading({
   return (
     <div className="mb-3">
       <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-          {title}
-        </h2>
+        <Icon className="h-4 w-4 text-muted" />
+        <h2 className="text-ink">{title}</h2>
       </div>
-      <p className="mt-0.5 text-sm text-zinc-600 dark:text-zinc-400">
-        {description}
-      </p>
+      <p className="mt-0.5 text-sm text-muted">{description}</p>
     </div>
   );
 }

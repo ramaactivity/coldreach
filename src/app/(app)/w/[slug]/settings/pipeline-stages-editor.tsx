@@ -9,7 +9,6 @@ import {
   ChevronDown,
   Check,
   X,
-  Loader2,
 } from "lucide-react";
 import type { PipelineStage } from "@/lib/workspace-constants";
 import { Button } from "@/components/ui/button";
@@ -140,11 +139,11 @@ export function PipelineStagesEditor({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+      <div className="border-b border-border px-5 py-3">
+        <h3 className="text-sm font-semibold text-ink">
           Pipeline Stages
         </h3>
-        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-xs text-muted">
           Stage lifecycle untuk kontak. Custom per workspace. Order di sini =
           order kolom di Pipeline view.
         </p>
@@ -167,7 +166,7 @@ export function PipelineStagesEditor({
 
         {/* Add new */}
         {adding ? (
-          <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50/40 p-3 dark:border-zinc-700 dark:bg-zinc-900/30">
+          <div className="rounded-lg border border-dashed border-border-strong bg-surface-sunken/40 p-3">
             <div className="flex flex-wrap items-center gap-2">
               <ColorSwatch value={newColor} onChange={setNewColor} />
               <input
@@ -182,7 +181,7 @@ export function PipelineStagesEditor({
                     addStage();
                   }
                 }}
-                className="h-8 flex-1 rounded-md border border-zinc-200 bg-white px-2 text-sm shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-800"
+                className="h-8 flex-1 rounded-md border border-border bg-surface px-2 text-sm focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
               />
               <Button size="sm" onClick={addStage}>
                 <Check className="h-3 w-3" />
@@ -195,7 +194,7 @@ export function PipelineStagesEditor({
                   setNewName("");
                   setError(null);
                 }}
-                className="inline-flex h-8 items-center justify-center rounded-md p-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="inline-flex h-8 items-center justify-center rounded-md p-1.5 text-muted hover:bg-surface-sunken"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -205,7 +204,7 @@ export function PipelineStagesEditor({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-zinc-300 bg-zinc-50/40 px-3 py-2 text-sm font-medium text-zinc-600 transition-colors hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/40 dark:hover:text-zinc-100"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-strong bg-surface-sunken/40 px-3 py-2 text-sm font-medium text-muted transition-colors hover:border-border-strong hover:bg-surface-sunken hover:text-ink"
           >
             <Plus className="h-3.5 w-3.5" />
             Tambah Stage
@@ -213,19 +212,19 @@ export function PipelineStagesEditor({
         )}
 
         {error && (
-          <p className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+          <p className="rounded-lg border border-danger-soft bg-danger-soft p-2.5 text-xs text-danger-text">
             {error}
           </p>
         )}
         {success && (
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400">
+          <p className="rounded-lg border border-success-soft bg-success-soft p-2.5 text-xs text-success-text">
             ✓ Pipeline saved
           </p>
         )}
       </div>
 
       {isDirty && (
-        <div className="flex items-center justify-end gap-2 border-t border-zinc-100 bg-zinc-50/40 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-900/40">
+        <div className="flex items-center justify-end gap-2 border-t border-border bg-surface-sunken/40 px-5 py-3">
           <Button variant="outline" size="sm" onClick={handleReset} disabled={pending}>
             Reset
           </Button>
@@ -263,9 +262,9 @@ function StageRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="group flex items-center gap-2 rounded-lg border border-zinc-200/80 bg-white p-2 transition-colors hover:border-zinc-300 dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700">
+    <div className="group flex items-center gap-2 rounded-lg border border-border/80 bg-surface p-2 transition-colors hover:border-border-strong">
       {/* Order */}
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-[10px] font-semibold tabular-nums text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-surface-sunken text-[10px] font-semibold tabular-nums text-muted">
         {index + 1}
       </span>
 
@@ -276,7 +275,7 @@ function StageRow({
         value={stage.name}
         onChange={(e) => onRename(e.target.value)}
         maxLength={50}
-        className="h-7 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm font-medium text-zinc-900 hover:border-zinc-200 focus:border-zinc-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:text-zinc-100 dark:hover:border-zinc-700 dark:focus:border-zinc-100 dark:focus:bg-zinc-800"
+        className="h-7 flex-1 rounded-md border border-transparent bg-transparent px-2 text-sm font-medium text-ink hover:border-border focus:border-accent focus:bg-surface focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
       />
 
       <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
@@ -284,7 +283,7 @@ function StageRow({
           type="button"
           onClick={onMoveUp}
           disabled={index === 0}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-surface-sunken hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronUp className="h-3.5 w-3.5" />
         </button>
@@ -292,14 +291,14 @@ function StageRow({
           type="button"
           onClick={onMoveDown}
           disabled={index === total - 1}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-30 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-surface-sunken hover:text-ink disabled:cursor-not-allowed disabled:opacity-30"
         >
           <ChevronDown className="h-3.5 w-3.5" />
         </button>
         <button
           type="button"
           onClick={onRemove}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted hover:bg-danger-soft hover:text-danger-text"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -322,7 +321,7 @@ function ColorSwatch({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="h-5 w-5 shrink-0 rounded-full ring-2 ring-white shadow-sm transition-transform hover:scale-110 dark:ring-zinc-900"
+        className="h-5 w-5 shrink-0 rounded-full ring-2 ring-surface transition-transform hover:scale-110"
         style={{ backgroundColor: value }}
         aria-label="Change color"
       />
@@ -333,7 +332,7 @@ function ColorSwatch({
             onClick={() => setOpen(false)}
             aria-hidden
           />
-          <div className="absolute left-0 top-full z-20 mt-1 grid grid-cols-5 gap-1 rounded-lg border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="absolute left-0 top-full z-20 mt-1 grid grid-cols-5 gap-1 rounded-lg border border-border bg-surface p-2 shadow-lg">
             {STAGE_COLORS.map((c) => (
               <button
                 key={c}
@@ -342,7 +341,7 @@ function ColorSwatch({
                   onChange(c);
                   setOpen(false);
                 }}
-                className="h-5 w-5 rounded-full ring-1 ring-zinc-200 transition-transform hover:scale-110 dark:ring-zinc-700"
+                className="h-5 w-5 rounded-full ring-1 ring-border transition-transform hover:scale-110"
                 style={{ backgroundColor: c }}
               />
             ))}

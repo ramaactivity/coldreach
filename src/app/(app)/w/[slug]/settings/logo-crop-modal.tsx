@@ -87,7 +87,7 @@ export function LogoCropModal({
         <DialogHeader title="Adjust logo" description="Drag, zoom, dan crop biar logo pas frame signature. Hasil otomatis di-resize ke 800px & di-compress agar pas batas 512 KB tanpa lo perlu mikir." />
         <DialogBody>
           {/* Crop canvas */}
-          <div className="relative h-[340px] w-full overflow-hidden rounded-xl bg-zinc-900">
+          <div className="relative h-[340px] w-full overflow-hidden rounded-xl bg-action">
             {imageSrc && (
               <Cropper
                 image={imageSrc}
@@ -109,7 +109,7 @@ export function LogoCropModal({
           <div className="mt-4 space-y-3">
             {/* Zoom slider */}
             <div className="flex items-center gap-3">
-              <ZoomOut className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
+              <ZoomOut className="h-3.5 w-3.5 shrink-0 text-muted" />
               <input
                 type="range"
                 min={1}
@@ -117,18 +117,18 @@ export function LogoCropModal({
                 step={0.05}
                 value={zoom}
                 onChange={(e) => setZoom(Number(e.target.value))}
-                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-zinc-200 accent-zinc-900 dark:bg-zinc-800 dark:accent-zinc-100"
+                className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-surface-hover accent-action"
                 aria-label="Zoom"
               />
-              <ZoomIn className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-              <span className="w-10 shrink-0 text-right text-[11px] font-mono text-zinc-500 dark:text-zinc-400">
+              <ZoomIn className="h-3.5 w-3.5 shrink-0 text-muted" />
+              <span className="w-10 shrink-0 text-right text-[11px] font-mono text-muted">
                 {zoom.toFixed(2)}×
               </span>
             </div>
 
             {/* Aspect ratio chips */}
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <span className="mr-1 inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
                 <Maximize2 className="h-3 w-3" />
                 Aspect
               </span>
@@ -141,8 +141,8 @@ export function LogoCropModal({
                     onClick={() => setAspect(opt.value)}
                     className={`inline-flex h-7 items-center rounded-full border px-2.5 text-xs font-medium transition-colors ${
                       active
-                        ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                        : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                        ? "border-action bg-action text-on-action"
+                        : "border-border bg-surface text-ink-secondary hover:border-border-strong hover:bg-surface-sunken"
                     }`}
                   >
                     {opt.label}
@@ -152,7 +152,7 @@ export function LogoCropModal({
             </div>
           </div>
         </DialogBody>
-        <DialogFooter className="flex items-center justify-end gap-2 border-t border-zinc-100 px-5 py-3 dark:border-zinc-800">
+        <DialogFooter className="flex items-center justify-end gap-2 border-t border-border px-5 py-3">
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             Batal
           </Button>

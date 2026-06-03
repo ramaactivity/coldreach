@@ -207,11 +207,11 @@ export function SignatureForm({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+      <div className="border-b border-border px-5 py-3">
+        <h3 className="text-sm font-semibold text-ink">
           Default Signature
         </h3>
-        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-xs text-muted">
           Otomatis di-append ke setiap email. Sistem render dua versi —
           HTML (untuk preview cantik di Gmail) + plain text (untuk client
           yang block HTML).
@@ -231,7 +231,7 @@ export function SignatureForm({
                 Logo
               </FieldLabel>
               <div className="flex items-start gap-3">
-                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface-sunken">
                   {data.logo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -240,7 +240,7 @@ export function SignatureForm({
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <ImageIcon className="h-5 w-5 text-zinc-400" />
+                    <ImageIcon className="h-5 w-5 text-faint" />
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -272,7 +272,7 @@ export function SignatureForm({
                   )}
                 </div>
               </div>
-              <p className="mt-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1.5 text-[11px] text-muted">
                 <Crop className="-mt-0.5 mr-1 inline-block h-3 w-3" />
                 Setelah pilih file, lo bisa adjust crop & zoom dulu
                 sebelum upload — pas frame signature.
@@ -290,7 +290,7 @@ export function SignatureForm({
                 }}
               />
               {logoError && (
-                <p className="mt-1.5 text-xs text-red-600 dark:text-red-400">
+                <p className="mt-1.5 text-xs text-danger-text">
                   {logoError}
                 </p>
               )}
@@ -380,7 +380,7 @@ export function SignatureForm({
                 </Button>
               </div>
               {(data.socials ?? []).length === 0 ? (
-                <p className="rounded-lg border border-dashed border-zinc-300 px-3 py-4 text-center text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                <p className="rounded-lg border border-dashed border-border-strong px-3 py-4 text-center text-xs text-muted">
                   Belum ada sosial media. Klik &ldquo;Tambah&rdquo; untuk
                   Instagram / LinkedIn / dll.
                 </p>
@@ -389,14 +389,14 @@ export function SignatureForm({
                   {(data.socials ?? []).map((s, i) => (
                     <li
                       key={i}
-                      className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-800 dark:bg-zinc-900"
+                      className="flex items-center gap-2 rounded-lg border border-border bg-surface p-2"
                     >
                       <div className="flex flex-col">
                         <button
                           type="button"
                           onClick={() => moveSocial(i, -1)}
                           disabled={i === 0}
-                          className="h-4 text-zinc-400 hover:text-zinc-700 disabled:opacity-30"
+                          className="h-4 text-faint hover:text-ink-secondary disabled:opacity-30"
                           aria-label="Move up"
                         >
                           <GripVertical className="h-3 w-3" />
@@ -438,7 +438,7 @@ export function SignatureForm({
                       <button
                         type="button"
                         onClick={() => removeSocial(i)}
-                        className="rounded-md p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                        className="rounded-md p-1.5 text-faint hover:bg-danger-soft hover:text-danger-text"
                         aria-label="Remove"
                       >
                         <X className="h-3.5 w-3.5" />
@@ -454,24 +454,24 @@ export function SignatureForm({
               never gets cropped */}
           <div className="min-w-0 space-y-3 lg:sticky lg:top-6 lg:self-start">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted">
                 Live preview
               </p>
-              <span className="text-[10px] text-zinc-400 dark:text-zinc-500">
+              <span className="text-[10px] text-faint">
                 muncul setelah body email
               </span>
             </div>
             <div
-              className="overflow-x-auto rounded-2xl bg-white p-6 shadow-[0_1px_2px_0_rgb(0_0_0/0.03),0_8px_24px_-12px_rgb(0_0_0/0.08)] ring-1 ring-zinc-100 dark:bg-zinc-900 dark:ring-zinc-800"
+              className="overflow-x-auto rounded-lg bg-surface p-6 ring-1 ring-border"
               style={{
                 ["--accent" as string]: effectiveBrandColor,
               }}
             >
-              <p className="mb-3 text-xs text-zinc-400 dark:text-zinc-500">
+              <p className="mb-3 text-xs text-faint">
                 [body email…]
               </p>
               {isSignatureEmpty(data) ? (
-                <p className="italic text-xs text-zinc-400 dark:text-zinc-500">
+                <p className="italic text-xs text-faint">
                   Isi field di kiri untuk lihat preview.
                 </p>
               ) : mounted ? (
@@ -481,13 +481,13 @@ export function SignatureForm({
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
                 />
               ) : (
-                <div className="h-32 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+                <div className="h-32 animate-pulse rounded-lg bg-surface-sunken" />
               )}
             </div>
 
             {/* Preset chips */}
-            <div className="rounded-xl bg-zinc-50/60 p-3 ring-1 ring-zinc-100 dark:bg-zinc-900/40 dark:ring-zinc-800/60">
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <div className="rounded-xl bg-surface-sunken/60 p-3 ring-1 ring-border">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-muted">
                 Quick start
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -496,7 +496,7 @@ export function SignatureForm({
                     key={p.label}
                     type="button"
                     onClick={() => applyPreset(p)}
-                    className="inline-flex h-7 items-center rounded-full border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-700 dark:hover:bg-zinc-800"
+                    className="inline-flex h-7 items-center rounded-full border border-border bg-surface px-2.5 text-xs font-medium text-ink-secondary transition-colors hover:border-border-strong hover:bg-surface-sunken"
                   >
                     {p.label}
                   </button>
@@ -505,7 +505,7 @@ export function SignatureForm({
                   <button
                     type="button"
                     onClick={clearAll}
-                    className="inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                    className="inline-flex h-7 items-center rounded-full px-2.5 text-xs font-medium text-muted hover:bg-danger-soft hover:text-danger-text"
                   >
                     Clear
                   </button>
@@ -519,17 +519,17 @@ export function SignatureForm({
         <div className="mt-5 flex items-center justify-between gap-3">
           <div className="min-w-0 text-xs">
             {state.error && (
-              <span className="text-red-600 dark:text-red-400">{state.error}</span>
+              <span className="text-danger-text">{state.error}</span>
             )}
             {state.fieldErrors && Object.keys(state.fieldErrors).length > 0 && (
-              <span className="text-red-600 dark:text-red-400">
+              <span className="text-danger-text">
                 {Object.entries(state.fieldErrors)
                   .map(([k, v]) => `${k}: ${v}`)
                   .join(" · ")}
               </span>
             )}
             {state.success && (
-              <span className="text-emerald-600 dark:text-emerald-400">
+              <span className="text-success-text">
                 ✓ Tersimpan — email berikutnya pakai signature ini
               </span>
             )}
@@ -608,7 +608,7 @@ function ColorField({
           type="color"
           value={effective}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-12 cursor-pointer rounded-lg border border-zinc-200/80 bg-white p-0.5 dark:border-zinc-800 dark:bg-zinc-900"
+          className="h-9 w-12 cursor-pointer rounded-lg border border-border/80 bg-surface p-0.5"
         />
         <Input
           value={value ?? ""}
@@ -620,7 +620,7 @@ function ColorField({
           <button
             type="button"
             onClick={() => onChange(undefined)}
-            className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800"
+            className="rounded-md p-1.5 text-faint hover:bg-surface-sunken hover:text-ink-secondary"
             aria-label="Reset"
           >
             <X className="h-3.5 w-3.5" />

@@ -51,11 +51,9 @@ export function ScheduleForm({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-        <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-          Default Schedule
-        </h3>
-        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+      <div className="border-b border-border px-5 py-3">
+        <h3 className="text-[15px] font-semibold text-ink">Default Schedule</h3>
+        <p className="mt-0.5 text-xs text-muted">
           Schedule default untuk send queues di workspace ini. Bisa di-override
           per queue.
         </p>
@@ -66,7 +64,7 @@ export function ScheduleForm({
         <div>
           <FieldLabel>
             <span className="inline-flex items-center gap-1.5">
-              <Calendar className="h-3.5 w-3.5 text-zinc-500" /> Hari Aktif
+              <Calendar className="h-3.5 w-3.5 text-muted" /> Hari Aktif
             </span>
           </FieldLabel>
           <div className="flex flex-wrap gap-2">
@@ -77,10 +75,10 @@ export function ScheduleForm({
                   type="button"
                   key={d.num}
                   onClick={() => toggleDay(d.num)}
-                  className={`inline-flex h-9 w-12 items-center justify-center rounded-lg text-xs font-semibold transition-all ${
+                  className={`inline-flex h-9 w-12 items-center justify-center rounded-md text-xs font-semibold transition-colors ${
                     active
-                      ? "bg-zinc-900 text-zinc-50 shadow-sm dark:bg-zinc-100 dark:text-zinc-900"
-                      : "border border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                      ? "bg-action text-on-action"
+                      : "border border-border bg-surface text-ink-secondary hover:bg-surface-hover"
                   }`}
                 >
                   {d.label}
@@ -95,7 +93,7 @@ export function ScheduleForm({
           <div>
             <FieldLabel>
               <span className="inline-flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-zinc-500" /> Mulai jam
+                <Clock className="h-3.5 w-3.5 text-muted" /> Mulai jam
               </span>
             </FieldLabel>
             <TimePicker
@@ -108,7 +106,7 @@ export function ScheduleForm({
           <div>
             <FieldLabel>
               <span className="inline-flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-zinc-500" /> Sampai jam
+                <Clock className="h-3.5 w-3.5 text-muted" /> Sampai jam
               </span>
             </FieldLabel>
             <TimePicker
@@ -122,7 +120,7 @@ export function ScheduleForm({
           <div>
             <FieldLabel htmlFor="ws-target">
               <span className="inline-flex items-center gap-1.5">
-                <Target className="h-3.5 w-3.5 text-zinc-500" /> Target/hari
+                <Target className="h-3.5 w-3.5 text-muted" /> Target/hari
               </span>
             </FieldLabel>
             <Input
@@ -142,12 +140,12 @@ export function ScheduleForm({
         </FieldDescription>
 
         {state.error && (
-          <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+          <p className="rounded-md border border-danger-soft bg-danger-soft p-3 text-[13px] font-medium text-danger-text">
             {state.error}
           </p>
         )}
         {state.success && (
-          <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400">
+          <p className="rounded-md border border-success-soft bg-success-soft p-3 text-[13px] font-medium text-success-text">
             ✓ Saved
           </p>
         )}

@@ -28,6 +28,7 @@ import {
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Card } from "@/components/ui/card";
+import { ButtonLink } from "@/components/ui/button";
 import { HolidayNotice } from "@/components/holiday-notice";
 import { ApolloCreditNotice } from "@/components/apollo-credit-notice";
 
@@ -58,27 +59,20 @@ export default async function WorkspaceDashboardPage({
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
-      {/* Workspace hero — softer, more breathable, less boxed-in */}
-      <div className="relative mb-8">
-        <div
-          className="pointer-events-none absolute -left-12 -top-12 h-56 w-56 rounded-full opacity-[0.07] blur-3xl"
-          style={{ backgroundColor: workspace.color_theme }}
-        />
-        <div className="relative flex flex-wrap items-end justify-between gap-6">
+      {/* Workspace hero — the one place the display (30px) title is used. */}
+      <div className="mb-8">
+        <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="min-w-0">
-            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-zinc-200/70 bg-white/60 px-2.5 py-1 backdrop-blur-sm dark:border-zinc-800/70 dark:bg-zinc-900/60">
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full"
-                style={{ backgroundColor: workspace.color_theme }}
-              />
-              <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-600 dark:text-zinc-400">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-2.5 py-1">
+              <span className="inline-block size-1.5 rounded-full bg-accent" />
+              <span className="label-eyebrow text-muted">
                 {workspace.business_type}
               </span>
             </div>
-            <h1 className="text-[36px] font-semibold leading-[1.05] tracking-[-0.025em] text-zinc-950 dark:text-zinc-50">
+            <h1 className="text-3xl font-semibold leading-tight tracking-[-0.02em] text-ink">
               {workspace.name}
             </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-muted">
               <span className="inline-flex items-center gap-1.5">
                 <Calendar className="h-3 w-3" />
                 Sen-Jum
@@ -157,14 +151,12 @@ export default async function WorkspaceDashboardPage({
           label="Active queues"
           value={stats.queues_active.toString()}
           icon={Sparkles}
-          tone={stats.queues_active > 0 ? "emerald" : "default"}
         />
         <Link href={`/w/${slug}/inbox`} className="block">
           <StatCard
             label="Pending replies"
             value={stats.pending_replies.toString()}
             icon={Inbox}
-            tone={stats.pending_replies > 0 ? "blue" : "default"}
             hint={
               stats.pending_replies > 0 ? "buka inbox →" : "buka inbox"
             }
@@ -192,7 +184,6 @@ export default async function WorkspaceDashboardPage({
             label="Archived"
             value={stats.archived_total.toLocaleString("id-ID")}
             icon={Archive}
-            tone={stats.archived_total > 0 ? "amber" : "default"}
             hint="auto + manual"
           />
         </Link>
@@ -208,11 +199,11 @@ export default async function WorkspaceDashboardPage({
       <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+            <h2 className="text-ink">
               Recent Replies
             </h2>
             {replies.length > 0 && (
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="text-xs text-muted">
                 {replies.length} terbaru
               </span>
             )}
@@ -225,26 +216,26 @@ export default async function WorkspaceDashboardPage({
             />
           ) : (
             <Card className="overflow-hidden p-0">
-              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <ul className="divide-y divide-border">
                 {replies.map((r) => (
                   <li
                     key={r.id}
-                    className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                    className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-surface-sunken"
                   >
                     <div className="flex min-w-0 flex-1 items-start gap-3">
-                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-info-soft text-info">
                         <MessageCircle className="h-3.5 w-3.5" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                        <p className="truncate text-sm font-medium text-ink">
                           {r.contact_name ?? r.contact_email}
                           {r.contact_company && (
-                            <span className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400">
+                            <span className="ml-1.5 font-normal text-muted">
                               · {r.contact_company}
                             </span>
                           )}
                         </p>
-                        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                        <p className="mt-0.5 text-xs text-muted">
                           {new Date(r.replied_at).toLocaleString("id-ID", {
                             dateStyle: "medium",
                             timeStyle: "short",
@@ -257,7 +248,7 @@ export default async function WorkspaceDashboardPage({
                         href={`https://mail.google.com/mail/u/0/#inbox/${r.gmail_thread_id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-hover"
                       >
                         <ExternalLink className="h-3 w-3" />
                         <span className="hidden sm:inline">Gmail</span>
@@ -271,18 +262,18 @@ export default async function WorkspaceDashboardPage({
         </div>
 
         <div>
-          <h2 className="mb-3 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="mb-3 text-ink">
             Activity
           </h2>
           {activity.length === 0 ? (
             <Card className="p-5">
-              <p className="text-center text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-center text-xs text-muted">
                 Belum ada aktivitas.
               </p>
             </Card>
           ) : (
             <Card className="overflow-hidden p-0">
-              <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <ul className="divide-y divide-border">
                 {activity.map((a) => (
                   <li
                     key={a.id}
@@ -291,10 +282,10 @@ export default async function WorkspaceDashboardPage({
                     <span className="text-base leading-none">
                       {activityEmoji(a.activity_type)}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-zinc-700 dark:text-zinc-300">
+                    <span className="min-w-0 flex-1 truncate text-ink-secondary">
                       {describeActivity(a)}
                     </span>
-                    <span className="shrink-0 text-zinc-400 dark:text-zinc-600">
+                    <span className="shrink-0 text-faint">
                       {timeAgo(a.created_at)}
                     </span>
                   </li>
@@ -307,7 +298,7 @@ export default async function WorkspaceDashboardPage({
 
       {/* Quick action shortcuts */}
       <div className="mt-10">
-        <h2 className="mb-3 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="mb-3 text-ink">
           Quick Actions
         </h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
@@ -316,7 +307,7 @@ export default async function WorkspaceDashboardPage({
             icon={Sparkles}
             title="New Queue"
             description="Setup auto-send"
-            color={workspace.color_theme}
+            accent
           />
           <ShortcutCard
             href={`/w/${slug}/templates/new`}
@@ -352,16 +343,9 @@ function QuickAction({
   children: React.ReactNode;
 }) {
   return (
-    <Link
-      href={href}
-      className={
-        primary
-          ? "inline-flex h-9 items-center gap-1.5 rounded-xl bg-zinc-900 px-3.5 text-[13px] font-medium text-zinc-50 shadow-[0_1px_2px_0_rgb(0_0_0/0.08)] transition-all duration-150 hover:bg-zinc-800 hover:shadow-[0_2px_6px_-1px_rgb(0_0_0/0.12)] active:scale-[0.97] dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white"
-          : "inline-flex h-9 items-center gap-1.5 rounded-2xl border border-zinc-200/70 bg-white px-3.5 text-[13px] font-medium text-zinc-700 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all duration-150 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 hover:shadow-[0_1px_3px_0_rgb(0_0_0/0.08)] active:scale-[0.97] dark:border-zinc-800/80 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800/80 dark:hover:text-zinc-100"
-      }
-    >
+    <ButtonLink href={href} variant={primary ? "primary" : "secondary"} size="sm">
       {children}
-    </Link>
+    </ButtonLink>
   );
 }
 
@@ -370,42 +354,33 @@ function ShortcutCard({
   icon: Icon,
   title,
   description,
-  color,
+  accent,
 }: {
   href: string;
   icon: typeof Sparkles;
   title: string;
   description: string;
-  color?: string;
+  accent?: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="group relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900"
+      className="group rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-strong"
     >
       <div className="flex items-start justify-between">
         <div
-          className="flex h-9 w-9 items-center justify-center rounded-lg"
-          style={
-            color
-              ? { backgroundColor: `${color}15`, color }
-              : undefined
+          className={
+            accent
+              ? "grid size-9 place-items-center rounded-md bg-accent-soft text-accent-text"
+              : "grid size-9 place-items-center rounded-md bg-surface-sunken text-muted"
           }
         >
-          <Icon
-            className="h-4 w-4"
-            style={!color ? undefined : { color }}
-            stroke={color ?? "currentColor"}
-          />
+          <Icon className="h-4 w-4" />
         </div>
-        <ArrowRight className="h-4 w-4 text-zinc-300 transition-all group-hover:translate-x-0.5 group-hover:text-zinc-700 dark:text-zinc-700 dark:group-hover:text-zinc-300" />
+        <ArrowRight className="h-4 w-4 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-ink-secondary" />
       </div>
-      <p className="mt-4 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-        {title}
-      </p>
-      <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-        {description}
-      </p>
+      <p className="mt-4 text-sm font-semibold text-ink">{title}</p>
+      <p className="mt-0.5 text-xs text-muted">{description}</p>
     </Link>
   );
 }

@@ -53,7 +53,7 @@ export function WorkspaceShell({
           - sm:  fixed off-canvas drawer, slides in when open */}
       <div
         className={`fixed inset-y-0 left-0 z-40 transform transition-transform duration-200 ease-out md:relative md:translate-x-0 md:transition-none ${
-          open ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+          open ? "translate-x-0 shadow-[var(--shadow-lg)]" : "-translate-x-full"
         }`}
       >
         {sidebar}
@@ -63,28 +63,25 @@ export function WorkspaceShell({
       <div
         onClick={() => setOpen(false)}
         aria-hidden="true"
-        className={`fixed inset-0 z-30 bg-black/50 transition-opacity duration-200 md:hidden ${
+        className={`fixed inset-0 z-30 bg-zinc-950/45 transition-opacity duration-200 md:hidden ${
           open ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile topbar — hidden on md+ */}
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-zinc-200/80 bg-white/80 px-3 backdrop-blur-md md:hidden dark:border-zinc-800/80 dark:bg-zinc-950/80">
+        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-surface px-3 md:hidden">
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
             aria-label={open ? "Tutup menu" : "Buka menu"}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-700 transition-colors hover:bg-zinc-100 active:bg-zinc-200 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="inline-flex size-9 items-center justify-center rounded-md text-ink-secondary transition-colors hover:bg-surface-hover"
           >
             {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
           <div className="flex min-w-0 items-center gap-1.5">
-            <span
-              className="inline-block h-2 w-2 shrink-0 rounded-full"
-              style={{ backgroundColor: workspace.color_theme }}
-            />
-            <span className="truncate text-sm font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+            <span className="inline-block size-2 shrink-0 rounded-full bg-accent" />
+            <span className="truncate text-sm font-semibold text-ink">
               {workspace.name}
             </span>
           </div>
