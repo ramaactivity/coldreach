@@ -27,6 +27,10 @@ export type Contact = {
   bounce_count: number;
   last_bounce_at: string | null;
   last_bounce_type: "hard" | "soft" | "block" | "spam" | null;
+  enriched_at: string | null;
+  email_verified_at: string | null;
+  email_status: string | null;
+  apollo_id: string | null;
   archived_at: string | null;
   archive_reason:
     | "hard_bounce"
@@ -102,6 +106,7 @@ export async function listContacts(
       total_emails_sent_all_workspaces, total_opens_all_workspaces,
       total_replies_all_workspaces, last_contacted_at_any, last_engaged_at,
       engagement_score, bounce_count, last_bounce_at, last_bounce_type,
+      enriched_at, email_verified_at, email_status, apollo_id,
       archived_at, archive_reason,
       unsubscribe_token, created_at, updated_at, deleted_at,
       workspace_data:contact_workspace_data!left(

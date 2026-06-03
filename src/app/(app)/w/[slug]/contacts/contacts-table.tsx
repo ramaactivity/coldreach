@@ -13,6 +13,7 @@ import {
   Archive,
   RotateCcw,
   ShieldCheck,
+  ShieldAlert,
 } from "lucide-react";
 import type { ContactWithWorkspaceData } from "@/lib/contacts";
 import type { PipelineStage } from "@/lib/workspace-constants";
@@ -153,6 +154,7 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                 </th>
                 <th className="px-5 py-3 font-semibold">Name</th>
                 <th className="px-5 py-3 font-semibold">Company</th>
+                <th className="px-5 py-3 font-semibold">Email</th>
                 <th className="px-5 py-3 font-semibold">Stage</th>
                 <th className="px-5 py-3 font-semibold">Tags</th>
                 <th className="px-5 py-3 font-semibold">Last Contacted</th>
@@ -208,6 +210,9 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                           {c.position}
                         </div>
                       )}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <VerifyMark c={c} />
                     </td>
                     <td className="px-5 py-3.5">
                       {stage ? (
@@ -503,6 +508,39 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
         </div>
       )}
     </>
+  );
+}
+
+function VerifyMark({ c }: { c: ContactWithWorkspaceData }) {
+  if (c.email_verified_at) {
+    return (
+      <span
+        title={`Email terverifikasi Apollo${c.email_status ? ` (${c.email_status})` : ""}`}
+        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/15 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-500/25"
+      >
+        <ShieldCheck className="h-3 w-3" />
+        Verified
+      </span>
+    );
+  }
+  if (c.enriched_at) {
+    return (
+      <span
+        title={`Dicek Apollo tapi email tidak terverifikasi${c.email_status ? ` (${c.email_status})` : ""}`}
+        className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/15 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-500/25"
+      >
+        <ShieldAlert className="h-3 w-3" />
+        Berisiko
+      </span>
+    );
+  }
+  return (
+    <span
+      title="Belum diverifikasi"
+      className="text-xs text-zinc-400 dark:text-zinc-600"
+    >
+      —
+    </span>
   );
 }
 

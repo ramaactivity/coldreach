@@ -1,6 +1,15 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Mail, Building2, Archive, RotateCcw, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  Mail,
+  Building2,
+  Archive,
+  RotateCcw,
+  AlertTriangle,
+  ShieldCheck,
+  ShieldAlert,
+} from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { getContactById } from "@/lib/contacts";
 import { listTemplates } from "@/lib/templates";
@@ -129,6 +138,17 @@ export default async function ContactDetailPage({
                 {contact.company}
               </span>
             )}
+            {contact.email_verified_at ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/15 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-500/25">
+                <ShieldCheck className="h-3 w-3" />
+                Email terverifikasi
+              </span>
+            ) : contact.enriched_at ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/15 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-500/25">
+                <ShieldAlert className="h-3 w-3" />
+                Email berisiko
+              </span>
+            ) : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
