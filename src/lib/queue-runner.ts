@@ -413,15 +413,12 @@ export async function runQueue(
       continue;
     }
 
-    // Cross-workspace daily dedup: if this contact's email already received
-    // (or is mid-receiving) an email today from any of this user's
-    // workspaces, skip — leave queue_recipient pending so it's retried
-    // tomorrow.
+    // Cross-workspace dedup: if this contact's email was already touched
+    // (or is mid-receiving) within the dedup window by any of this user's
+    // workspaces, skip THIS run but leave the queue_recipient PENDING so it
+    // becomes eligible again once the window passes — do NOT mark it
+    // 'skipped' (that would drop the contact from this queue forever).
     if (dedupedEmails.has(contact.email.toLowerCase())) {
-      await admin
-        .from("queue_recipients")
-        .update({ status: "skipped" })
-        .eq("id", recipient.id);
       result.skipped++;
       continue;
     }
@@ -442,10 +439,7 @@ export async function runQueue(
         .limit(1)
         .maybeSingle();
       if (raceRow) {
-        await admin
-          .from("queue_recipients")
-          .update({ status: "skipped" })
-          .eq("id", recipient.id);
+        // Same as above: leave PENDING so it retries after the dedup window.
         dedupedEmails.add(contact.email.toLowerCase());
         result.skipped++;
         continue;
