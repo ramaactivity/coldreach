@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Apollo credit estimate. Apollo's live balance isn't exposed via API, so we
 // estimate: start from the monthly limit (or a manual sync baseline) and
@@ -84,10 +85,13 @@ export async function getApolloCreditStatus(
     spendSinceMs = new Date(syncedAt).getTime();
   }
 
-  // Sum credits spent via ColdReach since the baseline point.
+  // Sum credits spent via ColdReach since the baseline point. activity_log is
+  // service-role-only under RLS, so read it with the admin client (a
+  // user-scoped read returns nothing).
   let spent = 0;
   try {
-    const { data: rows } = await supabase
+    const admin = createAdminClient();
+    const { data: rows } = await admin
       .from("activity_log")
       .select("metadata, created_at")
       .eq("user_id", userId)

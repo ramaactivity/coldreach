@@ -63,10 +63,14 @@ export type ApolloPerson = {
 
 export type ApolloSearchCriteria = {
   titles?: string[];
-  locations?: string[]; // person locations, e.g. ["Indonesia"]
+  locations?: string[]; // person locations, e.g. ["Jakarta, Indonesia"]
   keywords?: string; // free-text (industry / company keyword)
   employeeRanges?: string[]; // e.g. ["1,10","11,50"]
   perPage?: number; // default 25, max 100
+  // Default true → only "Net New" (not already saved by your Apollo team),
+  // which excludes people you likely already exported to ColdReach and saves
+  // reveal credits. Set false to also include already-saved people.
+  netNewOnly?: boolean;
 };
 
 export type ApolloSearchResult = {
@@ -124,6 +128,8 @@ export async function apolloSearchPeople(
   if (criteria.keywords?.trim()) body.q_keywords = criteria.keywords.trim();
   if (criteria.employeeRanges?.length)
     body.organization_num_employees_ranges = criteria.employeeRanges;
+  // Net New only (exclude people already saved/prospected by your team).
+  if (criteria.netNewOnly !== false) body.prospected_by_current_team = ["no"];
 
   const data = (await apolloPost("/mixed_people/api_search", body)) as Record<
     string,

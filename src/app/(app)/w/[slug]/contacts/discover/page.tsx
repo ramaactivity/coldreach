@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getApolloCreditStatus } from "@/lib/apollo-credits";
 import { PageHeader } from "@/components/ui/page-header";
 import { DiscoverClient } from "./discover-client";
+import type { ApolloPersona } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,11 @@ function presetTitles(businessType: string | null): string {
   }
 }
 
+// Jabodetabek + sekitarnya — semua bisnis di Kota Bogor, target harus
+// terjangkau dari Bogor (bukan "Indonesia" yang terlalu luas).
+const PRESET_LOCATIONS =
+  "Bogor, Jakarta, Depok, Tangerang, Bekasi, Tangerang Selatan";
+
 export default async function DiscoverPage({
   params,
 }: {
@@ -38,6 +44,17 @@ export default async function DiscoverPage({
   const supabase = await createClient();
   const credit = await getApolloCreditStatus(supabase, user.id);
   const apiKeyConfigured = !!process.env.APOLLO_API_KEY;
+
+  // Saved personas (named presets) live in users.preferences.
+  const { data: prefRow } = await supabase
+    .from("users")
+    .select("preferences")
+    .eq("id", user.id)
+    .maybeSingle();
+  const personas = (
+    ((prefRow as { preferences?: { apollo_personas?: unknown } } | null)
+      ?.preferences?.apollo_personas as ApolloPersona[] | undefined) ?? []
+  ).filter((p) => p && p.id && p.name);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-8">
@@ -80,7 +97,9 @@ export default async function DiscoverPage({
       <DiscoverClient
         slug={slug}
         presetTitles={presetTitles(workspace.business_type)}
+        presetLocations={PRESET_LOCATIONS}
         credit={credit}
+        personas={personas}
         disabled={!apiKeyConfigured}
       />
     </div>

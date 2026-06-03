@@ -16,8 +16,11 @@ import {
   importApollo,
   quickImportApollo,
   syncApolloCredits,
+  saveApolloPersona,
+  deleteApolloPersona,
   type DiscoverPerson,
   type ImportResult,
+  type ApolloPersona,
 } from "./actions";
 
 function splitTitles(s: string): string[] {
@@ -30,12 +33,16 @@ function splitTitles(s: string): string[] {
 export function DiscoverClient({
   slug,
   presetTitles,
+  presetLocations,
   credit,
+  personas,
   disabled,
 }: {
   slug: string;
   presetTitles: string;
+  presetLocations: string;
   credit: ApolloCreditStatus;
+  personas: ApolloPersona[];
   disabled: boolean;
 }) {
   const router = useRouter();
@@ -43,10 +50,15 @@ export function DiscoverClient({
   const [pending, startTransition] = useTransition();
 
   const [titles, setTitles] = useState(presetTitles);
-  const [location, setLocation] = useState("Indonesia");
+  const [location, setLocation] = useState(presetLocations);
   const [keywords, setKeywords] = useState("");
+  const [netNewOnly, setNetNewOnly] = useState(true);
   const [quickN, setQuickN] = useState(25);
+  const [selectN, setSelectN] = useState(50);
   const [syncVal, setSyncVal] = useState("");
+
+  const [personaList, setPersonaList] = useState<ApolloPersona[]>(personas);
+  const [activePersona, setActivePersona] = useState("");
 
   const [people, setPeople] = useState<DiscoverPerson[]>([]);
   const [page, setPage] = useState(1);
@@ -59,10 +71,60 @@ export function DiscoverClient({
   function criteria() {
     return {
       titles: splitTitles(titles),
-      locations: location.trim() ? [location.trim()] : undefined,
+      locations: splitTitles(location), // comma/newline separated
       keywords: keywords.trim() || undefined,
+      netNewOnly,
       perPage: 50,
     };
+  }
+
+  function loadPersona(id: string) {
+    setActivePersona(id);
+    const p = personaList.find((x) => x.id === id);
+    if (!p) return;
+    setTitles(p.titles);
+    setLocation(p.locations);
+    setKeywords(p.keywords);
+    setNetNewOnly(p.netNewOnly);
+  }
+
+  async function savePersona() {
+    const name = window.prompt("Nama persona (mis. Catering Corporate Bogor):");
+    if (!name?.trim()) return;
+    startTransition(async () => {
+      const res = await saveApolloPersona(slug, {
+        name: name.trim(),
+        titles,
+        locations: location,
+        keywords,
+        netNewOnly,
+      });
+      if (res.error) toast.error(res.error);
+      else {
+        toast.success(`Persona "${name.trim()}" disimpan.`);
+        if (res.personas) setPersonaList(res.personas);
+      }
+    });
+  }
+
+  async function removePersona() {
+    if (!activePersona) return;
+    const p = personaList.find((x) => x.id === activePersona);
+    const ok = await confirm({
+      title: `Hapus persona "${p?.name ?? ""}"?`,
+      confirmLabel: "Hapus",
+      destructive: true,
+    });
+    if (!ok) return;
+    startTransition(async () => {
+      const res = await deleteApolloPersona(slug, activePersona);
+      if (res.error) toast.error(res.error);
+      else {
+        toast.success("Persona dihapus.");
+        setPersonaList(res.personas ?? []);
+        setActivePersona("");
+      }
+    });
   }
 
   // Candidates on the current page that can still be imported.
@@ -248,6 +310,43 @@ export function DiscoverClient({
 
       {/* Search form */}
       <Card className="p-5">
+        {/* Persona presets */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            Persona:
+          </span>
+          <select
+            value={activePersona}
+            onChange={(e) => loadPersona(e.target.value)}
+            className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-xs text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+          >
+            <option value="">— pilih persona tersimpan —</option>
+            {personaList.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={savePersona}
+            disabled={pending}
+            className="rounded-full border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          >
+            + Simpan persona
+          </button>
+          {activePersona && (
+            <button
+              type="button"
+              onClick={removePersona}
+              disabled={pending}
+              className="rounded-full px-2 py-1 text-xs font-medium text-red-500 hover:underline"
+            >
+              Hapus
+            </button>
+          )}
+        </div>
+
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <FieldLabel htmlFor="titles">Jabatan target (pisah koma)</FieldLabel>
@@ -259,12 +358,12 @@ export function DiscoverClient({
             />
           </div>
           <div>
-            <FieldLabel htmlFor="loc">Lokasi</FieldLabel>
+            <FieldLabel htmlFor="loc">Lokasi (pisah koma)</FieldLabel>
             <Input
               id="loc"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Indonesia"
+              placeholder="Bogor, Jakarta, Depok, Tangerang, Bekasi"
             />
           </div>
           <div>
@@ -277,6 +376,18 @@ export function DiscoverClient({
             />
           </div>
         </div>
+
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+          <input
+            type="checkbox"
+            checked={netNewOnly}
+            onChange={(e) => setNetNewOnly(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/40 dark:border-zinc-700"
+          />
+          Hanya <strong>Net New</strong> — lewati kontak yang sudah kamu simpan
+          di Apollo (kemungkinan sudah di ColdReach). Hemat kredit.
+        </label>
+
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button onClick={() => runSearch(1)} disabled={disabled || pending}>
             <Search className="h-4 w-4" />
@@ -301,6 +412,14 @@ export function DiscoverClient({
             >
               Ambil
             </Button>
+            <button
+              type="button"
+              onClick={() => setQuickN(Math.max(1, credit.remainingEst))}
+              className="text-xs font-medium text-amber-600 hover:underline dark:text-amber-400"
+              title="Set jumlah = sisa kredit estimasi"
+            >
+              pakai semua sisa kredit (≈{credit.remainingEst})
+            </button>
           </div>
         </div>
       </Card>
@@ -341,6 +460,24 @@ export function DiscoverClient({
                   {n} teratas
                 </button>
               ))}
+              {/* arbitrary N */}
+              <span className="inline-flex items-center gap-1 rounded-full border border-zinc-200 py-0.5 pl-2.5 pr-1 dark:border-zinc-700">
+                <input
+                  type="number"
+                  value={selectN}
+                  onChange={(e) =>
+                    setSelectN(Math.max(1, parseInt(e.target.value, 10) || 1))
+                  }
+                  className="w-12 bg-transparent text-zinc-700 outline-none dark:text-zinc-300"
+                />
+                <button
+                  type="button"
+                  onClick={() => selectTopN(selectN)}
+                  className="rounded-full bg-zinc-900 px-2 py-0.5 font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                >
+                  pilih
+                </button>
+              </span>
               <button
                 type="button"
                 onClick={selectAllOnPage}

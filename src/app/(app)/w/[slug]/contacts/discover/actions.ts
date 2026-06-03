@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
   apolloSearchPeople,
@@ -181,15 +182,19 @@ async function doImport(
     }
   }
 
-  // Log credit spend for the workspace stat card + reminder.
+  // Log credit spend for the workspace stat card + reminder. activity_log is
+  // service-role-only under RLS, so use the admin client (a user-scoped insert
+  // is silently rejected — that's why the estimate didn't move before).
   if (creditsUsed > 0) {
-    await supabase.from("activity_log").insert({
+    const admin = createAdminClient();
+    const { error: logErr } = await admin.from("activity_log").insert({
       user_id: userId,
       workspace_id: workspaceId,
       activity_type: "apollo_credits_used",
       entity_type: "contacts",
       metadata: { count: creditsUsed, imported, found },
     });
+    if (logErr) console.error("apollo_credits_used log failed:", logErr.message);
   }
 
   revalidatePath(`/w/${slug}/contacts`);
@@ -212,7 +217,11 @@ export async function importApollo(
   }
 }
 
-/** Quick mode: search → take first N not-yet-sourced → import. */
+/**
+ * Quick mode: walk free search pages, collect the first N people that aren't
+ * already in ColdReach (by apollo_id), then import. Supports large N (e.g.
+ * "use all remaining credits") via multi-page gather.
+ */
 export async function quickImportApollo(
   slug: string,
   criteria: ApolloSearchCriteria,
@@ -220,25 +229,39 @@ export async function quickImportApollo(
 ): Promise<ImportResult> {
   const { supabase, user, workspace } = await authWorkspace(slug);
   if (!workspace) return { error: "Workspace not found" };
-  const want = Math.min(100, Math.max(1, Math.floor(n)));
+  const want = Math.max(1, Math.floor(n));
+  const MAX_PAGES = 40; // safety bound; search is free but rate-limited
 
   try {
-    const res = await apolloSearchPeople(
-      { ...criteria, perPage: Math.min(100, want * 2) },
-      1,
-    );
-    const ids = res.people.map((p) => p.id);
-    if (ids.length === 0) return { found: 0, deduped: 0, imported: 0, credits_used: 0 };
-    const { data: known } = await supabase
-      .from("contacts")
-      .select("apollo_id")
-      .eq("user_id", user.id)
-      .in("apollo_id", ids);
-    const knownIds = new Set(
-      (known ?? []).map((r) => (r as { apollo_id: string }).apollo_id),
-    );
-    const pick = ids.filter((id) => !knownIds.has(id)).slice(0, want);
-    return await doImport(supabase, user.id, workspace.id, slug, pick);
+    const collected: string[] = [];
+    const seen = new Set<string>();
+    for (let page = 1; page <= MAX_PAGES && collected.length < want; page++) {
+      const res = await apolloSearchPeople({ ...criteria, perPage: 100 }, page);
+      if (res.people.length === 0) break;
+      const pageIds = res.people
+        .map((p) => p.id)
+        .filter((id) => !seen.has(id));
+      pageIds.forEach((id) => seen.add(id));
+      // Dedup vs ColdReach (free) before collecting.
+      const { data: known } = await supabase
+        .from("contacts")
+        .select("apollo_id")
+        .eq("user_id", user.id)
+        .in("apollo_id", pageIds.length ? pageIds : ["__none__"]);
+      const knownIds = new Set(
+        (known ?? []).map((r) => (r as { apollo_id: string }).apollo_id),
+      );
+      for (const id of pageIds) {
+        if (!knownIds.has(id)) {
+          collected.push(id);
+          if (collected.length >= want) break;
+        }
+      }
+      if (page >= res.totalPages) break;
+    }
+    if (collected.length === 0)
+      return { found: 0, deduped: 0, imported: 0, credits_used: 0 };
+    return await doImport(supabase, user.id, workspace.id, slug, collected);
   } catch (e) {
     return { error: e instanceof Error ? e.message : "Quick import gagal" };
   }
@@ -263,4 +286,93 @@ export async function syncApolloCredits(
   revalidatePath(`/w/${slug}/dashboard`);
   revalidatePath(`/w/${slug}/contacts/discover`);
   return { ok: true };
+}
+
+// --- Personas: named search presets, stored in users.preferences.apollo_personas ---
+
+export type ApolloPersona = {
+  id: string;
+  name: string;
+  titles: string;
+  locations: string;
+  keywords: string;
+  netNewOnly: boolean;
+};
+
+async function readPersonas(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<ApolloPersona[]> {
+  const { data } = await supabase
+    .from("users")
+    .select("preferences")
+    .eq("id", userId)
+    .maybeSingle();
+  const prefs = (data as { preferences?: Record<string, unknown> } | null)
+    ?.preferences;
+  const list = prefs?.apollo_personas;
+  return Array.isArray(list) ? (list as ApolloPersona[]) : [];
+}
+
+async function writePersonas(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  personas: ApolloPersona[],
+): Promise<{ error?: string }> {
+  const { data } = await supabase
+    .from("users")
+    .select("preferences")
+    .eq("id", userId)
+    .maybeSingle();
+  const prefs =
+    ((data as { preferences?: Record<string, unknown> } | null)
+      ?.preferences as Record<string, unknown>) ?? {};
+  const { error } = await supabase
+    .from("users")
+    .update({ preferences: { ...prefs, apollo_personas: personas } })
+    .eq("id", userId);
+  return { error: error?.message };
+}
+
+export async function saveApolloPersona(
+  slug: string,
+  persona: Omit<ApolloPersona, "id"> & { id?: string },
+): Promise<{ error?: string; personas?: ApolloPersona[] }> {
+  const { supabase, user, workspace } = await authWorkspace(slug);
+  if (!workspace) return { error: "Workspace not found" };
+  if (!persona.name?.trim()) return { error: "Nama persona wajib diisi" };
+
+  const personas = await readPersonas(supabase, user.id);
+  const id = persona.id ?? crypto.randomUUID();
+  const next: ApolloPersona = {
+    id,
+    name: persona.name.trim(),
+    titles: persona.titles ?? "",
+    locations: persona.locations ?? "",
+    keywords: persona.keywords ?? "",
+    netNewOnly: persona.netNewOnly ?? true,
+  };
+  const idx = personas.findIndex((p) => p.id === id);
+  if (idx >= 0) personas[idx] = next;
+  else personas.push(next);
+
+  const res = await writePersonas(supabase, user.id, personas);
+  if (res.error) return { error: res.error };
+  revalidatePath(`/w/${slug}/contacts/discover`);
+  return { personas };
+}
+
+export async function deleteApolloPersona(
+  slug: string,
+  id: string,
+): Promise<{ error?: string; personas?: ApolloPersona[] }> {
+  const { supabase, user, workspace } = await authWorkspace(slug);
+  if (!workspace) return { error: "Workspace not found" };
+  const personas = (await readPersonas(supabase, user.id)).filter(
+    (p) => p.id !== id,
+  );
+  const res = await writePersonas(supabase, user.id, personas);
+  if (res.error) return { error: res.error };
+  revalidatePath(`/w/${slug}/contacts/discover`);
+  return { personas };
 }
