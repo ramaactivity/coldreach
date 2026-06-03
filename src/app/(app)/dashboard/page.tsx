@@ -3,30 +3,31 @@ import Link from "next/link";
 import {
   Send,
   TrendingUp,
+  Eye,
   MessageCircle,
   Inbox,
+  Users,
+  FileText,
+  Sparkles,
+  Coins,
+  AlertTriangle,
   ArrowUpRight,
   Plus,
   ExternalLink,
-  Sparkles,
 } from "lucide-react";
 import { requireCurrentUser } from "@/lib/supabase/session-helpers";
 import { getUserWorkspaces } from "@/lib/workspaces";
+import { createClient } from "@/lib/supabase/server";
+import { getApolloCreditStatus } from "@/lib/apollo-credits";
 import { SimpleTopbar } from "@/components/simple-topbar";
-import {
-  getWorkspaceStats,
-  getRecentReplies,
-  getDailySeries,
-} from "@/lib/stats";
+import { getWorkspaceStats, getRecentReplies } from "@/lib/stats";
+import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
-import { Sparkline, MiniBars, RadialGauge } from "@/components/ui/chart";
 import { HolidayNotice } from "@/components/holiday-notice";
 import { accentFromColorTheme } from "@/lib/workspace-constants";
 import { cn } from "@/lib/utils";
-
-const DAYS = 7;
 
 export default async function DashboardPage() {
   const user = await requireCurrentUser();
@@ -39,34 +40,49 @@ export default async function DashboardPage() {
     redirect(`/w/${workspaces[0].slug}/dashboard`);
   }
 
-  const [allStats, allSeries, recentReplies] = await Promise.all([
+  const supabase = await createClient();
+  const [allStats, recentReplies, contactsRes, apollo] = await Promise.all([
     Promise.all(workspaces.map((w) => getWorkspaceStats(w.id))),
-    Promise.all(workspaces.map((w) => getDailySeries(w.id, DAYS))),
     getRecentReplies(null, 10),
+    // Total active contacts in the shared pool (user-scoped, not per-workspace).
+    supabase
+      .from("contacts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .is("deleted_at", null)
+      .is("archived_at", null),
+    getApolloCreditStatus(supabase, user.id).catch(() => null),
   ]);
 
-  const totals = allStats.reduce(
+  const t = allStats.reduce(
     (acc, s) => ({
       sent_today: acc.sent_today + s.sent_today,
       sent_7d: acc.sent_7d + s.sent_7d,
+      opened_7d: acc.opened_7d + s.opened_7d,
       replied_7d: acc.replied_7d + s.replied_7d,
       pending_replies: acc.pending_replies + s.pending_replies,
+      bounced_7d: acc.bounced_7d + s.bounced_7d,
+      templates_total: acc.templates_total + s.templates_total,
+      queues_active: acc.queues_active + s.queues_active,
     }),
-    { sent_today: 0, sent_7d: 0, replied_7d: 0, pending_replies: 0 },
+    {
+      sent_today: 0,
+      sent_7d: 0,
+      opened_7d: 0,
+      replied_7d: 0,
+      pending_replies: 0,
+      bounced_7d: 0,
+      templates_total: 0,
+      queues_active: 0,
+    },
   );
 
-  // Element-wise sum of the per-workspace daily series → aggregate trend.
-  const aggSent = Array.from({ length: DAYS }, (_, i) =>
-    allSeries.reduce((sum, ser) => sum + (ser[i]?.sent ?? 0), 0),
-  );
-  const aggReplied = Array.from({ length: DAYS }, (_, i) =>
-    allSeries.reduce((sum, ser) => sum + (ser[i]?.replied ?? 0), 0),
-  );
-
-  const replyRate7d =
-    totals.sent_7d > 0
-      ? Math.round((totals.replied_7d / totals.sent_7d) * 100)
-      : 0;
+  const totalContacts = contactsRes.count ?? 0;
+  const openRate = t.sent_7d > 0 ? Math.round((t.opened_7d / t.sent_7d) * 100) : 0;
+  const replyRate =
+    t.sent_7d > 0 ? Math.round((t.replied_7d / t.sent_7d) * 100) : 0;
+  const bounceRate =
+    t.sent_7d > 0 ? Math.round((t.bounced_7d / t.sent_7d) * 100) : 0;
 
   return (
     <>
@@ -85,46 +101,101 @@ export default async function DashboardPage() {
 
         <HolidayNotice />
 
-        {/* Aggregate KPIs — number + 7-day trend */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard
+        {/* Sending & performance */}
+        <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+          <StatCard
             label="Sent today"
-            value={totals.sent_today}
+            value={t.sent_today.toLocaleString("id-ID")}
             icon={Send}
-            spark={aggSent}
+            hint="seluruh workspace"
           />
-          <KpiCard
+          <StatCard
             label="Sent (7d)"
-            value={totals.sent_7d}
+            value={t.sent_7d.toLocaleString("id-ID")}
             icon={TrendingUp}
-            spark={aggSent}
           />
-          <KpiCard
-            label="Replied (7d)"
-            value={totals.replied_7d}
+          <StatCard
+            label="Open rate"
+            value={`${openRate}%`}
+            icon={Eye}
+            tone="success"
+            hint={`${t.opened_7d.toLocaleString("id-ID")} opened (7d)`}
+          />
+          <StatCard
+            label="Reply rate"
+            value={`${replyRate}%`}
             icon={MessageCircle}
             tone="info"
-            spark={aggReplied}
-            hint={replyRate7d > 0 ? `${replyRate7d}% reply rate` : undefined}
-          />
-          <KpiCard
-            label="Pending replies"
-            value={totals.pending_replies}
-            icon={Inbox}
-            href="/inbox"
-            cta={totals.pending_replies > 0 ? "buka inbox →" : "inbox kosong"}
-            highlight={totals.pending_replies > 0}
+            hint={`${t.replied_7d.toLocaleString("id-ID")} replied (7d)`}
           />
         </div>
 
-        {/* Workspaces — quota gauge + send trend per business */}
+        {/* Scale & resources */}
+        <div className="mt-3.5 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+          <StatCard
+            label="Total contacts"
+            value={totalContacts.toLocaleString("id-ID")}
+            icon={Users}
+            hint="shared pool · aktif"
+          />
+          <StatCard
+            label="Templates"
+            value={t.templates_total.toLocaleString("id-ID")}
+            icon={FileText}
+            hint="semua workspace"
+          />
+          <StatCard
+            label="Active queues"
+            value={t.queues_active.toLocaleString("id-ID")}
+            icon={Sparkles}
+            hint="lagi jalan"
+          />
+          {apollo ? (
+            <StatCard
+              label="Kredit Apollo"
+              value={`≈${apollo.remainingEst.toLocaleString("id-ID")}`}
+              icon={Coins}
+              hint={`reset ${apollo.daysToReset} hari lagi`}
+            />
+          ) : (
+            <Link href="/inbox" className="block">
+              <StatCard
+                label="Pending replies"
+                value={t.pending_replies.toLocaleString("id-ID")}
+                icon={Inbox}
+                hint="buka inbox →"
+              />
+            </Link>
+          )}
+        </div>
+
+        {/* Attention — only when Apollo occupied the slot above */}
+        {apollo && (
+          <div className="mt-3.5 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+            <Link href="/inbox" className="block">
+              <StatCard
+                label="Pending replies"
+                value={t.pending_replies.toLocaleString("id-ID")}
+                icon={Inbox}
+                hint="buka inbox →"
+              />
+            </Link>
+            <StatCard
+              label="Bounced (7d)"
+              value={t.bounced_7d.toLocaleString("id-ID")}
+              icon={AlertTriangle}
+              tone={t.bounced_7d > 0 ? "danger" : "default"}
+              hint={t.sent_7d > 0 ? `${bounceRate}% bounce rate` : "delivery"}
+            />
+          </div>
+        )}
+
+        {/* Workspaces */}
         <h2 className="mb-3 mt-10 text-ink">Workspaces</h2>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
           {workspaces.map((ws, i) => {
             const s = allStats[i];
-            const sentSeries = allSeries[i].map((d) => d.sent);
-            const quotaSent = s.quota_today?.sent ?? s.sent_today;
-            const quotaMax = s.quota_today?.quota ?? ws.daily_target;
+            const quota = s.quota_today;
             return (
               <Link
                 key={ws.id}
@@ -146,18 +217,17 @@ export default async function DashboardPage() {
                   </h3>
                   <p className="mt-0.5 text-xs text-muted">
                     {ws.schedule_start_time.slice(0, 5)} –{" "}
-                    {ws.schedule_end_time.slice(0, 5)} WIB · {ws.daily_target}
-                    /hari
+                    {ws.schedule_end_time.slice(0, 5)} WIB
+                    {quota && (
+                      <>
+                        {" · "}
+                        <span className="tabular">
+                          {quota.sent}/{quota.quota}
+                        </span>{" "}
+                        quota
+                      </>
+                    )}
                   </p>
-                </div>
-
-                {/* Quota gauge + 7-day send trend */}
-                <div className="flex items-center gap-4">
-                  <RadialGauge value={quotaSent} max={quotaMax} />
-                  <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="label-eyebrow text-faint">Sent · 7d</span>
-                    <MiniBars data={sentSeries} className="w-full" />
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 border-t border-border pt-3">
@@ -166,7 +236,7 @@ export default async function DashboardPage() {
                   <Mini label="Replied" value={s.replied_7d} tone="info" />
                 </div>
 
-                {s.queues_active > 0 && (
+                {s.queues_active > 0 ? (
                   <span className="flex items-center gap-2 text-xs font-medium text-success-text">
                     <span className="relative flex size-1.5">
                       <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
@@ -174,6 +244,8 @@ export default async function DashboardPage() {
                     </span>
                     {s.queues_active} active queue{s.queues_active > 1 ? "s" : ""}
                   </span>
+                ) : (
+                  <span className="text-xs text-faint">No active queue</span>
                 )}
               </Link>
             );
@@ -250,80 +322,6 @@ export default async function DashboardPage() {
         )}
       </main>
     </>
-  );
-}
-
-function KpiCard({
-  label,
-  value,
-  icon: Icon,
-  spark,
-  tone = "ink",
-  hint,
-  href,
-  cta,
-  highlight,
-}: {
-  label: string;
-  value: number;
-  icon: typeof Send;
-  spark?: number[];
-  tone?: "ink" | "info";
-  hint?: string;
-  href?: string;
-  cta?: string;
-  highlight?: boolean;
-}) {
-  const body = (
-    <div
-      className={cn(
-        "flex h-full flex-col rounded-lg border bg-surface p-5 transition-colors",
-        highlight ? "border-accent-border" : "border-border",
-        href && "hover:border-border-strong",
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <span className="label-eyebrow">{label}</span>
-        <span
-          className={cn(
-            "grid size-8 place-items-center rounded-md",
-            highlight ? "bg-accent-soft text-accent-text" : "bg-surface-sunken text-muted",
-          )}
-        >
-          <Icon className="h-4 w-4" />
-        </span>
-      </div>
-      <p
-        className={cn(
-          "mt-3 text-3xl font-semibold leading-none tabular",
-          tone === "info" ? "text-info" : "text-ink",
-        )}
-      >
-        {value.toLocaleString("id-ID")}
-      </p>
-      <div className="mt-3 flex-1">
-        {spark && spark.some((v) => v > 0) ? (
-          <Sparkline data={spark} />
-        ) : null}
-      </div>
-      {(hint || cta) && (
-        <p
-          className={cn(
-            "mt-1 text-[13px]",
-            highlight ? "font-medium text-accent-text" : "text-muted",
-          )}
-        >
-          {cta ?? hint}
-        </p>
-      )}
-    </div>
-  );
-  return href ? (
-    <Link href={href} className="block">
-      {body}
-    </Link>
-  ) : (
-    body
   );
 }
 
