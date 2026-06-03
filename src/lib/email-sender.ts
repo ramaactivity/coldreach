@@ -21,6 +21,7 @@ export type EmailContact = {
 export type EmailTemplate = {
   id: string;
   subject_lines: string[];
+  subject_lines_en?: string[] | null;
   body_plain: string;
   body_plain_en?: string | null;
 };
@@ -364,9 +365,17 @@ export async function sendEmail(
 
     // Render variables
     const values = buildContactValues(contact, aiOpener);
+    // Subject pool follows the same language as the body. Falls back to the
+    // Indonesian subject_lines when no English variants are authored.
+    const subjectPool =
+      language === "en" &&
+      template.subject_lines_en &&
+      template.subject_lines_en.length > 0
+        ? template.subject_lines_en
+        : template.subject_lines;
     const picked = forcedSubject
       ? { value: forcedSubject, index: -1 }
-      : pickRandomSubject(template.subject_lines);
+      : pickRandomSubject(subjectPool);
     const baseSubject = picked.value;
     const renderedSubject = renderPreview(baseSubject, values);
     const subject = subjectPrefix

@@ -7,6 +7,7 @@ export type Template = {
   name: string;
   category: string | null;
   subject_lines: string[];
+  subject_lines_en: string[] | null;
   body_html: string;
   body_plain: string;
   body_plain_en: string | null;

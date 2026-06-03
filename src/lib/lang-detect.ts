@@ -101,3 +101,51 @@ export function detectContactLanguage(contact: {
 
   return "id";
 }
+
+// International consumer webmail — these are individuals, so default to
+// Indonesian even though the TLD is .com. Corporate/company domains fall
+// through to English in languageFromEmailDomain().
+const INTL_WEBMAIL_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "yahoo.com",
+  "yahoo.co.id",
+  "ymail.com",
+  "rocketmail.com",
+  "outlook.com",
+  "hotmail.com",
+  "hotmail.co.id",
+  "live.com",
+  "msn.com",
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  "aol.com",
+  "proton.me",
+  "protonmail.com",
+  "gmx.com",
+  "zoho.com",
+  "mail.com",
+]);
+
+/**
+ * Automatic, zero-cost language pick from the email DOMAIN alone. This is the
+ * source of truth for the send paths (queue-runner / follow-up / manual send)
+ * — `language_pref` is intentionally ignored so behaviour is fully automatic
+ * and never depends on per-contact tagging.
+ *
+ * Rules (errs toward Indonesian; English only for company domains):
+ *   - Indonesian TLD / local provider     → id
+ *   - International consumer webmail       → id (individuals)
+ *   - Any other (corporate / intl) domain  → en  (big/international firms —
+ *     people there operate in English)
+ *   - Unknown / malformed                 → id
+ */
+export function languageFromEmailDomain(email: string): "id" | "en" {
+  const dom = domainOf(email);
+  if (!dom) return "id";
+  if (ID_TLDS.some((suffix) => dom.endsWith(suffix))) return "id";
+  if (ID_FREE_DOMAINS.has(dom)) return "id";
+  if (INTL_WEBMAIL_DOMAINS.has(dom)) return "id";
+  return "en";
+}

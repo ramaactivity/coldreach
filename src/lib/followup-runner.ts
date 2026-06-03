@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
-import { detectContactLanguage } from "@/lib/lang-detect";
+import { languageFromEmailDomain } from "@/lib/lang-detect";
 import type { FollowupStep } from "@/lib/queue-helpers";
 import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
 import type { SignatureData } from "@/lib/signature";
@@ -346,6 +346,9 @@ export async function runFollowupsForQueue(
     }
     const tmplAttachments = attachmentsByTemplate.get(stepCfg.template_id) ?? [];
 
+    // Auto language from email domain (free, no AI) — drives opener + body.
+    const language = languageFromEmailDomain(c.contact.email);
+
     let aiOpener: string | null = null;
     if (queue.use_ai_opener && workspaceMeta) {
       const { data: cached } = await admin
@@ -357,13 +360,16 @@ export async function runFollowupsForQueue(
       aiOpener =
         (cached as { ai_opener?: string | null } | null)?.ai_opener ?? null;
       if (!aiOpener) {
-        aiOpener = await generateOpener({
-          workspace_name: workspaceMeta.name,
-          workspace_business_type: workspaceMeta.business_type,
-          contact_first_name: c.contact.first_name,
-          contact_company: c.contact.company,
-          contact_position: c.contact.position,
-        });
+        aiOpener = await generateOpener(
+          {
+            workspace_name: workspaceMeta.name,
+            workspace_business_type: workspaceMeta.business_type,
+            contact_first_name: c.contact.first_name,
+            contact_company: c.contact.company,
+            contact_position: c.contact.position,
+          },
+          language,
+        );
       }
     }
 
@@ -393,7 +399,6 @@ export async function runFollowupsForQueue(
       ? `${appUrl}/unsubscribe/${c.contact.unsubscribe_token}`
       : null;
 
-    const language = detectContactLanguage(c.contact);
     const sendResult = await sendEmail(admin, {
       account: account as EmailAccount,
       contact: c.contact,

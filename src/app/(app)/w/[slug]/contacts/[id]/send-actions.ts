@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
+import { languageFromEmailDomain } from "@/lib/lang-detect";
 import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
 
 export type SendOneEmailResult =
@@ -91,10 +92,13 @@ export async function sendOneEmailToContact(
     };
   }
 
+  // Auto language from email domain (free, no AI) — drives subject/body/opener.
+  const language = languageFromEmailDomain(contact.email);
+
   // Template + attachments
   const { data: template } = await admin
     .from("templates")
-    .select("id, subject_lines, body_plain")
+    .select("id, subject_lines, subject_lines_en, body_plain, body_plain_en")
     .eq("id", opts.templateId)
     .eq("workspace_id", workspace.id)
     .is("deleted_at", null)
@@ -118,13 +122,16 @@ export async function sendOneEmailToContact(
       .maybeSingle();
     aiOpener = (cached as { ai_opener?: string | null } | null)?.ai_opener ?? null;
     if (!aiOpener) {
-      aiOpener = await generateOpener({
-        workspace_name: workspace.name,
-        workspace_business_type: workspace.business_type,
-        contact_first_name: contact.first_name,
-        contact_company: contact.company,
-        contact_position: contact.position,
-      });
+      aiOpener = await generateOpener(
+        {
+          workspace_name: workspace.name,
+          workspace_business_type: workspace.business_type,
+          contact_first_name: contact.first_name,
+          contact_company: contact.company,
+          contact_position: contact.position,
+        },
+        language,
+      );
       if (aiOpener) {
         await admin
           .from("contact_workspace_data")
@@ -186,6 +193,7 @@ export async function sendOneEmailToContact(
     subjectPrefix: opts.testMode ? "[TEST]" : null,
     signatureData: workspace.signature_data,
     signatureFallbackColor: workspace.color_theme,
+    language,
   });
 
   if (!sendResult.ok) {

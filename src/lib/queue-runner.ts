@@ -6,7 +6,7 @@ import {
 } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
-import { detectContactLanguage } from "@/lib/lang-detect";
+import { languageFromEmailDomain } from "@/lib/lang-detect";
 import { ensureDailyQuotaFresh, startOfTodayWibIso } from "@/lib/quota-reset";
 import type { SignatureData } from "@/lib/signature";
 
@@ -151,7 +151,7 @@ export async function runQueue(
 
   const { data: templateRows } = await admin
     .from("templates")
-    .select("id, subject_lines, body_plain, body_plain_en")
+    .select("id, subject_lines, subject_lines_en, body_plain, body_plain_en")
     .in("id", requestedTemplateIds);
   const templateMap = new Map<string, EmailTemplate>();
   for (const t of (templateRows ?? []) as EmailTemplate[]) {
@@ -452,18 +452,25 @@ export async function runQueue(
       }
     }
 
+    // Auto language from the email domain (free, no AI). Drives subject,
+    // body, and the AI opener so the whole email is one language.
+    const language = languageFromEmailDomain(contact.email);
+
     // Resolve AI opener: cache → generate → fallback null
     let aiOpener: string | null = null;
     if (queue.use_ai_opener && workspaceMeta) {
       aiOpener = openerCache.get(contact.id) ?? null;
       if (!aiOpener) {
-        aiOpener = await generateOpener({
-          workspace_name: workspaceMeta.name,
-          workspace_business_type: workspaceMeta.business_type,
-          contact_first_name: contact.first_name,
-          contact_company: contact.company,
-          contact_position: contact.position,
-        });
+        aiOpener = await generateOpener(
+          {
+            workspace_name: workspaceMeta.name,
+            workspace_business_type: workspaceMeta.business_type,
+            contact_first_name: contact.first_name,
+            contact_company: contact.company,
+            contact_position: contact.position,
+          },
+          language,
+        );
         if (aiOpener) {
           // Cache for future runs (upsert into contact_workspace_data)
           await admin
@@ -538,7 +545,6 @@ export async function runQueue(
     const chosenAttachments =
       attachmentsByTemplate.get(chosenTemplateId) ?? [];
 
-    const language = detectContactLanguage(contact);
     const sendResult = await sendEmail(admin, {
       account: account as EmailAccount,
       contact: testModeContact,
