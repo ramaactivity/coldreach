@@ -1,19 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
-  Send,
-  TrendingUp,
-  Eye,
   MessageCircle,
-  Inbox,
-  Users,
-  FileText,
-  Sparkles,
-  Coins,
-  AlertTriangle,
   ArrowUpRight,
   Plus,
   ExternalLink,
+  Sparkles,
 } from "lucide-react";
 import { requireCurrentUser } from "@/lib/supabase/session-helpers";
 import { getUserWorkspaces } from "@/lib/workspaces";
@@ -21,13 +13,20 @@ import { createClient } from "@/lib/supabase/server";
 import { getApolloCreditStatus } from "@/lib/apollo-credits";
 import { SimpleTopbar } from "@/components/simple-topbar";
 import { getWorkspaceStats, getRecentReplies } from "@/lib/stats";
-import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { HolidayNotice } from "@/components/holiday-notice";
 import { accentFromColorTheme } from "@/lib/workspace-constants";
 import { cn } from "@/lib/utils";
+
+type Tone = "ink" | "success" | "info" | "danger";
+const valueTone: Record<Tone, string> = {
+  ink: "text-ink",
+  success: "text-success",
+  info: "text-info",
+  danger: "text-danger",
+};
 
 export default async function DashboardPage() {
   const user = await requireCurrentUser();
@@ -44,7 +43,6 @@ export default async function DashboardPage() {
   const [allStats, recentReplies, contactsRes, apollo] = await Promise.all([
     Promise.all(workspaces.map((w) => getWorkspaceStats(w.id))),
     getRecentReplies(null, 10),
-    // Total active contacts in the shared pool (user-scoped, not per-workspace).
     supabase
       .from("contacts")
       .select("id", { count: "exact", head: true })
@@ -78,11 +76,27 @@ export default async function DashboardPage() {
   );
 
   const totalContacts = contactsRes.count ?? 0;
-  const openRate = t.sent_7d > 0 ? Math.round((t.opened_7d / t.sent_7d) * 100) : 0;
-  const replyRate =
-    t.sent_7d > 0 ? Math.round((t.replied_7d / t.sent_7d) * 100) : 0;
-  const bounceRate =
-    t.sent_7d > 0 ? Math.round((t.bounced_7d / t.sent_7d) * 100) : 0;
+  const fmt = (n: number) => n.toLocaleString("id-ID");
+  const rate = (num: number) => (t.sent_7d > 0 ? Math.round((num / t.sent_7d) * 100) : 0);
+
+  // Exactly 8 cells → fills the lg:grid-cols-8 strip with no empty slot.
+  // Slot 6 shows Apollo credits when configured, else Templates.
+  const stats: StatItem[] = [
+    { label: "Sent today", value: fmt(t.sent_today) },
+    { label: "Sent 7d", value: fmt(t.sent_7d) },
+    { label: "Open rate", value: `${rate(t.opened_7d)}%`, tone: "success" },
+    { label: "Reply rate", value: `${rate(t.replied_7d)}%`, tone: "info" },
+    { label: "Contacts", value: fmt(totalContacts) },
+    apollo
+      ? { label: "Kredit Apollo", value: `≈${fmt(apollo.remainingEst)}` }
+      : { label: "Templates", value: fmt(t.templates_total) },
+    { label: "Pending", value: fmt(t.pending_replies), href: "/inbox" },
+    {
+      label: "Bounce 7d",
+      value: `${rate(t.bounced_7d)}%`,
+      tone: t.bounced_7d > 0 ? "danger" : "ink",
+    },
+  ];
 
   return (
     <>
@@ -101,98 +115,18 @@ export default async function DashboardPage() {
 
         <HolidayNotice />
 
-        {/* Sending & performance */}
-        <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-          <StatCard
-            label="Sent today"
-            value={t.sent_today.toLocaleString("id-ID")}
-            icon={Send}
-            hint="seluruh workspace"
-          />
-          <StatCard
-            label="Sent (7d)"
-            value={t.sent_7d.toLocaleString("id-ID")}
-            icon={TrendingUp}
-          />
-          <StatCard
-            label="Open rate"
-            value={`${openRate}%`}
-            icon={Eye}
-            tone="success"
-            hint={`${t.opened_7d.toLocaleString("id-ID")} opened (7d)`}
-          />
-          <StatCard
-            label="Reply rate"
-            value={`${replyRate}%`}
-            icon={MessageCircle}
-            tone="info"
-            hint={`${t.replied_7d.toLocaleString("id-ID")} replied (7d)`}
-          />
-        </div>
-
-        {/* Scale & resources */}
-        <div className="mt-3.5 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-          <StatCard
-            label="Total contacts"
-            value={totalContacts.toLocaleString("id-ID")}
-            icon={Users}
-            hint="shared pool · aktif"
-          />
-          <StatCard
-            label="Templates"
-            value={t.templates_total.toLocaleString("id-ID")}
-            icon={FileText}
-            hint="semua workspace"
-          />
-          <StatCard
-            label="Active queues"
-            value={t.queues_active.toLocaleString("id-ID")}
-            icon={Sparkles}
-            hint="lagi jalan"
-          />
-          {apollo ? (
-            <StatCard
-              label="Kredit Apollo"
-              value={`≈${apollo.remainingEst.toLocaleString("id-ID")}`}
-              icon={Coins}
-              hint={`reset ${apollo.daysToReset} hari lagi`}
-            />
-          ) : (
-            <Link href="/inbox" className="block">
-              <StatCard
-                label="Pending replies"
-                value={t.pending_replies.toLocaleString("id-ID")}
-                icon={Inbox}
-                hint="buka inbox →"
-              />
-            </Link>
-          )}
-        </div>
-
-        {/* Attention — only when Apollo occupied the slot above */}
-        {apollo && (
-          <div className="mt-3.5 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-            <Link href="/inbox" className="block">
-              <StatCard
-                label="Pending replies"
-                value={t.pending_replies.toLocaleString("id-ID")}
-                icon={Inbox}
-                hint="buka inbox →"
-              />
-            </Link>
-            <StatCard
-              label="Bounced (7d)"
-              value={t.bounced_7d.toLocaleString("id-ID")}
-              icon={AlertTriangle}
-              tone={t.bounced_7d > 0 ? "danger" : "default"}
-              hint={t.sent_7d > 0 ? `${bounceRate}% bounce rate` : "delivery"}
-            />
+        {/* Compact aggregate stat strip */}
+        <div className="overflow-hidden rounded-lg border border-border">
+          <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4 lg:grid-cols-8">
+            {stats.map((s) => (
+              <StatCell key={s.label} {...s} />
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* Workspaces */}
-        <h2 className="mb-3 mt-10 text-ink">Workspaces</h2>
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 lg:grid-cols-3">
+        {/* Workspaces — the primary action: jump into a business */}
+        <h2 className="mb-3 mt-8 text-ink">Workspaces</h2>
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
           {workspaces.map((ws, i) => {
             const s = allStats[i];
             const quota = s.quota_today;
@@ -201,33 +135,31 @@ export default async function DashboardPage() {
                 key={ws.id}
                 href={`/w/${ws.slug}/dashboard`}
                 data-accent={accentFromColorTheme(ws.color_theme)}
-                className="group flex flex-col gap-4 rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
+                className="group flex flex-col gap-3.5 rounded-lg border border-border bg-surface p-4 transition-colors hover:border-border-strong"
               >
                 <div className="flex items-start justify-between">
-                  <span className="label-eyebrow flex items-center gap-1.5 text-accent-text">
-                    <span className="inline-block size-1.5 rounded-full bg-accent" />
-                    {ws.business_type ?? "—"}
-                  </span>
-                  <ArrowUpRight className="h-4 w-4 text-faint transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-ink-secondary" />
-                </div>
-
-                <div>
-                  <h3 className="text-[15px] font-semibold text-ink">
-                    {ws.name}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {ws.schedule_start_time.slice(0, 5)} –{" "}
-                    {ws.schedule_end_time.slice(0, 5)} WIB
-                    {quota && (
-                      <>
-                        {" · "}
-                        <span className="tabular">
-                          {quota.sent}/{quota.quota}
-                        </span>{" "}
-                        quota
-                      </>
-                    )}
-                  </p>
+                  <div className="min-w-0">
+                    <span className="label-eyebrow flex items-center gap-1.5 text-accent-text">
+                      <span className="inline-block size-1.5 rounded-full bg-accent" />
+                      {ws.business_type ?? "—"}
+                    </span>
+                    <h3 className="mt-1.5 truncate text-[15px] font-semibold text-ink">
+                      {ws.name}
+                    </h3>
+                    <p className="mt-0.5 truncate text-xs text-muted">
+                      {ws.schedule_start_time.slice(0, 5)}–
+                      {ws.schedule_end_time.slice(0, 5)} WIB
+                      {quota && (
+                        <>
+                          {" · "}
+                          <span className="tabular">
+                            {quota.sent}/{quota.quota}
+                          </span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-faint transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-ink-secondary" />
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 border-t border-border pt-3">
@@ -237,7 +169,7 @@ export default async function DashboardPage() {
                 </div>
 
                 {s.queues_active > 0 ? (
-                  <span className="flex items-center gap-2 text-xs font-medium text-success-text">
+                  <span className="flex items-center gap-1.5 text-xs font-medium text-success-text">
                     <span className="relative flex size-1.5">
                       <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
                       <span className="relative inline-flex size-1.5 rounded-full bg-success" />
@@ -253,7 +185,7 @@ export default async function DashboardPage() {
 
           <Link
             href="/onboarding/workspace"
-            className="group flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong bg-surface-sunken p-5 text-muted transition-colors hover:border-action hover:text-ink"
+            className="group flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong bg-surface-sunken p-4 text-muted transition-colors hover:border-action hover:text-ink"
           >
             <Plus className="h-5 w-5" />
             <span className="text-sm font-medium">Tambah Workspace</span>
@@ -261,7 +193,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Recent replies */}
-        <div className="mb-3 mt-10 flex items-center justify-between">
+        <div className="mb-3 mt-8 flex items-center justify-between">
           <h2 className="text-ink">Recent Replies</h2>
           <span className="text-xs text-muted">
             {recentReplies.length > 0 ? `${recentReplies.length} terbaru` : "—"}
@@ -322,6 +254,33 @@ export default async function DashboardPage() {
         )}
       </main>
     </>
+  );
+}
+
+type StatItem = {
+  label: string;
+  value: string;
+  tone?: Tone;
+  href?: string;
+};
+
+function StatCell({ label, value, tone = "ink", href }: StatItem) {
+  const inner = (
+    <div className="h-full bg-surface px-4 py-3">
+      <p className="truncate text-[10px] font-medium uppercase tracking-wider text-muted">
+        {label}
+      </p>
+      <p className={cn("mt-1 text-xl font-semibold tabular", valueTone[tone])}>
+        {value}
+      </p>
+    </div>
+  );
+  return href ? (
+    <Link href={href} className="block transition-colors hover:bg-surface-hover">
+      {inner}
+    </Link>
+  ) : (
+    inner
   );
 }
 
