@@ -15,6 +15,7 @@ import {
   Archive,
   Eye,
   UserPlus,
+  Sparkles,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
@@ -124,6 +125,14 @@ export default async function ContactsPage({
               Duplicates
             </ButtonLink>
             <ExportButton slug={slug} />
+            <ButtonLink
+              href={`/w/${slug}/contacts/discover`}
+              variant="outline"
+              size="md"
+            >
+              <Sparkles className="h-4 w-4" />
+              Cari Lead (Apollo)
+            </ButtonLink>
             <ButtonLink
               href={`/w/${slug}/contacts/import`}
               variant="outline"

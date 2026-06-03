@@ -29,6 +29,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Card } from "@/components/ui/card";
 import { HolidayNotice } from "@/components/holiday-notice";
+import { ApolloCreditNotice } from "@/components/apollo-credit-notice";
 
 export default async function WorkspaceDashboardPage({
   params,
@@ -104,6 +105,7 @@ export default async function WorkspaceDashboardPage({
       </div>
 
       <HolidayNotice />
+      <ApolloCreditNotice slug={slug} />
 
       {/* KPI grid - top row: send/perf */}
       <div className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
