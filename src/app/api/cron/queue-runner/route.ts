@@ -76,15 +76,23 @@ export async function GET(request: NextRequest) {
   const mm = String(wibNow.getUTCMinutes()).padStart(2, "0");
   const currentTime = `${hh}:${mm}:00`;
 
-  // Active queues that aren't in test mode and have pending recipients
+  // Active, non-test queues. We deliberately DON'T filter on the cached
+  // `total_pending` counter here: it's a denormalized cache that drifts
+  // (skips/external inserts don't keep it in sync), and gating on it once
+  // caused a queue to silently flatline — cached counter hit 0 while real
+  // pending rows still existed, so the queue was filtered out of every tick
+  // and its self-healing refill/resync (inside runQueue) never ran. runQueue
+  // is the single source of truth: it queries the real pending rows, refills
+  // evergreen audiences, resyncs the counters, and returns early when there's
+  // genuinely nothing to send. Schedule-window checks below keep us from
+  // calling it on out-of-window queues.
   const { data: queues } = await admin
     .from("send_queues")
     .select(
-      "id, schedule_days, schedule_start_time, schedule_end_time, daily_target, total_pending, is_one_shot, scheduled_start_at",
+      "id, schedule_days, schedule_start_time, schedule_end_time, daily_target, is_one_shot, scheduled_start_at",
     )
     .eq("is_active", true)
-    .eq("test_mode", false)
-    .gt("total_pending", 0);
+    .eq("test_mode", false);
 
   const results: Array<{ id: string; sent: number; failed: number; mode: string }> = [];
 
@@ -95,7 +103,6 @@ export async function GET(request: NextRequest) {
       schedule_start_time: string;
       schedule_end_time: string;
       daily_target: number;
-      total_pending: number;
       is_one_shot: boolean;
       scheduled_start_at: string | null;
     };
