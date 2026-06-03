@@ -24,10 +24,13 @@ function presetTitles(businessType: string | null): string {
   }
 }
 
-// Jabodetabek + sekitarnya — semua bisnis di Kota Bogor, target harus
-// terjangkau dari Bogor (bukan "Indonesia" yang terlalu luas).
+// Jabodetabek + kantong industri terjangkau dari Kota Bogor. Nama kota saja —
+// negara "Indonesia" otomatis ditambahkan per kota saat search (biar tidak
+// ketukar kota bernama sama di negara lain).
+// Only Apollo-recognized location tokens (Cikarang→Bekasi, Sentul→Bogor are
+// not indexed separately, so they're omitted; their parent covers them).
 const PRESET_LOCATIONS =
-  "Bogor, Jakarta, Depok, Tangerang, Bekasi, Tangerang Selatan";
+  "Bogor, Cibinong, Jakarta, Depok, Tangerang, Tangerang Selatan, Bekasi, Karawang";
 
 export default async function DiscoverPage({
   params,

@@ -30,6 +30,18 @@ function splitTitles(s: string): string[] {
     .filter(Boolean);
 }
 
+// City names → "City, Indonesia" so Apollo never matches a same-named city
+// abroad. Drops a bare "indonesia" token and won't double-append.
+function buildLocations(s: string): string[] {
+  const out = s
+    .split(/[,\n]/)
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .filter((t) => t.toLowerCase() !== "indonesia")
+    .map((t) => (/indonesia/i.test(t) ? t : `${t}, Indonesia`));
+  return Array.from(new Set(out));
+}
+
 export function DiscoverClient({
   slug,
   presetTitles,
@@ -71,7 +83,7 @@ export function DiscoverClient({
   function criteria() {
     return {
       titles: splitTitles(titles),
-      locations: splitTitles(location), // comma/newline separated
+      locations: buildLocations(location), // each city forced to ", Indonesia"
       keywords: keywords.trim() || undefined,
       netNewOnly,
       perPage: 50,
@@ -358,12 +370,14 @@ export function DiscoverClient({
             />
           </div>
           <div>
-            <FieldLabel htmlFor="loc">Lokasi (pisah koma)</FieldLabel>
+            <FieldLabel htmlFor="loc">
+              Lokasi — kota saja, pisah koma (negara otomatis Indonesia)
+            </FieldLabel>
             <Input
               id="loc"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
-              placeholder="Bogor, Jakarta, Depok, Tangerang, Bekasi"
+              placeholder="Bogor, Jakarta, Bekasi, Cikarang, Karawang"
             />
           </div>
           <div>
