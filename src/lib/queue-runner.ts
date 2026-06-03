@@ -564,6 +564,21 @@ export async function runQueue(
     }
   }
 
+  // Truth-sync the cached counters from the real queue_recipients rows.
+  // The in-loop writes only decrement total_pending per *sent* email — they
+  // never account for recipients marked 'skipped' (cross-workspace dedup,
+  // archived contacts) this run, so the cache drifts low over time. This
+  // single recompute converges every counter back to reality on every run,
+  // so nothing downstream is ever misled by a stale value. Non-fatal.
+  {
+    const { error: syncErr } = await admin.rpc("sync_queue_counters", {
+      p_queue_id: queueId,
+    });
+    if (syncErr) {
+      console.error("sync_queue_counters rpc failed:", syncErr);
+    }
+  }
+
   // One-shot campaigns: auto-deactivate when fully sent so dashboard
   // surfaces them as "completed" and cron stops picking them up.
   if (queue.is_one_shot && queuePending === 0 && result.sent > 0) {
