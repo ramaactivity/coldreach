@@ -139,11 +139,11 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
 
   return (
     <>
-      <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.03)] dark:border-zinc-800/70 dark:bg-zinc-900">
+      <div className="overflow-hidden rounded-lg border border-border bg-surface">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-200/70 bg-zinc-50/60 text-left text-[10.5px] font-semibold uppercase tracking-[0.06em] text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400">
+              <tr className="label-eyebrow border-b border-border bg-surface-sunken text-left">
                 <th className="w-10 px-5 py-3">
                   <CheckboxInput
                     checked={allChecked}
@@ -173,10 +173,10 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                 return (
                   <tr
                     key={c.id}
-                    className={`group border-b border-zinc-100 transition-colors last:border-0 dark:border-zinc-800/60 ${
+                    className={`group border-b border-border transition-colors last:border-0 ${
                       isSel
-                        ? "bg-blue-50/50 dark:bg-blue-950/10"
-                        : "hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40"
+                        ? "border-l-2 border-l-accent bg-accent-soft"
+                        : "hover:bg-surface-hover"
                     }`}
                   >
                     <td className="px-5 py-3.5">
@@ -191,22 +191,22 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                         href={`/w/${slug}/contacts/${c.id}`}
                         className="block min-w-0"
                       >
-                        <div className="font-medium text-zinc-900 transition-colors group-hover:text-zinc-950 dark:text-zinc-100">
+                        <div className="font-medium text-ink transition-colors group-hover:text-ink">
                           {fullName || c.email}
                         </div>
                         {fullName && (
-                          <div className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                          <div className="mt-0.5 truncate text-xs text-muted">
                             {c.email}
                           </div>
                         )}
                       </Link>
                     </td>
                     <td className="px-5 py-3.5">
-                      <div className="text-zinc-900 dark:text-zinc-100">
-                        {c.company ?? <span className="text-zinc-400">—</span>}
+                      <div className="text-ink">
+                        {c.company ?? <span className="text-faint">—</span>}
                       </div>
                       {c.position && (
-                        <div className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                        <div className="mt-0.5 text-xs text-muted">
                           {c.position}
                         </div>
                       )}
@@ -224,7 +224,7 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                           {stage.name}
                         </Badge>
                       ) : (
-                        <span className="text-xs text-zinc-400">—</span>
+                        <span className="text-xs text-faint">—</span>
                       )}
                     </td>
                     <td className="px-5 py-3.5">
@@ -239,13 +239,13 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                           </Badge>
                         ))}
                         {c.tags.length > 3 && (
-                          <span className="text-xs text-zinc-400">
+                          <span className="text-xs text-faint">
                             +{c.tags.length - 3}
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-5 py-3.5 text-xs text-zinc-500 dark:text-zinc-400">
+                    <td className="px-5 py-3.5 text-xs text-muted">
                       {lastContacted
                         ? new Date(lastContacted).toLocaleDateString("id-ID", {
                             day: "numeric",
@@ -265,13 +265,13 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
       {/* Floating action bar */}
       {selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-4">
-          <div className="pointer-events-auto w-full max-w-3xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl ring-1 ring-black/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/5">
+          <div className="pointer-events-auto w-full max-w-3xl overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-lg)]">
             <div className="flex items-center gap-3 px-4 py-3">
               <div className="flex items-center gap-2">
-                <span className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-full bg-zinc-900 px-2 text-xs font-semibold tabular-nums text-white dark:bg-zinc-100 dark:text-zinc-900">
+                <span className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-full bg-action px-2 text-xs font-semibold tabular text-on-action">
                   {selected.size}
                 </span>
-                <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                <span className="text-sm font-medium text-ink-secondary">
                   dipilih
                 </span>
               </div>
@@ -324,7 +324,7 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                 <button
                   type="button"
                   onClick={clearSelection}
-                  className="ml-1 inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  className="ml-1 inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-muted transition-colors hover:bg-surface-sunken hover:text-ink"
                 >
                   <X className="h-3 w-3" />
                   Clear
@@ -334,13 +334,13 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
 
             {/* Mode-specific input */}
             {mode === "tag" && (
-              <div className="flex items-center gap-2 border-t border-zinc-100 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40">
+              <div className="flex items-center gap-2 border-t border-border bg-surface-sunken/60 px-4 py-3">
                 <input
                   type="text"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   placeholder="Tag (pisahkan koma): hr, bogor, hot-lead"
-                  className="h-8 flex-1 rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  className="h-8 flex-1 rounded-md border border-border bg-surface px-2.5 text-xs text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
                 />
                 <button
                   type="button"
@@ -348,7 +348,7 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                   onClick={() =>
                     runBulk(() => bulkAddTags(slug, ids, tagInput))
                   }
-                  className="inline-flex h-8 items-center gap-1 rounded-md bg-zinc-900 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                  className="inline-flex h-8 items-center gap-1 rounded-md bg-action px-3 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-50"
                 >
                   {pending ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -361,7 +361,7 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
             )}
 
             {mode === "stage" && (
-              <div className="flex items-center gap-2 border-t border-zinc-100 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40">
+              <div className="flex items-center gap-2 border-t border-border bg-surface-sunken/60 px-4 py-3">
                 <div className="flex-1">
                   <Select
                     value={stageInput}
@@ -387,7 +387,7 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                   onClick={() =>
                     runBulk(() => bulkChangeStage(slug, ids, stageInput))
                   }
-                  className="inline-flex h-8 items-center gap-1 rounded-md bg-zinc-900 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                  className="inline-flex h-8 items-center gap-1 rounded-md bg-action px-3 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-50"
                 >
                   {pending ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -400,9 +400,9 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
             )}
 
             {mode === "delete" && (
-              <div className="flex items-center gap-2 border-t border-zinc-100 bg-red-50/60 px-4 py-3 dark:border-red-900/30 dark:bg-red-950/20">
-                <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-                <p className="flex-1 text-xs text-red-700 dark:text-red-400">
+              <div className="flex items-center gap-2 border-t border-border bg-danger-soft px-4 py-3">
+                <AlertTriangle className="h-4 w-4 shrink-0 text-danger" />
+                <p className="flex-1 text-xs text-danger-text">
                   Hapus {ids.length} kontak? Soft-delete — masih bisa dipulihkan
                   dari DB.
                 </p>
@@ -410,7 +410,7 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                   type="button"
                   disabled={pending}
                   onClick={() => runBulk(() => bulkDelete(slug, ids))}
-                  className="inline-flex h-8 items-center gap-1 rounded-md border border-red-200 bg-white px-3 text-xs font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:bg-zinc-900 dark:text-red-400 dark:hover:bg-red-950/30"
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-danger-soft bg-surface px-3 text-xs font-semibold text-danger-text transition-colors hover:bg-danger-soft disabled:opacity-50"
                 >
                   {pending ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -423,9 +423,9 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
             )}
 
             {mode === "archive" && (
-              <div className="flex items-center gap-2 border-t border-zinc-100 bg-amber-50/60 px-4 py-3 dark:border-amber-900/30 dark:bg-amber-950/20">
-                <Archive className="h-4 w-4 shrink-0 text-amber-700 dark:text-amber-400" />
-                <p className="flex-1 text-xs text-amber-800 dark:text-amber-300">
+              <div className="flex items-center gap-2 border-t border-border bg-warning-soft px-4 py-3">
+                <Archive className="h-4 w-4 shrink-0 text-warning" />
+                <p className="flex-1 text-xs text-warning-text">
                   Archive {ids.length} kontak? Mereka gak akan masuk queue baru
                   dan pending sends auto-skipped. Bisa di-restore kapan aja.
                 </p>
@@ -433,7 +433,7 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                   type="button"
                   disabled={pending}
                   onClick={() => runBulk(() => bulkArchive(slug, ids))}
-                  className="inline-flex h-8 items-center gap-1 rounded-md border border-amber-200 bg-white px-3 text-xs font-semibold text-amber-800 shadow-sm transition-colors hover:bg-amber-50 disabled:opacity-50 dark:border-amber-900/50 dark:bg-zinc-900 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-warning-soft bg-surface px-3 text-xs font-semibold text-warning-text transition-colors hover:bg-warning-soft disabled:opacity-50"
                 >
                   {pending ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -446,9 +446,9 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
             )}
 
             {mode === "unarchive" && (
-              <div className="flex items-center gap-2 border-t border-zinc-100 bg-emerald-50/60 px-4 py-3 dark:border-emerald-900/30 dark:bg-emerald-950/20">
-                <RotateCcw className="h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" />
-                <p className="flex-1 text-xs text-emerald-800 dark:text-emerald-300">
+              <div className="flex items-center gap-2 border-t border-border bg-success-soft px-4 py-3">
+                <RotateCcw className="h-4 w-4 shrink-0 text-success-text" />
+                <p className="flex-1 text-xs text-success-text">
                   Restore {ids.length} kontak? Status di-set ke active dan
                   mereka jadi eligible buat queue lagi.
                 </p>
@@ -456,7 +456,7 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                   type="button"
                   disabled={pending}
                   onClick={() => runBulk(() => bulkUnarchive(slug, ids))}
-                  className="inline-flex h-8 items-center gap-1 rounded-md border border-emerald-200 bg-white px-3 text-xs font-semibold text-emerald-800 shadow-sm transition-colors hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-900/50 dark:bg-zinc-900 dark:text-emerald-400 dark:hover:bg-emerald-950/30"
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-success-soft bg-surface px-3 text-xs font-semibold text-success-text transition-colors hover:bg-success-soft disabled:opacity-50"
                 >
                   {pending ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -469,9 +469,9 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
             )}
 
             {mode === "enrich" && (
-              <div className="flex items-center gap-2 border-t border-zinc-100 bg-blue-50/60 px-4 py-3 dark:border-blue-900/30 dark:bg-blue-950/20">
-                <ShieldCheck className="h-4 w-4 shrink-0 text-blue-700 dark:text-blue-400" />
-                <p className="flex-1 text-xs text-blue-800 dark:text-blue-300">
+              <div className="flex items-center gap-2 border-t border-border bg-info-soft px-4 py-3">
+                <ShieldCheck className="h-4 w-4 shrink-0 text-info" />
+                <p className="flex-1 text-xs text-info-text">
                   Verifikasi {ids.length} kontak via Apollo? Email yang berubah
                   diperbarui otomatis (lama disimpan ke alt), yang gagal ditandai
                   berisiko. Yang baru diverifikasi (&lt;30 hari) dilewati gratis.
@@ -481,7 +481,7 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
                   type="button"
                   disabled={pending}
                   onClick={runEnrich}
-                  className="inline-flex h-8 items-center gap-1 rounded-md border border-blue-200 bg-white px-3 text-xs font-semibold text-blue-800 shadow-sm transition-colors hover:bg-blue-50 disabled:opacity-50 dark:border-blue-900/50 dark:bg-zinc-900 dark:text-blue-400 dark:hover:bg-blue-950/30"
+                  className="inline-flex h-8 items-center gap-1 rounded-md border border-info-soft bg-surface px-3 text-xs font-semibold text-info-text transition-colors hover:bg-info-soft disabled:opacity-50"
                 >
                   {pending ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -497,8 +497,8 @@ export function ContactsTable({ slug, contacts, stages }: Props) {
               <div
                 className={`border-t px-4 py-2 text-xs font-medium ${
                   feedback.type === "ok"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400"
-                    : "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+                    ? "border-success-soft bg-success-soft text-success-text"
+                    : "border-danger-soft bg-danger-soft text-danger-text"
                 }`}
               >
                 {feedback.msg}
@@ -516,7 +516,7 @@ function VerifyMark({ c }: { c: ContactWithWorkspaceData }) {
     return (
       <span
         title={`Email terverifikasi Apollo${c.email_status ? ` (${c.email_status})` : ""}`}
-        className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/15 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-500/25"
+        className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success-text"
       >
         <ShieldCheck className="h-3 w-3" />
         Verified
@@ -527,7 +527,7 @@ function VerifyMark({ c }: { c: ContactWithWorkspaceData }) {
     return (
       <span
         title={`Dicek Apollo tapi email tidak terverifikasi${c.email_status ? ` (${c.email_status})` : ""}`}
-        className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/15 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-500/25"
+        className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-text"
       >
         <ShieldAlert className="h-3 w-3" />
         Berisiko
@@ -537,7 +537,7 @@ function VerifyMark({ c }: { c: ContactWithWorkspaceData }) {
   return (
     <span
       title="Belum diverifikasi"
-      className="text-xs text-zinc-400 dark:text-zinc-600"
+      className="text-xs text-faint"
     >
       —
     </span>
@@ -564,11 +564,11 @@ function ActionBtn({
       className={`inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium transition-colors ${
         active
           ? destructive
-            ? "bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-400"
-            : "bg-zinc-100 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+            ? "bg-danger-soft text-danger-text"
+            : "bg-surface-sunken text-ink"
           : destructive
-            ? "text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"
-            : "text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            ? "text-danger-text hover:bg-danger-soft"
+            : "text-ink-secondary hover:bg-surface-sunken hover:text-ink"
       }`}
     >
       <Icon className="h-3.5 w-3.5" />
@@ -596,7 +596,7 @@ function CheckboxInput({
       }}
       onChange={onChange}
       onClick={(e) => e.stopPropagation()}
-      className="h-4 w-4 cursor-pointer rounded border-zinc-300 bg-white text-zinc-900 shadow-sm transition-colors focus:ring-2 focus:ring-zinc-900/30 focus:ring-offset-0 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:ring-zinc-100/30"
+      className="size-4 cursor-pointer rounded-sm border-border-strong accent-action"
       {...rest}
     />
   );

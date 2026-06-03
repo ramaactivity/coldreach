@@ -77,21 +77,21 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200/70 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
-      <div className="flex items-center justify-between border-b border-zinc-200/80 px-5 py-3 dark:border-zinc-800/80">
+    <div className="rounded-lg border border-border bg-surface">
+      <div className="flex items-center justify-between border-b border-border/80 px-5 py-3">
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-info-soft text-info">
             <AtSign className="h-3.5 w-3.5" />
           </div>
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <h3 className="text-sm font-semibold text-ink">
             Email
           </h3>
-          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+          <span className="text-xs text-muted">
             {1 + alts.length} terdaftar
           </span>
         </div>
         {flash && (
-          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+          <span className="inline-flex items-center gap-1 text-xs text-success">
             <Check className="h-3 w-3" />
             {flash}
           </span>
@@ -100,16 +100,16 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
 
       <div className="space-y-2 p-3">
         {/* Primary row */}
-        <div className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 bg-zinc-50/50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900/40">
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-border/80 bg-surface-sunken/50 px-3 py-2">
           <div className="flex min-w-0 items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-500/30">
+            <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success-text">
               Primary
             </span>
-            <span className="truncate text-sm text-zinc-900 dark:text-zinc-100">
+            <span className="truncate text-sm text-ink">
               {primary}
             </span>
           </div>
-          <span className="text-xs text-zinc-400 dark:text-zinc-500">
+          <span className="text-xs text-faint">
             dipakai untuk send
           </span>
         </div>
@@ -122,15 +122,15 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
               key={alt}
               className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2 transition-all ${
                 isBusy
-                  ? "border-zinc-300 bg-zinc-50 opacity-60 dark:border-zinc-700 dark:bg-zinc-800/60"
-                  : "border-zinc-200/80 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+                  ? "border-border-strong bg-surface-sunken opacity-60"
+                  : "border-border/80 bg-surface hover:border-border-strong"
               }`}
             >
               <div className="flex min-w-0 items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                <span className="inline-flex items-center gap-1 rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted">
                   Alt
                 </span>
-                <span className="truncate text-sm text-zinc-700 dark:text-zinc-300">
+                <span className="truncate text-sm text-ink-secondary">
                   {alt}
                 </span>
               </div>
@@ -140,7 +140,7 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
                   onClick={() => handleSwap(alt)}
                   disabled={pending}
                   title="Jadikan primary (current primary jadi alt)"
-                  className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 hover:text-zinc-900 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken hover:text-ink disabled:opacity-50"
                 >
                   {isBusy ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
@@ -154,7 +154,7 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
                   onClick={() => handleRemove(alt)}
                   disabled={pending}
                   title="Hapus alt email"
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-50 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-danger-soft hover:text-danger disabled:opacity-50"
                   aria-label="Hapus"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -166,7 +166,7 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
 
         {/* Add row */}
         {adding ? (
-          <div className="flex items-center gap-2 rounded-lg border border-dashed border-zinc-300 bg-zinc-50/50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/30">
+          <div className="flex items-center gap-2 rounded-lg border border-dashed border-border-strong bg-surface-sunken/50 px-3 py-2">
             <input
               type="email"
               value={draft}
@@ -183,13 +183,13 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
               }}
               autoFocus
               placeholder="alt@example.com"
-              className="h-7 flex-1 rounded-md border border-zinc-200 bg-white px-2 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-600"
+              className="h-7 flex-1 rounded-md border border-border bg-surface px-2 text-sm text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
             />
             <button
               type="button"
               onClick={handleAdd}
               disabled={pending || !draft.trim()}
-              className="inline-flex h-7 items-center gap-1 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="inline-flex h-7 items-center gap-1 rounded-md bg-action px-2.5 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-50"
             >
               {pending ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -205,7 +205,7 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
                 setDraft("");
                 setError(null);
               }}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-sunken hover:text-ink"
               aria-label="Cancel"
             >
               <X className="h-3.5 w-3.5" />
@@ -215,7 +215,7 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="flex w-full items-center gap-2 rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-xs font-medium text-zinc-500 transition-all hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/40 dark:hover:text-zinc-100"
+            className="flex w-full items-center gap-2 rounded-lg border border-dashed border-border-strong px-3 py-2 text-xs font-medium text-muted transition-all hover:border-border-strong hover:bg-surface-sunken hover:text-ink"
           >
             <Plus className="h-3.5 w-3.5" />
             Tambah email alternatif
@@ -223,7 +223,7 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
         )}
 
         {error && (
-          <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+          <div className="flex items-start gap-2 rounded-lg border border-danger-soft bg-danger-soft px-3 py-2 text-xs text-danger-text">
             <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
             <span>{error}</span>
           </div>

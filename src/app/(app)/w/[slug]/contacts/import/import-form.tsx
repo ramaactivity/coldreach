@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef, useEffect, useMemo } from "react";
+import { useState, useTransition, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import {
@@ -28,7 +28,6 @@ import { Select, SelectItem } from "@/components/ui/select";
 import { analyzeImport, importContactsChunk } from "./import-actions";
 import {
   SKIPPED_REASON_LABEL,
-  type ImportRow,
   type ImportRowWithIndex,
   type AnalysisResult,
   type SkippedDetail,
@@ -399,10 +398,10 @@ function UploadStep({
   return (
     <Card className="p-8">
       <div className="mb-6">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="text-lg font-semibold text-ink">
           Upload CSV file
         </h2>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mt-1 text-sm text-muted">
           Pilih file CSV dari Google Sheet (File → Download → CSV) atau Excel.
           Header kolom akan auto-detect. Import 10K+ row di-handle otomatis via
           batch.
@@ -410,10 +409,10 @@ function UploadStep({
       </div>
 
       <label
-        className={`flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-12 text-center transition-all ${
+        className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 text-center transition-all ${
           parseError
-            ? "border-red-300 bg-red-50/40 dark:border-red-900/60 dark:bg-red-950/20"
-            : "border-zinc-300 bg-zinc-50/40 hover:border-zinc-400 hover:bg-zinc-50/80 dark:border-zinc-700 dark:bg-zinc-900/30 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/40"
+            ? "border-danger bg-danger-soft"
+            : "border-border-strong bg-surface-sunken/40 hover:border-border-strong hover:bg-surface-sunken/80"
         }`}
       >
         <input
@@ -425,19 +424,19 @@ function UploadStep({
             if (file) onFile(file);
           }}
         />
-        <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700">
-          <Upload className="h-6 w-6 text-zinc-500 dark:text-zinc-400" />
+        <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-lg bg-surface ring-1 ring-border">
+          <Upload className="h-6 w-6 text-muted" />
         </div>
-        <p className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        <p className="text-base font-semibold text-ink">
           Click untuk pilih CSV file
         </p>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs text-muted">
           atau drag and drop · Max 10MB
         </p>
       </label>
 
       {parseError && (
-        <div className="mt-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+        <div className="mt-4 flex items-start gap-2 rounded-lg border border-danger-soft bg-danger-soft p-3 text-xs text-danger-text">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           <span>Parse error: {parseError}</span>
         </div>
@@ -476,11 +475,11 @@ function MapStep({
       <Card className="p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            <h2 className="text-lg font-semibold text-ink">
               Mapping Kolom
             </h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              <strong className="font-medium text-zinc-900 dark:text-zinc-100">
+            <p className="mt-1 text-sm text-muted">
+              <strong className="font-medium text-ink">
                 {rows.length.toLocaleString("id-ID")} rows
               </strong>{" "}
               detected. Konfirm mapping kolom CSV ke field aplikasi.
@@ -493,7 +492,7 @@ function MapStep({
         </div>
 
         {restored && (
-          <div className="mb-3 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50/60 p-3 text-xs text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-400">
+          <div className="mb-3 flex items-start gap-2 rounded-lg border border-info-soft bg-info-soft p-3 text-xs text-info">
             <Save className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
               Mapping dari import sebelumnya udah di-restore otomatis. Kalau
@@ -506,17 +505,17 @@ function MapStep({
           {headers.map((h) => (
             <div
               key={h}
-              className="grid grid-cols-1 items-center gap-2 rounded-lg border border-zinc-100 bg-zinc-50/40 p-2.5 sm:grid-cols-[1fr_auto_1fr] dark:border-zinc-800 dark:bg-zinc-900/40"
+              className="grid grid-cols-1 items-center gap-2 rounded-lg border border-border bg-surface-sunken/40 p-2.5 sm:grid-cols-[1fr_auto_1fr]"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <p className="truncate text-sm font-medium text-ink">
                   {h}
                 </p>
-                <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="truncate text-xs text-muted">
                   {rows[0]?.[h]?.slice(0, 40) ?? "—"}
                 </p>
               </div>
-              <ArrowRight className="hidden h-4 w-4 text-zinc-400 sm:block" />
+              <ArrowRight className="hidden h-4 w-4 text-faint sm:block" />
               <Select
                 value={(mapping[h] || "__skip__") as string}
                 onValueChange={(v) =>
@@ -540,7 +539,7 @@ function MapStep({
         </div>
 
         {!hasEmail && (
-          <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-400">
+          <div className="mt-4 flex items-start gap-2 rounded-lg border border-warning-soft bg-warning-soft p-3 text-xs text-warning-text">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>Email kolom belum di-mapping. Email wajib untuk import.</span>
           </div>
@@ -549,15 +548,15 @@ function MapStep({
 
       <Card className="p-6">
         <div className="mb-3 flex items-center gap-2">
-          <Tag className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          <Tag className="h-4 w-4 text-muted" />
+          <h3 className="text-base font-semibold text-ink">
             Default Tags
           </h3>
-          <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+          <span className="rounded bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium text-muted">
             Optional
           </span>
         </div>
-        <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mb-3 text-sm text-muted">
           Tags ini akan diterapkan ke semua kontak yang di-import. Berguna untuk
           batch tagging seperti region atau source.
         </p>
@@ -570,25 +569,25 @@ function MapStep({
       </Card>
 
       <Card className="overflow-hidden p-0">
-        <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        <div className="border-b border-border px-5 py-3">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-ink">
             <FileText className="h-3.5 w-3.5" />
             Preview · 5 rows pertama
           </h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
-            <thead className="bg-zinc-50/60 text-left dark:bg-zinc-900/40">
+            <thead className="bg-surface-sunken text-left">
               <tr>
                 {headers.map((h) => (
                   <th
                     key={h}
-                    className="border-b border-zinc-100 px-3 py-2 font-semibold dark:border-zinc-800"
+                    className="border-b border-border px-3 py-2 font-semibold"
                   >
-                    <p className="truncate text-zinc-900 dark:text-zinc-100">
+                    <p className="truncate text-ink">
                       {h}
                     </p>
-                    <p className="mt-0.5 truncate text-[10px] font-normal text-zinc-500">
+                    <p className="mt-0.5 truncate text-[10px] font-normal text-muted">
                       →{" "}
                       {FIELD_OPTIONS.find((o) => o.value === mapping[h])?.label ??
                         "Skip"}
@@ -601,12 +600,12 @@ function MapStep({
               {rows.slice(0, 5).map((row, i) => (
                 <tr
                   key={i}
-                  className="border-b border-zinc-100 last:border-0 dark:border-zinc-800"
+                  className="border-b border-border last:border-0"
                 >
                   {headers.map((h) => (
                     <td
                       key={h}
-                      className="max-w-[200px] truncate px-3 py-2 text-zinc-700 dark:text-zinc-300"
+                      className="max-w-[200px] truncate px-3 py-2 text-ink-secondary"
                     >
                       {row[h]}
                     </td>
@@ -619,7 +618,7 @@ function MapStep({
       </Card>
 
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="secondary" onClick={onBack}>
           Batal
         </Button>
         <Button
@@ -662,14 +661,14 @@ function PreviewStep({
     <div className="space-y-4">
       <Card className="p-6">
         <div className="mb-5 flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-950/40 dark:ring-blue-800/50">
-            <Eye className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info-soft ring-1 ring-info-soft">
+            <Eye className="h-5 w-5 text-info" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+            <h2 className="text-lg font-semibold text-ink">
               Preview Import
             </h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 text-sm text-muted">
               Sistem udah scan {analysis.totalRows.toLocaleString("id-ID")} rows
               di CSV-mu vs database existing. Konfirm sebelum commit.
             </p>
@@ -704,19 +703,19 @@ function PreviewStep({
 
         {/* Skipped breakdown */}
         {analysis.skipped.length > 0 && (
-          <div className="mt-5 rounded-lg border border-amber-200/80 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20">
+          <div className="mt-5 rounded-lg border border-warning-soft/80 bg-warning-soft/50">
             <div className="flex items-start gap-2 px-4 py-3">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-amber-900 dark:text-amber-300">
+                <p className="text-sm font-medium text-warning-text">
                   {analysis.skipped.length.toLocaleString("id-ID")} rows akan
                   di-skip
                 </p>
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-amber-800 dark:text-amber-400">
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-warning-text">
                   {(Object.keys(counts) as SkippedReason[]).map((r) =>
                     counts[r] > 0 ? (
                       <span key={r}>
-                        <strong className="tabular-nums">{counts[r]}</strong>{" "}
+                        <strong className="tabular">{counts[r]}</strong>{" "}
                         {SKIPPED_REASON_LABEL[r]}
                       </span>
                     ) : null,
@@ -728,7 +727,7 @@ function PreviewStep({
             <button
               type="button"
               onClick={() => setShowSkipped((v) => !v)}
-              className="flex w-full items-center justify-center gap-1 border-t border-amber-200 px-4 py-2 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100/60 dark:border-amber-900/50 dark:text-amber-400 dark:hover:bg-amber-950/40"
+              className="flex w-full items-center justify-center gap-1 border-t border-warning-soft px-4 py-2 text-xs font-medium text-warning-text transition-colors hover:bg-warning-soft/60"
             >
               {showSkipped ? (
                 <>
@@ -751,7 +750,7 @@ function PreviewStep({
       </Card>
 
       <div className="flex justify-between gap-2 pt-2">
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="secondary" onClick={onBack}>
           <ChevronLeft className="h-4 w-4" />
           Edit mapping
         </Button>
@@ -779,14 +778,14 @@ function ImportingStep({
   return (
     <Card className="p-8">
       <div className="mb-6 flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-950/40 dark:ring-blue-800/50">
-          <Upload className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info-soft ring-1 ring-info-soft">
+          <Upload className="h-5 w-5 text-info" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-lg font-semibold text-ink">
             Importing...
           </h2>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-muted">
             Batch {progress.chunksDone} dari {progress.chunksTotal} ·{" "}
             {pct}%
           </p>
@@ -794,9 +793,9 @@ function ImportingStep({
       </div>
 
       <div className="mb-5">
-        <div className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+        <div className="h-2 overflow-hidden rounded-full bg-surface-sunken">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all"
+            className="h-full rounded-full bg-info transition-all"
             style={{ width: `${pct}%` }}
           />
         </div>
@@ -809,12 +808,12 @@ function ImportingStep({
       </div>
 
       <div className="mt-6 flex justify-end">
-        <Button variant="outline" size="sm" onClick={onCancel}>
+        <Button variant="secondary" size="sm" onClick={onCancel}>
           Cancel sisa batch
         </Button>
       </div>
 
-      <p className="mt-4 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+      <p className="mt-4 text-xs leading-relaxed text-muted">
         Jangan tutup tab ini sampai selesai. Cancel akan stop import setelah
         batch yang sedang jalan, batch sebelumnya tetap tersimpan.
       </p>
@@ -860,14 +859,14 @@ function DoneStep({
   return (
     <Card className="p-8">
       <div className="mb-6 flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-50 ring-1 ring-emerald-200 dark:bg-emerald-950/40 dark:ring-emerald-800/50">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-success-soft ring-1 ring-success-soft">
+          <CheckCircle2 className="h-5 w-5 text-success" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+          <h2 className="text-lg font-semibold text-ink">
             Import Selesai
           </h2>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-muted">
             {progress.imported.toLocaleString("id-ID")} kontak baru ditambahkan
             ke database.
           </p>
@@ -881,7 +880,7 @@ function DoneStep({
       </div>
 
       {errors.length > 0 && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+        <div className="mb-4 rounded-lg border border-danger-soft bg-danger-soft p-3 text-xs text-danger-text">
           <p className="mb-1 font-medium">Errors:</p>
           <ul className="list-disc space-y-0.5 pl-4">
             {errors.map((e, i) => (
@@ -892,13 +891,13 @@ function DoneStep({
       )}
 
       {skipped.length > 0 && (
-        <div className="mb-4 rounded-lg border border-amber-200/80 bg-amber-50/50 dark:border-amber-900/50 dark:bg-amber-950/20">
+        <div className="mb-4 rounded-lg border border-warning-soft/80 bg-warning-soft/50">
           <div className="flex items-center justify-between gap-2 px-4 py-3">
-            <p className="text-sm font-medium text-amber-900 dark:text-amber-300">
+            <p className="text-sm font-medium text-warning-text">
               {skipped.length.toLocaleString("id-ID")} rows di-skip — lihat
               alasan biar bisa di-cleanup di CSV
             </p>
-            <Button variant="outline" size="sm" onClick={downloadSkipped}>
+            <Button variant="secondary" size="sm" onClick={downloadSkipped}>
               <FileText className="h-3 w-3" />
               Download CSV
             </Button>
@@ -906,7 +905,7 @@ function DoneStep({
           <button
             type="button"
             onClick={() => setShowSkipped((v) => !v)}
-            className="flex w-full items-center justify-center gap-1 border-t border-amber-200 px-4 py-2 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100/60 dark:border-amber-900/50 dark:text-amber-400 dark:hover:bg-amber-950/40"
+            className="flex w-full items-center justify-center gap-1 border-t border-warning-soft px-4 py-2 text-xs font-medium text-warning-text transition-colors hover:bg-warning-soft/60"
           >
             {showSkipped ? (
               <>
@@ -926,7 +925,7 @@ function DoneStep({
 
       <div className="flex flex-wrap gap-2">
         <ButtonLink href={`/w/${slug}/contacts`}>Lihat Contacts</ButtonLink>
-        <ButtonLink href={`/w/${slug}/contacts/duplicates`} variant="outline">
+        <ButtonLink href={`/w/${slug}/contacts/duplicates`} variant="secondary">
           Cek Duplikat di DB
         </ButtonLink>
         <Button variant="ghost" onClick={onAgain}>
@@ -945,18 +944,18 @@ function SkippedTable({ rows }: { rows: SkippedDetail[] }) {
   const limit = 200;
   const display = rows.slice(0, limit);
   return (
-    <div className="border-t border-amber-200 dark:border-amber-900/50">
+    <div className="border-t border-warning-soft">
       <div className="max-h-72 overflow-auto">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-amber-50 text-left dark:bg-amber-950/40">
+          <thead className="sticky top-0 bg-warning-soft text-left">
             <tr>
-              <th className="px-4 py-2 font-medium text-amber-900 dark:text-amber-300">
+              <th className="px-4 py-2 font-medium text-warning-text">
                 Row
               </th>
-              <th className="px-4 py-2 font-medium text-amber-900 dark:text-amber-300">
+              <th className="px-4 py-2 font-medium text-warning-text">
                 Email
               </th>
-              <th className="px-4 py-2 font-medium text-amber-900 dark:text-amber-300">
+              <th className="px-4 py-2 font-medium text-warning-text">
                 Alasan
               </th>
             </tr>
@@ -965,19 +964,19 @@ function SkippedTable({ rows }: { rows: SkippedDetail[] }) {
             {display.map((s, i) => (
               <tr
                 key={`${s.rowIndex}-${i}`}
-                className="border-t border-amber-100 dark:border-amber-900/40"
+                className="border-t border-warning-soft"
               >
-                <td className="px-4 py-1.5 tabular-nums text-amber-900 dark:text-amber-200">
+                <td className="px-4 py-1.5 tabular text-warning-text">
                   {s.rowIndex}
                 </td>
-                <td className="px-4 py-1.5 text-amber-900 dark:text-amber-200">
+                <td className="px-4 py-1.5 text-warning-text">
                   {s.email || (
-                    <span className="text-amber-700/70 dark:text-amber-400/70">
+                    <span className="text-warning/70">
                       (kosong)
                     </span>
                   )}
                 </td>
-                <td className="px-4 py-1.5 text-amber-800 dark:text-amber-400">
+                <td className="px-4 py-1.5 text-warning-text">
                   {SKIPPED_REASON_LABEL[s.reason]}
                 </td>
               </tr>
@@ -986,7 +985,7 @@ function SkippedTable({ rows }: { rows: SkippedDetail[] }) {
         </table>
       </div>
       {rows.length > limit && (
-        <p className="px-4 py-2 text-center text-[10px] text-amber-700 dark:text-amber-400">
+        <p className="px-4 py-2 text-center text-[10px] text-warning">
           Showing {limit} dari {rows.length.toLocaleString("id-ID")} — download
           CSV untuk full list
         </p>
@@ -1007,21 +1006,21 @@ function KPI({
   tone?: "default" | "emerald" | "amber" | "red";
 }) {
   const colors = {
-    default: "text-zinc-900 dark:text-zinc-100",
-    emerald: "text-emerald-600 dark:text-emerald-400",
-    amber: "text-amber-700 dark:text-amber-400",
-    red: "text-red-600 dark:text-red-400",
+    default: "text-ink",
+    emerald: "text-success",
+    amber: "text-warning",
+    red: "text-danger",
   };
   return (
-    <div className="rounded-2xl border border-zinc-200/70 bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
+    <div className="rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center gap-1.5">
-        {Icon && <Icon className="h-3 w-3 text-zinc-400" />}
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        {Icon && <Icon className="h-3 w-3 text-faint" />}
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
           {label}
         </p>
       </div>
       <p
-        className={`mt-1.5 text-2xl font-semibold tabular-nums tracking-tight ${colors[tone]}`}
+        className={`mt-1.5 text-2xl font-semibold tabular tracking-tight ${colors[tone]}`}
       >
         {value.toLocaleString("id-ID")}
       </p>
@@ -1047,21 +1046,19 @@ function Stepper({ step }: { step: Step }) {
         return (
           <div key={s} className="flex shrink-0 items-center gap-2">
             <div
-              className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
+              className={`flex size-7 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
                 isComplete
-                  ? "bg-emerald-500 text-white"
+                  ? "bg-success text-on-action"
                   : isActive
-                    ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900"
-                    : "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                    ? "bg-accent text-accent-fg"
+                    : "bg-surface-sunken text-faint"
               }`}
             >
               {isComplete ? <CheckCircle2 className="h-3.5 w-3.5" /> : i + 1}
             </div>
             <span
               className={`text-sm font-medium ${
-                isActive
-                  ? "text-zinc-900 dark:text-zinc-100"
-                  : "text-zinc-500 dark:text-zinc-400"
+                isActive ? "text-ink" : "text-muted"
               }`}
             >
               {s}
@@ -1069,9 +1066,7 @@ function Stepper({ step }: { step: Step }) {
             {i < STEPS.length - 1 && (
               <div
                 className={`mx-1 h-px w-8 ${
-                  isComplete
-                    ? "bg-emerald-500"
-                    : "bg-zinc-200 dark:bg-zinc-800"
+                  isComplete ? "bg-success" : "bg-border"
                 }`}
               />
             )}

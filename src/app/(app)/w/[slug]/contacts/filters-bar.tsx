@@ -54,27 +54,27 @@ const SEGMENT_TONE_CLASSES: Record<
 > = {
   amber: {
     active:
-      "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+      "border-warning bg-warning-soft text-warning-text",
     inactive:
-      "border-zinc-200 bg-white text-zinc-700 hover:border-amber-300 hover:bg-amber-50/60 hover:text-amber-800 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-amber-800 dark:hover:bg-amber-950/30 dark:hover:text-amber-400",
+      "border-border bg-surface text-ink-secondary hover:border-warning hover:bg-warning-soft hover:text-warning-text",
   },
   blue: {
     active:
-      "border-blue-300 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300",
+      "border-info bg-info-soft text-info-text",
     inactive:
-      "border-zinc-200 bg-white text-zinc-700 hover:border-blue-300 hover:bg-blue-50/60 hover:text-blue-800 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-blue-800 dark:hover:bg-blue-950/30 dark:hover:text-blue-400",
+      "border-border bg-surface text-ink-secondary hover:border-info hover:bg-info-soft hover:text-info-text",
   },
   red: {
     active:
-      "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300",
+      "border-danger bg-danger-soft text-danger-text",
     inactive:
-      "border-zinc-200 bg-white text-zinc-700 hover:border-red-300 hover:bg-red-50/60 hover:text-red-800 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-red-800 dark:hover:bg-red-950/30 dark:hover:text-red-400",
+      "border-border bg-surface text-ink-secondary hover:border-danger hover:bg-danger-soft hover:text-danger-text",
   },
   zinc: {
     active:
-      "border-zinc-300 bg-zinc-100 text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100",
+      "border-border-strong bg-surface-sunken text-ink",
     inactive:
-      "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800",
+      "border-border bg-surface text-ink-secondary hover:border-border-strong hover:bg-surface-sunken",
   },
 };
 
@@ -179,7 +179,7 @@ export function FiltersBar({
               key={s.value}
               type="button"
               onClick={() => pushWith({ segment: active ? null : s.value })}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium shadow-sm transition-all ${
+              className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-all ${
                 active ? tone.active : tone.inactive
               }`}
             >
@@ -193,18 +193,18 @@ export function FiltersBar({
       {/* Search */}
       <form onSubmit={onSearchSubmit} className="flex gap-2">
         <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
           <input
             type="text"
             name="q"
             defaultValue={q}
             placeholder="Cari nama, email (primary/alt), atau company..."
-            className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-3 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-600 dark:focus:border-zinc-100"
+            className="h-10 w-full rounded-lg border border-border bg-surface pl-10 pr-3 text-sm text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
           />
         </div>
         <button
           type="submit"
-          className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
         >
           Search
         </button>
@@ -262,22 +262,22 @@ export function FiltersBar({
             const v = (e.currentTarget.value || "").toLowerCase();
             if (v !== tag) pushWith({ tag: v || null });
           }}
-          className="h-9 w-36 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:placeholder:text-zinc-600"
+          className="h-9 w-36 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-ink-secondary placeholder:text-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
         />
 
         {q && (
           <Chip onClear={() => pushWith({ q: null })}>
-            <span className="text-zinc-500 dark:text-zinc-400">cari:</span> {q}
+            <span className="text-muted">cari:</span> {q}
           </Chip>
         )}
         {tag && (
           <Chip onClear={() => pushWith({ tag: null })}>
-            <span className="text-zinc-500 dark:text-zinc-400">tag:</span> {tag}
+            <span className="text-muted">tag:</span> {tag}
           </Chip>
         )}
         {stage && (
           <Chip onClear={() => pushWith({ stage: null })}>
-            <span className="text-zinc-500 dark:text-zinc-400">stage:</span>{" "}
+            <span className="text-muted">stage:</span>{" "}
             {stages.find((s) => s.id === stage)?.name ?? stage}
           </Chip>
         )}
@@ -288,7 +288,7 @@ export function FiltersBar({
           <button
             type="button"
             onClick={() => setShowSaveInput(true)}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
           >
             <Bookmark className="h-3 w-3" />
             Simpan filter
@@ -307,7 +307,7 @@ export function FiltersBar({
                 segment: null,
               })
             }
-            className="inline-flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+            className="inline-flex h-9 items-center gap-1 rounded-lg px-3 text-xs font-medium text-muted transition-colors hover:bg-surface-sunken hover:text-ink"
           >
             <X className="h-3 w-3" />
             Reset all
@@ -317,8 +317,8 @@ export function FiltersBar({
 
       {/* Save filter inline form */}
       {showSaveInput && (
-        <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/50 px-3 py-2 dark:border-blue-900/50 dark:bg-blue-950/20">
-          <Bookmark className="h-3.5 w-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+        <div className="flex items-center gap-2 rounded-lg border border-info-soft bg-info-soft/50 px-3 py-2">
+          <Bookmark className="h-3.5 w-3.5 shrink-0 text-info" />
           <input
             type="text"
             value={savingName ?? ""}
@@ -332,13 +332,13 @@ export function FiltersBar({
             }}
             autoFocus
             placeholder="Nama filter (e.g., HR Bogor stale)"
-            className="h-7 flex-1 rounded-md border border-blue-200 bg-white px-2 text-xs text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-blue-800 dark:bg-zinc-900 dark:text-zinc-100"
+            className="h-7 flex-1 rounded-md border border-info-soft bg-surface px-2 text-xs text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
           />
           <button
             type="button"
             disabled={!savingName?.trim() || pending}
             onClick={() => savingName && handleSave(savingName)}
-            className="inline-flex h-7 items-center gap-1 rounded-md bg-blue-600 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 disabled:opacity-50"
+            className="inline-flex h-7 items-center gap-1 rounded-md bg-action px-2.5 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-50"
           >
             {pending ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -353,7 +353,7 @@ export function FiltersBar({
               setShowSaveInput(false);
               setSavingName(null);
             }}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-blue-700 transition-colors hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-900/30"
+            className="inline-flex h-7 w-7 items-center justify-center rounded-md text-info transition-colors hover:bg-info-soft"
             aria-label="Cancel"
           >
             <X className="h-3.5 w-3.5" />
@@ -364,7 +364,7 @@ export function FiltersBar({
       {/* Saved filters row */}
       {savedFilters.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+          <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
             <Star className="h-3 w-3" />
             Saved
           </span>
@@ -402,26 +402,26 @@ function SavedFilterChip({
     <div
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      className="group inline-flex h-7 items-center overflow-hidden rounded-full border border-zinc-200 bg-white shadow-sm transition-all hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+      className="group inline-flex h-7 items-center overflow-hidden rounded-full border border-border bg-surface transition-all hover:border-border-strong"
     >
       <button
         type="button"
         onClick={onApply}
-        className="flex h-full items-center gap-1.5 px-3 text-xs font-medium text-zinc-700 transition-colors hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+        className="flex h-full items-center gap-1.5 px-3 text-xs font-medium text-ink-secondary transition-colors hover:text-ink"
       >
         {filter.is_pinned && (
-          <Pin className="h-2.5 w-2.5 text-amber-600 dark:text-amber-400" />
+          <Pin className="h-2.5 w-2.5 text-warning" />
         )}
         {filter.name}
       </button>
       {hover && (
-        <div className="flex h-full items-center border-l border-zinc-200 bg-zinc-50/60 dark:border-zinc-800 dark:bg-zinc-800/40">
+        <div className="flex h-full items-center border-l border-border bg-surface-sunken">
           <button
             type="button"
             disabled={pending}
             onClick={onTogglePin}
             title={filter.is_pinned ? "Unpin" : "Pin"}
-            className="flex h-full w-6 items-center justify-center text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+            className="flex h-full w-6 items-center justify-center text-muted transition-colors hover:bg-surface-sunken hover:text-ink"
           >
             {filter.is_pinned ? (
               <PinOff className="h-3 w-3" />
@@ -434,7 +434,7 @@ function SavedFilterChip({
             disabled={pending}
             onClick={onDelete}
             title="Hapus"
-            className="flex h-full w-6 items-center justify-center text-zinc-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+            className="flex h-full w-6 items-center justify-center text-muted transition-colors hover:bg-danger-soft hover:text-danger"
           >
             <Trash2 className="h-3 w-3" />
           </button>
@@ -452,12 +452,12 @@ function Chip({
   children: React.ReactNode;
 }) {
   return (
-    <span className="inline-flex h-7 items-center gap-1 rounded-full bg-zinc-100 px-2.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+    <span className="inline-flex h-7 items-center gap-1 rounded-full bg-surface-sunken px-2.5 text-xs font-medium text-ink-secondary">
       {children}
       <button
         type="button"
         onClick={onClear}
-        className="-mr-1 ml-0.5 rounded-full p-0.5 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+        className="-mr-1 ml-0.5 rounded-full p-0.5 text-muted transition-colors hover:bg-surface-hover hover:text-ink"
         aria-label="Clear"
       >
         <X className="h-3 w-3" />

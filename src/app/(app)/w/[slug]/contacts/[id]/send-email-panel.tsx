@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FieldLabel, FieldDescription } from "@/components/ui/input";
+import { FieldLabel } from "@/components/ui/input";
 import { Select, SelectItem } from "@/components/ui/select";
 import { useConfirm } from "@/components/ui/dialog";
 import { sendOneEmailToContact, type SendOneEmailResult } from "./send-actions";
@@ -86,14 +86,14 @@ export function SendEmailPanel({
     return (
       <Card className="p-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-warning-soft text-warning">
             <AlertCircle className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <p className="text-sm font-semibold text-ink">
               Belum ada template
             </p>
-            <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+            <p className="mt-0.5 text-xs text-muted">
               Bikin template dulu di workspace ini sebelum bisa kirim email.
             </p>
           </div>
@@ -106,14 +106,14 @@ export function SendEmailPanel({
     return (
       <Card className="p-5">
         <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-950/30 dark:text-amber-400">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-warning-soft text-warning">
             <Mail className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <p className="text-sm font-semibold text-ink">
               Belum ada Gmail terhubung
             </p>
-            <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+            <p className="mt-0.5 text-xs text-muted">
               Connect Gmail dulu di Settings sebelum bisa kirim email.
             </p>
           </div>
@@ -124,14 +124,14 @@ export function SendEmailPanel({
 
   return (
     <Card className="overflow-hidden p-0">
-      <div className="border-b border-zinc-100 bg-gradient-to-br from-zinc-50/60 to-white p-5 dark:border-zinc-800 dark:from-zinc-900/60 dark:to-zinc-900">
+      <div className="border-b border-border bg-surface-sunken p-5">
         <div className="flex items-center gap-2">
-          <Send className="h-4 w-4 text-zinc-700 dark:text-zinc-300" />
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          <Send className="h-4 w-4 text-ink-secondary" />
+          <h2 className="text-base font-semibold text-ink">
             Send Email
           </h2>
         </div>
-        <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+        <p className="mt-1 text-xs text-muted">
           Kirim email langsung ke kontak ini sekarang juga, tanpa perlu queue.
           Pakai template + AI personalization yang sama seperti queue.
         </p>
@@ -155,24 +155,24 @@ export function SendEmailPanel({
         </div>
 
         {/* AI opener toggle */}
-        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-white p-3 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700">
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-surface p-3 transition-colors hover:border-border-strong">
           <div className="relative mt-0.5">
             <input
               type="checkbox"
               checked={useAiOpener}
               onChange={(e) => setUseAiOpener(e.target.checked)}
-              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-zinc-300 bg-white transition-colors checked:border-zinc-900 checked:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 dark:border-zinc-600 dark:bg-zinc-800 dark:checked:border-zinc-100 dark:checked:bg-zinc-100"
+              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-border-strong bg-surface transition-colors checked:border-action checked:bg-action focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
             />
-            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-white opacity-0 peer-checked:opacity-100 dark:text-zinc-900" />
+            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-on-action opacity-0 peer-checked:opacity-100" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <Sparkles className="h-3 w-3 text-amber-500" />
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <Sparkles className="h-3 w-3 text-warning" />
+              <p className="text-sm font-medium text-ink">
                 AI personalization
               </p>
             </div>
-            <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+            <p className="mt-0.5 text-xs text-muted">
               Generate <code className="font-mono">{`{ai_opener}`}</code> otomatis (cache per kontak).
             </p>
           </div>
@@ -182,8 +182,8 @@ export function SendEmailPanel({
         <label
           className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
             testMode
-              ? "border-blue-300 bg-blue-50/40 dark:border-blue-800/50 dark:bg-blue-950/20"
-              : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+              ? "border-info bg-info-soft/40"
+              : "border-border bg-surface hover:border-border-strong"
           }`}
         >
           <div className="relative mt-0.5">
@@ -191,22 +191,22 @@ export function SendEmailPanel({
               type="checkbox"
               checked={testMode}
               onChange={(e) => setTestMode(e.target.checked)}
-              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-zinc-300 bg-white transition-colors checked:border-blue-600 checked:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 dark:border-zinc-600 dark:bg-zinc-800 dark:checked:border-blue-500 dark:checked:bg-blue-500"
+              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-border-strong bg-surface transition-colors checked:border-action checked:bg-action focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
             />
-            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-white opacity-0 peer-checked:opacity-100" />
+            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-on-action opacity-0 peer-checked:opacity-100" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <Shield className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <Shield className="h-3 w-3 text-info" />
+              <p className="text-sm font-medium text-ink">
                 Test mode
               </p>
             </div>
-            <p className="mt-0.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+            <p className="mt-0.5 text-xs leading-relaxed text-muted">
               {testMode ? (
                 <>
                   Email aman ke <strong>{account.email}</strong> (bukan {contactEmail}). Subject prefixed{" "}
-                  <code className="rounded bg-blue-100 px-1 font-mono text-[10px] dark:bg-blue-900/40">
+                  <code className="rounded bg-info-soft px-1 font-mono text-[10px]">
                     [TEST]
                   </code>
                   .
@@ -214,7 +214,7 @@ export function SendEmailPanel({
               ) : (
                 <>
                   Email akan dikirim ke{" "}
-                  <strong className="text-zinc-900 dark:text-zinc-100">{contactEmail}</strong> (real).
+                  <strong className="text-ink">{contactEmail}</strong> (real).
                 </>
               )}
             </p>
@@ -223,18 +223,18 @@ export function SendEmailPanel({
 
         {/* Result banner */}
         {result?.ok && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs dark:border-emerald-900/60 dark:bg-emerald-950/40">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+          <div className="flex items-start gap-2.5 rounded-lg border border-success-soft bg-success-soft p-3 text-xs">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-emerald-800 dark:text-emerald-300">
-                Email sent · subject: "{result.subject_used}"
+              <p className="font-semibold text-success-text">
+                Email sent · subject: &quot;{result.subject_used}&quot;
               </p>
               {result.gmail_thread_id && (
                 <a
                   href={`https://mail.google.com/mail/u/0/#sent/${result.gmail_thread_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-1 inline-flex items-center gap-1 text-emerald-700 underline hover:no-underline dark:text-emerald-400"
+                  className="mt-1 inline-flex items-center gap-1 text-success-text underline hover:no-underline"
                 >
                   <ExternalLink className="h-3 w-3" />
                   Buka di Gmail Sent folder
@@ -244,23 +244,23 @@ export function SendEmailPanel({
           </div>
         )}
         {result && !result.ok && (
-          <div className="flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 p-3 text-xs dark:border-red-900/60 dark:bg-red-950/40">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
-            <p className="font-medium text-red-700 dark:text-red-400">
+          <div className="flex items-start gap-2.5 rounded-lg border border-danger-soft bg-danger-soft p-3 text-xs">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+            <p className="font-medium text-danger-text">
               {result.error}
             </p>
           </div>
         )}
 
         {/* Send button + quota indicator */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4 dark:border-zinc-800">
-          <p className="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <p className="text-xs text-muted tabular">
             Quota hari ini:{" "}
             <strong
               className={
                 remainingQuota === 0
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-zinc-900 dark:text-zinc-100"
+                  ? "text-danger"
+                  : "text-ink"
               }
             >
               {account.emails_sent_today} / {account.daily_quota}

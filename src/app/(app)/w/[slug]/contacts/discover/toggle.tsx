@@ -23,17 +23,17 @@ export function Toggle({
       <span
         className={`relative inline-flex h-[18px] w-8 shrink-0 items-center rounded-full transition-colors duration-200 ${
           checked
-            ? "bg-zinc-900 dark:bg-zinc-100"
-            : "bg-zinc-200 group-hover:bg-zinc-300 dark:bg-zinc-700 dark:group-hover:bg-zinc-600"
+            ? "bg-action"
+            : "bg-surface-hover group-hover:bg-border-strong"
         }`}
       >
         <span
-          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-sm transition-transform duration-200 dark:bg-zinc-950 ${
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-surface transition-transform duration-200 ${
             checked ? "translate-x-[15px]" : "translate-x-[2px]"
           }`}
         />
       </span>
-      <span className="text-xs leading-snug text-zinc-600 dark:text-zinc-400">
+      <span className="text-xs leading-snug text-muted">
         {children}
       </span>
     </button>
@@ -59,10 +59,10 @@ export function CheckBox({
       onClick={onChange}
       className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border transition-colors ${
         disabled
-          ? "cursor-not-allowed border-zinc-200 bg-zinc-100 opacity-50 dark:border-zinc-800 dark:bg-zinc-800"
+          ? "cursor-not-allowed border-border bg-surface-sunken opacity-50"
           : checked
-            ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-            : "border-zinc-300 bg-white hover:border-zinc-400 dark:border-zinc-600 dark:bg-zinc-900"
+            ? "border-action bg-action text-on-action"
+            : "border-border-strong bg-surface hover:border-border-strong"
       }`}
     >
       {checked && <Check className="h-3 w-3" strokeWidth={3} />}

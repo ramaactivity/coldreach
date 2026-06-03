@@ -63,7 +63,7 @@ export default async function DiscoverPage({
     <div className="mx-auto max-w-5xl px-6 py-8">
       <Link
         href={`/w/${slug}/contacts`}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Kembali ke Contacts
@@ -72,7 +72,7 @@ export default async function DiscoverPage({
       <PageHeader
         eyebrow={
           <>
-            <Sparkles className="h-3 w-3 text-amber-500" />
+            <Sparkles className="h-3 w-3 text-warning" />
             <span>Apollo · cari lead baru</span>
           </>
         }
@@ -81,14 +81,14 @@ export default async function DiscoverPage({
       />
 
       {!apiKeyConfigured && (
-        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+        <div className="mb-6 flex items-start gap-3 rounded-lg border border-warning-soft bg-warning-soft p-4 text-sm text-warning-text">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="font-semibold">APOLLO_API_KEY belum diset.</p>
             <p className="mt-0.5 text-xs leading-relaxed">
               Buat API key di portal Apollo (API Keys → Create new key, beri
               akses People Search + Enrichment), lalu set sebagai env{" "}
-              <code className="rounded bg-amber-100 px-1 font-mono dark:bg-amber-900/50">
+              <code className="rounded bg-warning-soft px-1 font-mono">
                 APOLLO_API_KEY
               </code>
               . Pencarian belum bisa jalan sampai ini diisi.

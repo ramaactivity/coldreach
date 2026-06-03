@@ -115,7 +115,7 @@ export default async function ContactDetailPage({
     <div className="mx-auto max-w-3xl px-6 py-8">
       <Link
         href={`/w/${slug}/contacts`}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Back to contacts
@@ -124,10 +124,10 @@ export default async function ContactDetailPage({
       {/* Hero */}
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
             {fullName}
           </h1>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
             <span className="inline-flex items-center gap-1.5">
               <Mail className="h-3.5 w-3.5" />
               {contact.email}
@@ -139,12 +139,12 @@ export default async function ContactDetailPage({
               </span>
             )}
             {contact.email_verified_at ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/15 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-500/25">
+              <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-success-text">
                 <ShieldCheck className="h-3 w-3" />
                 Email terverifikasi
               </span>
             ) : contact.enriched_at ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-600/15 dark:bg-amber-950/40 dark:text-amber-300 dark:ring-amber-500/25">
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-text">
                 <ShieldAlert className="h-3 w-3" />
                 Email berisiko
               </span>
@@ -154,14 +154,14 @@ export default async function ContactDetailPage({
         <div className="flex flex-wrap gap-2">
           {contact.archived_at ? (
             <form action={unarchiveAction}>
-              <Button variant="outline" size="sm" type="submit">
+              <Button variant="secondary" size="sm" type="submit">
                 <RotateCcw className="h-3.5 w-3.5" />
                 Restore
               </Button>
             </form>
           ) : (
             <form action={archiveAction}>
-              <Button variant="outline" size="sm" type="submit">
+              <Button variant="secondary" size="sm" type="submit">
                 <Archive className="h-3.5 w-3.5" />
                 Archive
               </Button>
@@ -177,15 +177,15 @@ export default async function ContactDetailPage({
 
       {/* Archive / bounce banner */}
       {contact.archived_at && (
-        <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200/80 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-warning-soft/80 bg-warning-soft p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-warning-soft text-warning">
             <Archive className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+            <p className="text-sm font-semibold text-warning-text">
               Kontak ini archived
             </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-amber-800 dark:text-amber-300">
+            <p className="mt-0.5 text-xs leading-relaxed text-warning-text">
               {contact.archive_reason
                 ? archiveReasonLabels[contact.archive_reason] ??
                   contact.archive_reason
@@ -203,9 +203,9 @@ export default async function ContactDetailPage({
         </div>
       )}
       {!contact.archived_at && contact.bounce_count > 0 && (
-        <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3 text-xs dark:border-amber-900/40 dark:bg-amber-950/20">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
-          <p className="text-amber-900 dark:text-amber-300">
+        <div className="mb-6 flex items-start gap-3 rounded-xl border border-warning-soft/80 bg-warning-soft p-3 text-xs">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+          <p className="text-warning-text">
             Pernah bounce {contact.bounce_count}× (terakhir{" "}
             {contact.last_bounce_type ?? "—"}). Kalau soft-bounce mencapai 3,
             contact akan auto-archived.
@@ -284,7 +284,7 @@ export default async function ContactDetailPage({
 
       {/* Edit form */}
       <Card className="p-6">
-        <h2 className="mb-4 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+        <h2 className="mb-4 text-base font-semibold text-ink">
           Edit Contact
         </h2>
         <ContactForm
@@ -312,24 +312,24 @@ function MiniStat({
   hint?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-zinc-200/70 bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+    <div className="rounded-lg border border-border bg-surface p-4">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
         {label}
       </p>
       <p
-        className={`mt-1.5 text-2xl font-semibold tabular-nums tracking-tight ${
+        className={`mt-1.5 text-2xl font-semibold tabular tracking-tight ${
           accent === "emerald"
-            ? "text-emerald-600 dark:text-emerald-400"
+            ? "text-success"
             : accent === "blue"
-              ? "text-blue-600 dark:text-blue-400"
+              ? "text-info"
               : accent === "amber"
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-zinc-900 dark:text-zinc-100"
+                ? "text-warning"
+                : "text-ink"
         }`}
       >
         {value.toLocaleString("id-ID")}
       </p>
-      <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">
+      <p className="mt-0.5 text-[10px] text-muted">
         {hint ?? "in this workspace"}
       </p>
     </div>

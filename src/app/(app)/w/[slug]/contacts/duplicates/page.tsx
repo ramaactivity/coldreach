@@ -31,7 +31,7 @@ export default async function DuplicatesPage({
     <div className="mx-auto max-w-5xl px-6 py-8">
       <Link
         href={`/w/${slug}/contacts`}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Kembali ke Contacts
@@ -76,21 +76,21 @@ export default async function DuplicatesPage({
           {/* Cross-link section */}
           {report.crossLinks.length > 0 && (
             <section>
-              <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                <AtSign className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-ink">
+                <AtSign className="h-4 w-4 text-warning" />
                 Cross-link Email
-                <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                <span className="text-xs font-normal text-muted">
                   · {report.crossLinks.length} kasus
                 </span>
               </h2>
-              <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="mb-3 text-sm text-muted">
                 Kontak A punya alt email yang juga jadi primary email kontak B.
                 Kemungkinan duplikat. Klik <strong>Merge jadi 1 kontak</strong>{" "}
                 untuk gabungin (pilih primary) atau buka detail buat verify
                 manual.
               </p>
               <Card className="overflow-hidden p-0">
-                <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                <ul className="divide-y divide-border">
                   {report.crossLinks.map((link, i) => (
                     <CrossLinkCard
                       key={`${link.email}-${i}`}
@@ -108,14 +108,14 @@ export default async function DuplicatesPage({
           {/* Name+company section */}
           {report.nameCompanyClusters.length > 0 && (
             <section>
-              <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              <h2 className="mb-3 flex items-center gap-2 text-base font-semibold text-ink">
+                <Users className="h-4 w-4 text-info" />
                 Nama + Company Sama
-                <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                <span className="text-xs font-normal text-muted">
                   · {report.nameCompanyClusters.length} cluster
                 </span>
               </h2>
-              <p className="mb-3 text-sm text-zinc-600 dark:text-zinc-400">
+              <p className="mb-3 text-sm text-muted">
                 Beberapa kontak punya nama + company sama tapi email beda.
                 Bisa jadi 1 orang dengan email kerja + personal, atau 2 orang
                 beda. Klik <strong>Merge cluster</strong> untuk gabungin atau
@@ -152,27 +152,27 @@ function KPI({
   hint?: string;
 }) {
   const colors = {
-    default: "text-zinc-900 dark:text-zinc-100",
-    amber: "text-amber-700 dark:text-amber-400",
-    blue: "text-blue-600 dark:text-blue-400",
+    default: "text-ink",
+    amber: "text-warning",
+    blue: "text-info",
   };
   return (
-    <div className="rounded-2xl border border-zinc-200/70 bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
+    <div className="rounded-lg border border-border bg-surface p-4">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-1.5">
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
             {label}
           </p>
         </div>
-        {Icon && <Icon className="h-3.5 w-3.5 text-zinc-400" />}
+        {Icon && <Icon className="h-3.5 w-3.5 text-faint" />}
       </div>
       <p
-        className={`mt-2 text-2xl font-semibold tabular-nums tracking-tight ${colors[tone]}`}
+        className={`mt-2 text-2xl font-semibold tabular tracking-tight ${colors[tone]}`}
       >
         {value.toLocaleString("id-ID")}
       </p>
       {hint && (
-        <p className="mt-0.5 text-[10px] text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 text-[10px] text-muted">
           {hint}
         </p>
       )}

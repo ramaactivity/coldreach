@@ -58,7 +58,7 @@ export function CrossLinkCard({
   if (mode === "done") {
     return (
       <li className="px-5 py-4">
-        <div className="inline-flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+        <div className="inline-flex items-center gap-2 rounded-lg bg-success-soft px-3 py-2 text-sm font-medium text-success-text">
           <Check className="h-4 w-4" />
           Merged — refreshing...
         </div>
@@ -69,10 +69,10 @@ export function CrossLinkCard({
   return (
     <li className="px-5 py-4">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <code className="rounded bg-zinc-100 px-2 py-0.5 text-xs font-mono text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100">
+        <code className="rounded bg-surface-sunken px-2 py-0.5 text-xs font-mono text-ink">
           {email}
         </code>
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+        <span className="text-xs text-muted">
           muncul di 2 kontak
         </span>
       </div>
@@ -95,7 +95,7 @@ export function CrossLinkCard({
             <button
               type="button"
               onClick={() => setMode("confirm")}
-              className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
             >
               <GitMerge className="h-3 w-3" />
               Merge jadi 1 kontak
@@ -105,14 +105,14 @@ export function CrossLinkCard({
       )}
 
       {mode === "confirm" && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-900/50 dark:bg-amber-950/20">
+        <div className="rounded-lg border border-warning-soft bg-warning-soft/50 p-3">
           <div className="mb-2 flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <div className="flex-1">
-              <p className="text-sm font-medium text-amber-900 dark:text-amber-300">
+              <p className="text-sm font-medium text-warning-text">
                 Pilih kontak mana yang dipertahankan
               </p>
-              <p className="mt-0.5 text-xs text-amber-800 dark:text-amber-400">
+              <p className="mt-0.5 text-xs text-warning-text">
                 Email kontak yang dijatuhkan jadi alt di yang dipertahankan.
                 Tags / notes / history di-merge. Aksi ini soft-delete kontak
                 kedua (data masih ada di DB tapi sembunyi).
@@ -124,8 +124,8 @@ export function CrossLinkCard({
             <label
               className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 transition-colors ${
                 keepId === primaryContact.id
-                  ? "border-amber-300 bg-white dark:border-amber-700 dark:bg-zinc-900"
-                  : "border-amber-200/60 hover:bg-white/60 dark:border-amber-900/30 dark:hover:bg-zinc-900/40"
+                  ? "border-warning bg-surface"
+                  : "border-warning-soft/60 hover:bg-surface/60"
               }`}
             >
               <input
@@ -135,10 +135,10 @@ export function CrossLinkCard({
                 className="mt-0.5"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <p className="truncate text-sm font-medium text-ink">
                   Pertahankan: {primaryContact.full_name ?? primaryContact.email}
                 </p>
-                <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="truncate text-xs text-muted">
                   {primaryContact.email} · {primaryContact.company ?? "—"}
                 </p>
               </div>
@@ -146,8 +146,8 @@ export function CrossLinkCard({
             <label
               className={`flex cursor-pointer items-start gap-2 rounded-md border px-3 py-2 transition-colors ${
                 keepId === altOwnerContact.id
-                  ? "border-amber-300 bg-white dark:border-amber-700 dark:bg-zinc-900"
-                  : "border-amber-200/60 hover:bg-white/60 dark:border-amber-900/30 dark:hover:bg-zinc-900/40"
+                  ? "border-warning bg-surface"
+                  : "border-warning-soft/60 hover:bg-surface/60"
               }`}
             >
               <input
@@ -157,10 +157,10 @@ export function CrossLinkCard({
                 className="mt-0.5"
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <p className="truncate text-sm font-medium text-ink">
                   Pertahankan: {altOwnerContact.full_name ?? altOwnerContact.email}
                 </p>
-                <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                <p className="truncate text-xs text-muted">
                   {altOwnerContact.email} · {altOwnerContact.company ?? "—"}
                 </p>
               </div>
@@ -168,7 +168,7 @@ export function CrossLinkCard({
           </div>
 
           {error && (
-            <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+            <p className="mt-2 text-xs text-danger">
               {error}
             </p>
           )}
@@ -180,7 +180,7 @@ export function CrossLinkCard({
                 setMode("idle");
                 setError(null);
               }}
-              className="inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              className="inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-muted transition-colors hover:bg-surface-sunken"
             >
               <X className="h-3 w-3" />
               Batal
@@ -189,7 +189,7 @@ export function CrossLinkCard({
               type="button"
               onClick={commit}
               disabled={pending}
-              className="inline-flex h-7 items-center gap-1 rounded-md bg-zinc-900 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="inline-flex h-7 items-center gap-1 rounded-md bg-action px-3 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-50"
             >
               {pending ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -217,20 +217,20 @@ function ContactPreview({
   return (
     <Link
       href={`/w/${slug}/contacts/${contact.id}`}
-      className="group flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 bg-white px-3 py-2.5 transition-all hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/40"
+      className="group flex items-center justify-between gap-2 rounded-lg border border-border/80 bg-surface px-3 py-2.5 transition-all hover:border-border-strong hover:bg-surface-sunken"
     >
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+        <p className="truncate text-sm font-medium text-ink">
           {contact.full_name ?? contact.email}
         </p>
-        <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-0.5 truncate text-xs text-muted">
           {contact.company ?? contact.email}
         </p>
-        <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-amber-700 dark:text-amber-400">
+        <p className="mt-1 text-[10px] font-medium uppercase tracking-wide text-warning">
           {role}
         </p>
       </div>
-      <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400 transition-colors group-hover:text-zinc-600 dark:group-hover:text-zinc-300" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-faint transition-colors group-hover:text-muted" />
     </Link>
   );
 }

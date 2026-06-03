@@ -112,7 +112,7 @@ export default async function ContactsPage({
           <>
             <ButtonLink
               href={`/w/${slug}/contacts/tags`}
-              variant="outline"
+              variant="secondary"
               size="md"
             >
               <Tag className="h-4 w-4" />
@@ -120,7 +120,7 @@ export default async function ContactsPage({
             </ButtonLink>
             <ButtonLink
               href={`/w/${slug}/contacts/duplicates`}
-              variant="outline"
+              variant="secondary"
               size="md"
             >
               <ShieldCheck className="h-4 w-4" />
@@ -129,7 +129,7 @@ export default async function ContactsPage({
             <ExportButton slug={slug} />
             <ButtonLink
               href={`/w/${slug}/contacts/discover`}
-              variant="outline"
+              variant="secondary"
               size="md"
             >
               <Sparkles className="h-4 w-4" />
@@ -137,7 +137,7 @@ export default async function ContactsPage({
             </ButtonLink>
             <ButtonLink
               href={`/w/${slug}/contacts/import`}
-              variant="outline"
+              variant="secondary"
               size="md"
             >
               <Upload className="h-4 w-4" />
@@ -155,7 +155,7 @@ export default async function ContactsPage({
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Link
           href={`/w/${slug}/contacts?segment=never_contacted`}
-          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 rounded-2xl"
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
         >
           <StatCard
             label="Belum dikontak"
@@ -167,7 +167,7 @@ export default async function ContactsPage({
         </Link>
         <Link
           href={`/w/${slug}/contacts?segment=replied`}
-          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 rounded-2xl"
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
         >
           <StatCard
             label="Pernah reply"
@@ -179,7 +179,7 @@ export default async function ContactsPage({
         </Link>
         <Link
           href={`/w/${slug}/contacts?segment=stale_30d`}
-          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/40 rounded-2xl"
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
         >
           <StatCard
             label="Stale 30+ hari"
@@ -190,7 +190,7 @@ export default async function ContactsPage({
         </Link>
         <Link
           href={`/w/${slug}/contacts?segment=bounced`}
-          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500/40 rounded-2xl"
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
         >
           <StatCard
             label="Bounced"
@@ -224,7 +224,7 @@ export default async function ContactsPage({
         />
         <Link
           href={`/w/${slug}/contacts?segment=archived`}
-          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 rounded-2xl"
+          className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
         >
           <StatCard
             label="Archived"
@@ -257,7 +257,7 @@ export default async function ContactsPage({
           }
           action={
             !hasFilter ? (
-              <ButtonLink href={`/w/${slug}/contacts/import`} variant="outline">
+              <ButtonLink href={`/w/${slug}/contacts/import`} variant="secondary">
                 <Upload className="h-4 w-4" />
                 Import CSV
               </ButtonLink>
@@ -282,7 +282,7 @@ export default async function ContactsPage({
 
           {totalPages > 1 && (
             <div className="mt-4 flex items-center justify-between">
-              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              <p className="text-xs text-muted">
                 Page {page + 1} of {totalPages} ·{" "}
                 {total.toLocaleString("id-ID")} contacts
               </p>
@@ -290,7 +290,7 @@ export default async function ContactsPage({
                 {page > 0 && (
                   <Link
                     href={`/w/${slug}/contacts?${withPage(sp, page - 1)}`}
-                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
                   >
                     <ChevronLeft className="h-3 w-3" />
                     Previous
@@ -299,7 +299,7 @@ export default async function ContactsPage({
                 {page + 1 < totalPages && (
                   <Link
                     href={`/w/${slug}/contacts?${withPage(sp, page + 1)}`}
-                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                    className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
                   >
                     Next
                     <ChevronRight className="h-3 w-3" />

@@ -29,7 +29,7 @@ export default async function NewContactPage({
     <div className="mx-auto max-w-3xl px-6 py-8">
       <Link
         href={`/w/${slug}/contacts`}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Back to contacts

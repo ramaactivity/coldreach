@@ -21,7 +21,7 @@ export function ExportButton({ slug }: { slug: string }) {
   return (
     <a
       href={`/api/export/contacts?${params.toString()}`}
-      className="inline-flex h-9 items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 text-sm font-medium text-zinc-900 shadow-sm transition-all duration-150 hover:bg-zinc-50 hover:border-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30 active:scale-[0.98] dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:hover:border-zinc-700"
+      className="inline-flex h-9 items-center gap-2 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink transition-all duration-150 hover:bg-surface-sunken hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent active:scale-[0.98]"
     >
       <Download className="h-4 w-4" />
       Export CSV

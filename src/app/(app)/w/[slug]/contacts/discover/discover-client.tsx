@@ -312,29 +312,29 @@ export function DiscoverClient({
       <Card className="overflow-hidden p-0">
         <div className="flex flex-wrap items-center justify-between gap-4 px-5 pt-4">
           <div className="flex items-baseline gap-2.5">
-            <Coins className="h-4 w-4 translate-y-0.5 text-amber-500" />
-            <span className="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-50">
+            <Coins className="h-4 w-4 translate-y-0.5 text-warning" />
+            <span className="text-2xl font-semibold tabular tracking-tight text-ink">
               ≈{idr(credit.remainingEst)}
             </span>
-            <span className="text-sm text-zinc-500 dark:text-zinc-400">
+            <span className="text-sm text-muted">
               dari {idr(credit.limit)} kredit Apollo tersisa
             </span>
           </div>
-          <div className="text-right text-xs text-zinc-500 dark:text-zinc-400">
-            <span className="tabular-nums">{idr(credit.usedThisCycle)}</span>{" "}
+          <div className="text-right text-xs text-muted">
+            <span className="tabular">{idr(credit.usedThisCycle)}</span>{" "}
             terpakai · reset{" "}
-            <span className="font-medium text-zinc-700 dark:text-zinc-300">
+            <span className="font-medium text-ink-secondary">
               {credit.daysToReset} hari
             </span>
           </div>
         </div>
-        <div className="mt-3 h-1.5 bg-zinc-100 dark:bg-zinc-800">
+        <div className="mt-3 h-1.5 bg-surface-sunken">
           <div
-            className="h-full bg-amber-400 transition-[width] duration-500"
+            className="h-full bg-warning transition-[width] duration-500"
             style={{ width: `${Math.min(100, Math.max(2, pct))}%` }}
           />
         </div>
-        <div className="flex flex-wrap items-center gap-2 px-5 py-3 text-[11px] text-zinc-400 dark:text-zinc-500">
+        <div className="flex flex-wrap items-center gap-2 px-5 py-3 text-[11px] text-faint">
           <span className="leading-relaxed">
             Estimasi dari pemakaian via ColdReach (Apollo tidak membuka saldo
             lewat API).
@@ -343,7 +343,7 @@ export function DiscoverClient({
             href="https://developer.apollo.io/keys#/usage"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-zinc-100"
+            className="inline-flex items-center gap-1 font-medium text-muted hover:text-ink"
           >
             cek aktual <ExternalLink className="h-3 w-3" />
           </a>
@@ -356,7 +356,7 @@ export function DiscoverClient({
               className="h-7 w-28 text-xs"
             />
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={doSync}
               disabled={pending}
@@ -371,8 +371,8 @@ export function DiscoverClient({
       {/* ── Search builder ───────────────────────────────────────── */}
       <Card className="p-5">
         {/* Persona row */}
-        <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-zinc-100 pb-4 dark:border-zinc-800">
-          <span className="text-xs font-semibold uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
+        <div className="mb-4 flex flex-wrap items-center gap-2 border-b border-border pb-4">
+          <span className="text-xs font-semibold uppercase tracking-wide text-faint">
             Persona
           </span>
           <div className="w-56">
@@ -388,7 +388,7 @@ export function DiscoverClient({
               ))}
             </Select>
           </div>
-          <Button variant="outline" size="sm" onClick={savePersona} disabled={pending}>
+          <Button variant="secondary" size="sm" onClick={savePersona} disabled={pending}>
             Simpan kriteria ini
           </Button>
           {activePersona && (
@@ -398,7 +398,7 @@ export function DiscoverClient({
               onClick={removePersona}
               disabled={pending}
             >
-              <Trash2 className="h-3.5 w-3.5 text-red-500" />
+              <Trash2 className="h-3.5 w-3.5 text-danger" />
             </Button>
           )}
         </div>
@@ -407,7 +407,7 @@ export function DiscoverClient({
           <div>
             <FieldLabel>
               Jabatan target{" "}
-              <span className="font-normal text-zinc-400">
+              <span className="font-normal text-faint">
                 (Enter atau koma untuk menambah)
               </span>
             </FieldLabel>
@@ -421,7 +421,7 @@ export function DiscoverClient({
             <div>
               <FieldLabel>
                 Lokasi{" "}
-                <span className="font-normal text-zinc-400">
+                <span className="font-normal text-faint">
                   (kota saja, negara otomatis Indonesia)
                 </span>
               </FieldLabel>
@@ -434,7 +434,7 @@ export function DiscoverClient({
             <div>
               <FieldLabel>
                 Keyword industri{" "}
-                <span className="font-normal text-zinc-400">(opsional)</span>
+                <span className="font-normal text-faint">(opsional)</span>
               </FieldLabel>
               <TagInput
                 value={keywords}
@@ -455,9 +455,9 @@ export function DiscoverClient({
               <Search className="h-4 w-4" />
               Cari (gratis)
             </Button>
-            <div className="flex items-center gap-2 rounded-xl border border-zinc-200 px-2.5 py-1.5 dark:border-zinc-800">
-              <Zap className="h-3.5 w-3.5 text-amber-500" />
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+            <div className="flex items-center gap-2 rounded-xl border border-border px-2.5 py-1.5">
+              <Zap className="h-3.5 w-3.5 text-warning" />
+              <span className="text-xs text-muted">
                 Ambil top
               </span>
               <Input
@@ -467,7 +467,7 @@ export function DiscoverClient({
                 className="h-7 w-16 text-xs"
               />
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
                 onClick={runQuick}
                 disabled={disabled || pending}
@@ -477,7 +477,7 @@ export function DiscoverClient({
               <button
                 type="button"
                 onClick={() => setQuickN(Math.max(1, credit.remainingEst))}
-                className="text-[11px] font-medium text-amber-600 hover:underline dark:text-amber-400"
+                className="text-[11px] font-medium text-warning hover:underline"
               >
                 semua ({credit.remainingEst})
               </button>
@@ -491,7 +491,7 @@ export function DiscoverClient({
         <Card className="overflow-hidden p-0">
           {/* Stats strip */}
           {counts && (
-            <div className="grid grid-cols-2 divide-x divide-zinc-100 border-b border-zinc-100 sm:grid-cols-4 dark:divide-zinc-800 dark:border-zinc-800">
+            <div className="grid grid-cols-2 divide-x divide-border border-b border-border sm:grid-cols-4">
               <Stat label="Total" value={counts.total} />
               <Stat label="Net New" value={counts.netNew} accent="emerald" />
               <Stat label="Saved (Apollo)" value={counts.saved} />
@@ -504,7 +504,7 @@ export function DiscoverClient({
           )}
 
           {/* Controls */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-3">
             <div className="flex flex-wrap items-center gap-4">
               <Toggle checked={hideExisting} onChange={setHideExisting}>
                 Sembunyikan yang sudah di ColdReach
@@ -513,7 +513,7 @@ export function DiscoverClient({
                 Hanya yang punya email
               </Toggle>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                <span className="text-xs text-muted">
                   Urutkan
                 </span>
                 <div className="w-40">
@@ -541,25 +541,25 @@ export function DiscoverClient({
 
           {/* Quick select */}
           <div className="flex flex-wrap items-center gap-1.5 px-5 py-2.5 text-xs">
-            <span className="text-zinc-500 dark:text-zinc-400">Pilih:</span>
+            <span className="text-muted">Pilih:</span>
             {[10, 25].map((n) => (
               <Chip key={n} onClick={() => selectTopN(n)}>
                 {n} teratas
               </Chip>
             ))}
-            <span className="inline-flex items-center overflow-hidden rounded-full border border-zinc-200 dark:border-zinc-700">
+            <span className="inline-flex items-center overflow-hidden rounded-full border border-border">
               <input
                 type="number"
                 value={selectN}
                 onChange={(e) =>
                   setSelectN(Math.max(1, parseInt(e.target.value, 10) || 1))
                 }
-                className="w-12 bg-transparent px-2 py-0.5 text-zinc-700 outline-none dark:text-zinc-300"
+                className="w-12 bg-transparent px-2 py-0.5 text-ink-secondary outline-none"
               />
               <button
                 type="button"
                 onClick={() => selectTopN(selectN)}
-                className="bg-zinc-900 px-2.5 py-0.5 font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                className="bg-action px-2.5 py-0.5 font-medium text-on-action"
               >
                 pilih
               </button>
@@ -569,30 +569,30 @@ export function DiscoverClient({
               <button
                 type="button"
                 onClick={clearSelection}
-                className="px-2 font-medium text-zinc-500 underline-offset-2 hover:underline dark:text-zinc-400"
+                className="px-2 font-medium text-muted underline-offset-2 hover:underline"
               >
                 Hapus pilihan
               </button>
             )}
-            <span className="ml-auto text-zinc-400 dark:text-zinc-500">
+            <span className="ml-auto text-faint">
               {idr(displayedPeople.length)} tampil / {idr(people.length)} dimuat
               dari {idr(totalEntries)} ·{" "}
-              <span className="text-emerald-600 dark:text-emerald-400">✓</span>{" "}
+              <span className="text-success">✓</span>{" "}
               punya email ·{" "}
-              <span className="text-amber-600 dark:text-amber-400">?</span> belum
+              <span className="text-warning">?</span> belum
               tentu
             </span>
           </div>
 
           {/* List */}
           {displayedPeople.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
+            <p className="px-5 py-10 text-center text-sm text-muted">
               {people.length === 0
                 ? "Belum ada hasil. Atur kriteria lalu klik Cari."
                 : "Tidak ada yang cocok filter saat ini. Longgarkan filter, atau klik Muat lebih banyak untuk memindai halaman berikutnya."}
             </p>
           ) : (
-            <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+            <ul className="divide-y divide-border">
               {displayedPeople.map((p) => {
                 const checked = selected.has(p.id);
                 return (
@@ -601,8 +601,8 @@ export function DiscoverClient({
                     onClick={() => !p.alreadyImported && toggle(p.id)}
                     className={`flex cursor-pointer items-center gap-3 px-5 py-2.5 transition-colors ${
                       checked
-                        ? "bg-zinc-50 dark:bg-zinc-800/40"
-                        : "hover:bg-zinc-50/60 dark:hover:bg-zinc-800/20"
+                        ? "bg-surface-sunken"
+                        : "hover:bg-surface-sunken"
                     }`}
                   >
                     <CheckBox
@@ -611,17 +611,17 @@ export function DiscoverClient({
                       onChange={() => toggle(p.id)}
                     />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-zinc-900 dark:text-zinc-100">
+                      <p className="truncate text-sm text-ink">
                         <span className="font-medium">
                           {p.first_name ?? "—"} {p.last_name ?? ""}
                         </span>
                         {p.title && (
-                          <span className="ml-2 text-zinc-500 dark:text-zinc-400">
+                          <span className="ml-2 text-muted">
                             {p.title}
                           </span>
                         )}
                       </p>
-                      <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                      <p className="mt-0.5 truncate text-xs text-muted">
                         {p.organization_name ?? "—"}
                       </p>
                     </div>
@@ -643,10 +643,10 @@ export function DiscoverClient({
 
           {/* Load more */}
           {people.length > 0 && (
-            <div className="flex items-center justify-center border-t border-zinc-100 px-5 py-3 dark:border-zinc-800">
+            <div className="flex items-center justify-center border-t border-border px-5 py-3">
               {nextPage ? (
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={loadMore}
                   disabled={pending}
@@ -658,7 +658,7 @@ export function DiscoverClient({
                   )}
                 </Button>
               ) : (
-                <span className="text-xs text-zinc-400 dark:text-zinc-500">
+                <span className="text-xs text-faint">
                   Semua hasil sudah dimuat.
                 </span>
               )}
@@ -669,14 +669,14 @@ export function DiscoverClient({
 
       {/* Import progress overlay */}
       {importing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="flex max-w-sm items-center gap-4 rounded-2xl border border-zinc-200 bg-white px-6 py-5 shadow-xl dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="flex max-w-sm items-center gap-4 rounded-lg border border-border bg-surface px-6 py-5 shadow-[var(--shadow-lg)]">
             <Spinner />
             <div>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              <p className="text-sm font-semibold text-ink">
                 Mengimpor kontak…
               </p>
-              <p className="mt-0.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+              <p className="mt-0.5 text-xs leading-relaxed text-muted">
                 Reveal email lewat Apollo lalu simpan ke Contacts. Jangan tutup
                 halaman ini.
               </p>
@@ -701,16 +701,16 @@ function Stat({
 }) {
   return (
     <div className="px-5 py-3">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-faint">
         {label}
       </p>
       <p
-        className={`mt-1 text-xl font-semibold tabular-nums tracking-tight ${
+        className={`mt-1 text-xl font-semibold tabular tracking-tight ${
           accent === "emerald"
-            ? "text-emerald-600 dark:text-emerald-400"
+            ? "text-success"
             : muted
-              ? "text-zinc-400 dark:text-zinc-500"
-              : "text-zinc-900 dark:text-zinc-100"
+              ? "text-faint"
+              : "text-ink"
         }`}
       >
         {value.toLocaleString("id-ID")}
@@ -730,7 +730,7 @@ function Chip({
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full border border-zinc-200 px-2.5 py-0.5 font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+      className="rounded-full border border-border px-2.5 py-0.5 font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
     >
       {children}
     </button>

@@ -238,12 +238,12 @@ export function ContactForm({
       )}
 
       {state.error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+        <p className="rounded-lg border border-danger-soft bg-danger-soft p-3 text-xs font-medium text-danger-text">
           {state.error}
         </p>
       )}
       {state.success && (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400">
+        <p className="rounded-lg border border-success-soft bg-success-soft p-3 text-xs font-medium text-success-text">
           ✓ Saved
         </p>
       )}
@@ -266,7 +266,7 @@ function Section({
 }) {
   return (
     <div>
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
         {title}
       </p>
       {children}

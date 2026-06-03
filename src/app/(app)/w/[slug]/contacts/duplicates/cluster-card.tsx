@@ -54,16 +54,16 @@ export function ClusterCard({ slug, contacts }: Props) {
   if (mode === "done") {
     const succeeded = progress.total - errors.length;
     return (
-      <div className="rounded-xl border border-emerald-200/60 bg-emerald-50/40 p-5 dark:border-emerald-900/50 dark:bg-emerald-950/20">
-        <p className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+      <div className="rounded-xl border border-success-soft/60 bg-success-soft/40 p-5">
+        <p className="flex items-center gap-2 text-sm font-medium text-success-text">
           <Check className="h-4 w-4" />
           {succeeded} kontak ter-merge ke{" "}
-          <code className="rounded bg-white px-1 py-0.5 font-mono text-xs dark:bg-zinc-800">
+          <code className="rounded bg-surface px-1 py-0.5 font-mono text-xs">
             {contacts.find((c) => c.id === keepId)?.email}
           </code>
         </p>
         {errors.length > 0 && (
-          <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-red-600 dark:text-red-400">
+          <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-danger">
             {errors.map((e, i) => (
               <li key={i}>{e}</li>
             ))}
@@ -74,18 +74,18 @@ export function ClusterCard({ slug, contacts }: Props) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
-      <div className="flex items-start justify-between gap-2 border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
+    <div className="overflow-hidden rounded-lg border border-border bg-surface">
+      <div className="flex items-start justify-between gap-2 border-b border-border px-5 py-3">
         <div>
-          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <p className="text-sm font-semibold text-ink">
             {header?.full_name ?? "—"}
             {header?.company && (
-              <span className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400">
+              <span className="ml-1.5 font-normal text-muted">
                 · {header.company}
               </span>
             )}
           </p>
-          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-0.5 text-xs text-muted">
             {contacts.length} kontak
           </p>
         </div>
@@ -93,7 +93,7 @@ export function ClusterCard({ slug, contacts }: Props) {
           <button
             type="button"
             onClick={() => setMode("select")}
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
           >
             <GitMerge className="h-3 w-3" />
             Merge cluster
@@ -102,18 +102,18 @@ export function ClusterCard({ slug, contacts }: Props) {
       </div>
 
       {mode === "idle" && (
-        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+        <ul className="divide-y divide-border">
           {contacts.map((c) => (
             <li key={c.id}>
               <Link
                 href={`/w/${slug}/contacts/${c.id}`}
-                className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-zinc-50 dark:hover:bg-zinc-800/40"
+                className="flex items-center justify-between gap-3 px-5 py-3 transition-colors hover:bg-surface-sunken"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  <p className="truncate text-sm font-medium text-ink">
                     {c.email}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="mt-0.5 truncate text-xs text-muted">
                     {c.position ?? "—"} · ditambahkan{" "}
                     {new Date(c.created_at).toLocaleDateString("id-ID", {
                       day: "numeric",
@@ -129,14 +129,14 @@ export function ClusterCard({ slug, contacts }: Props) {
       )}
 
       {mode === "select" && (
-        <div className="bg-amber-50/40 p-5 dark:bg-amber-950/20">
+        <div className="bg-warning-soft/40 p-5">
           <div className="mb-3 flex items-start gap-2">
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <div>
-              <p className="text-sm font-medium text-amber-900 dark:text-amber-300">
+              <p className="text-sm font-medium text-warning-text">
                 Pilih kontak primary — yang lain akan di-merge ke ini
               </p>
-              <p className="mt-0.5 text-xs text-amber-800 dark:text-amber-400">
+              <p className="mt-0.5 text-xs text-warning-text">
                 Email mereka jadi alt_emails, tags / notes / history
                 di-merge. Yang non-primary akan soft-deleted.
               </p>
@@ -147,10 +147,10 @@ export function ClusterCard({ slug, contacts }: Props) {
             {contacts.map((c) => (
               <label
                 key={c.id}
-                className={`flex cursor-pointer items-start gap-2 rounded-md border bg-white px-3 py-2 transition-colors dark:bg-zinc-900 ${
+                className={`flex cursor-pointer items-start gap-2 rounded-md border bg-surface px-3 py-2 transition-colors ${
                   keepId === c.id
-                    ? "border-amber-300 dark:border-amber-700"
-                    : "border-zinc-200 hover:border-amber-200 dark:border-zinc-800 dark:hover:border-amber-900/50"
+                    ? "border-warning"
+                    : "border-border hover:border-warning-soft"
                 }`}
               >
                 <input
@@ -160,10 +160,10 @@ export function ClusterCard({ slug, contacts }: Props) {
                   className="mt-0.5"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                  <p className="truncate text-sm font-medium text-ink">
                     {c.email}
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="mt-0.5 truncate text-xs text-muted">
                     {c.position ?? "—"} · created{" "}
                     {new Date(c.created_at).toLocaleDateString("id-ID", {
                       day: "numeric",
@@ -172,7 +172,7 @@ export function ClusterCard({ slug, contacts }: Props) {
                   </p>
                 </div>
                 {keepId === c.id && (
-                  <span className="rounded-full bg-amber-200 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-800 dark:text-amber-200">
+                  <span className="rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning-text">
                     Primary
                   </span>
                 )}
@@ -184,7 +184,7 @@ export function ClusterCard({ slug, contacts }: Props) {
             <button
               type="button"
               onClick={() => setMode("idle")}
-              className="inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-zinc-600 transition-colors hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+              className="inline-flex h-7 items-center gap-1 rounded-md px-2.5 text-xs font-medium text-muted transition-colors hover:bg-surface-sunken"
             >
               <X className="h-3 w-3" />
               Batal
@@ -193,7 +193,7 @@ export function ClusterCard({ slug, contacts }: Props) {
               type="button"
               onClick={commit}
               disabled={pending}
-              className="inline-flex h-7 items-center gap-1 rounded-md bg-zinc-900 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="inline-flex h-7 items-center gap-1 rounded-md bg-action px-3 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-50"
             >
               <GitMerge className="h-3 w-3" />
               Merge {contacts.length - 1} kontak
@@ -205,14 +205,14 @@ export function ClusterCard({ slug, contacts }: Props) {
       {mode === "running" && (
         <div className="p-5">
           <div className="mb-3 flex items-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">
+            <Loader2 className="h-4 w-4 animate-spin text-info" />
+            <p className="text-sm text-ink-secondary">
               Merging... {progress.done}/{progress.total}
             </p>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div className="h-1.5 overflow-hidden rounded-full bg-surface-sunken">
             <div
-              className="h-full rounded-full bg-blue-500 transition-all"
+              className="h-full rounded-full bg-info transition-all"
               style={{
                 width: `${
                   progress.total > 0

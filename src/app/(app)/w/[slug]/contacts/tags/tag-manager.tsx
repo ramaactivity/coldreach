@@ -121,14 +121,14 @@ export function TagManager({
 
   if (initial.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-zinc-300/70 bg-zinc-50/40 px-6 py-14 text-center dark:border-zinc-800 dark:bg-zinc-900/30">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-800 dark:ring-zinc-700">
-          <Tag className="h-5 w-5 text-zinc-500 dark:text-zinc-400" />
+      <div className="rounded-lg border border-dashed border-border-strong/70 bg-surface-sunken/40 px-6 py-14 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-surface ring-1 ring-border">
+          <Tag className="h-5 w-5 text-muted" />
         </div>
-        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        <p className="text-sm font-semibold text-ink">
           Belum ada tag
         </p>
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs text-muted">
           Tambah tag dari edit kontak atau bulk-action di list contacts.
         </p>
       </div>
@@ -139,30 +139,30 @@ export function TagManager({
     <>
       {/* Filter input */}
       <div className="mb-4 relative">
-        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
         <input
           type="text"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder={`Cari di antara ${initial.length} tag...`}
-          className="h-10 w-full rounded-lg border border-zinc-200 bg-white pl-10 pr-3 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+          className="h-10 w-full rounded-lg border border-border bg-surface pl-10 pr-3 text-sm text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
         />
       </div>
 
       {/* Tag list */}
-      <div className="overflow-hidden rounded-2xl border border-zinc-200/70 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
-        <div className="flex items-center justify-between gap-2 border-b border-zinc-200/80 bg-zinc-50/60 px-5 py-3 dark:border-zinc-800 dark:bg-zinc-900/40">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+      <div className="overflow-hidden rounded-lg border border-border bg-surface">
+        <div className="flex items-center justify-between gap-2 border-b border-border/80 bg-surface-sunken px-5 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
             {filtered.length} tag
           </p>
           {selected.size > 0 && (
-            <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            <span className="text-xs font-medium text-ink-secondary">
               {selected.size} dipilih untuk merge
             </span>
           )}
         </div>
 
-        <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
+        <ul className="divide-y divide-border">
           {filtered.map((t) => {
             const isSel = selected.has(t.tag);
             const isRenaming = mode?.type === "rename" && mode.tag === t.tag;
@@ -172,15 +172,15 @@ export function TagManager({
                 key={t.tag}
                 className={`flex items-center gap-3 px-5 py-3 transition-colors ${
                   isSel
-                    ? "bg-blue-50/50 dark:bg-blue-950/10"
-                    : "hover:bg-zinc-50/60 dark:hover:bg-zinc-800/30"
+                    ? "bg-info-soft/50"
+                    : "hover:bg-surface-sunken"
                 }`}
               >
                 <input
                   type="checkbox"
                   checked={isSel}
                   onChange={() => toggleOne(t.tag)}
-                  className="h-4 w-4 cursor-pointer rounded border-zinc-300 bg-white text-zinc-900 shadow-sm focus:ring-2 focus:ring-zinc-900/30 focus:ring-offset-0 dark:border-zinc-600 dark:bg-zinc-800"
+                  className="h-4 w-4 cursor-pointer rounded border-border-strong bg-surface text-ink focus:ring-2 "
                 />
 
                 {isRenaming ? (
@@ -194,13 +194,13 @@ export function TagManager({
                         if (e.key === "Escape") setMode(null);
                       }}
                       autoFocus
-                      className="h-7 flex-1 rounded-md border border-zinc-200 bg-white px-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                      className="h-7 flex-1 rounded-md border border-border bg-surface px-2 text-sm text-ink focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
                     />
                     <button
                       type="button"
                       onClick={commitRename}
                       disabled={pending || !renameValue.trim()}
-                      className="inline-flex h-7 items-center gap-1 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+                      className="inline-flex h-7 items-center gap-1 rounded-md bg-action px-2.5 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-50"
                     >
                       {pending ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -212,15 +212,15 @@ export function TagManager({
                     <button
                       type="button"
                       onClick={() => setMode(null)}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-sunken hover:text-ink"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 ) : isDeleting ? (
-                  <div className="flex flex-1 items-center gap-2 rounded-md bg-red-50 px-2.5 py-1 dark:bg-red-950/30">
-                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-600 dark:text-red-400" />
-                    <p className="flex-1 text-xs text-red-700 dark:text-red-400">
+                  <div className="flex flex-1 items-center gap-2 rounded-md bg-danger-soft px-2.5 py-1">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-danger" />
+                    <p className="flex-1 text-xs text-danger-text">
                       Hapus tag <strong>{t.tag}</strong> dari{" "}
                       {t.contact_count} kontak?
                     </p>
@@ -228,7 +228,7 @@ export function TagManager({
                       type="button"
                       onClick={commitDelete}
                       disabled={pending}
-                      className="inline-flex h-6 items-center gap-1 rounded-md border border-red-200 bg-white px-2 text-[11px] font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-900/50 dark:bg-zinc-900 dark:text-red-400"
+                      className="inline-flex h-6 items-center gap-1 rounded-md border border-danger-soft bg-surface px-2 text-[11px] font-semibold text-danger-text transition-colors hover:bg-danger-soft disabled:opacity-50"
                     >
                       {pending ? (
                         <Loader2 className="h-3 w-3 animate-spin" />
@@ -240,18 +240,18 @@ export function TagManager({
                     <button
                       type="button"
                       onClick={() => setMode(null)}
-                      className="inline-flex h-6 w-6 items-center justify-center rounded-md text-red-500 transition-colors hover:bg-red-100 dark:hover:bg-red-950/50"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-md text-danger transition-colors hover:bg-danger-soft"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </div>
                 ) : (
                   <>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-sunken px-2.5 py-1 text-sm font-medium text-ink">
                       <Tag className="h-3 w-3" />
                       {t.tag}
                     </span>
-                    <span className="text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
+                    <span className="text-xs text-muted tabular">
                       {t.contact_count.toLocaleString("id-ID")} kontak
                     </span>
 
@@ -261,7 +261,7 @@ export function TagManager({
                       type="button"
                       onClick={() => startRename(t.tag)}
                       title="Rename"
-                      className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                      className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
                     >
                       <Edit3 className="h-3 w-3" />
                       Rename
@@ -270,7 +270,7 @@ export function TagManager({
                       type="button"
                       onClick={() => setMode({ type: "delete", tag: t.tag })}
                       title="Hapus tag dari semua kontak"
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-faint transition-colors hover:bg-danger-soft hover:text-danger"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -285,18 +285,18 @@ export function TagManager({
       {/* Merge floating bar */}
       {selected.size >= 2 && (
         <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-4">
-          <div className="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl ring-1 ring-black/5 dark:border-zinc-700 dark:bg-zinc-900 dark:ring-white/5">
+          <div className="pointer-events-auto w-full max-w-2xl overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-lg)]">
             <div className="flex items-center gap-3 px-4 py-3">
-              <span className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-full bg-zinc-900 px-2 text-xs font-semibold tabular-nums text-white dark:bg-zinc-100 dark:text-zinc-900">
+              <span className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-full bg-action px-2 text-xs font-semibold tabular text-on-action">
                 {selected.size}
               </span>
-              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <span className="text-sm font-medium text-ink-secondary">
                 tag dipilih — gabung jadi 1
               </span>
               <button
                 type="button"
                 onClick={() => setShowMerge((v) => !v)}
-                className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg bg-zinc-900 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                className="ml-auto inline-flex h-8 items-center gap-1.5 rounded-lg bg-action px-3 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover"
               >
                 <GitMerge className="h-3 w-3" />
                 Merge
@@ -304,7 +304,7 @@ export function TagManager({
               <button
                 type="button"
                 onClick={clearSelection}
-                className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800"
+                className="inline-flex h-8 items-center gap-1 rounded-lg px-2.5 text-xs font-medium text-muted transition-colors hover:bg-surface-sunken hover:text-ink"
               >
                 <X className="h-3 w-3" />
                 Clear
@@ -312,13 +312,13 @@ export function TagManager({
             </div>
 
             {showMerge && (
-              <div className="border-t border-zinc-100 bg-zinc-50/60 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40">
-                <p className="mb-2 text-xs text-zinc-600 dark:text-zinc-400">
+              <div className="border-t border-border bg-surface-sunken px-4 py-3">
+                <p className="mb-2 text-xs text-muted">
                   Sources:{" "}
                   {Array.from(selected).map((s) => (
                     <code
                       key={s}
-                      className="ml-1 rounded bg-zinc-200 px-1 py-0.5 font-mono text-[10px] text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300"
+                      className="ml-1 rounded bg-surface-hover px-1 py-0.5 font-mono text-[10px] text-ink-secondary"
                     >
                       {s}
                     </code>
@@ -333,13 +333,13 @@ export function TagManager({
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && mergeTarget.trim()) commitMerge();
                     }}
-                    className="h-8 flex-1 rounded-md border border-zinc-200 bg-white px-2.5 text-xs text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                    className="h-8 flex-1 rounded-md border border-border bg-surface px-2.5 text-xs text-ink placeholder:text-faint focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
                   />
                   <button
                     type="button"
                     onClick={commitMerge}
                     disabled={pending || !mergeTarget.trim()}
-                    className="inline-flex h-8 items-center gap-1 rounded-md bg-zinc-900 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                    className="inline-flex h-8 items-center gap-1 rounded-md bg-action px-3 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-50"
                   >
                     {pending ? (
                       <Loader2 className="h-3 w-3 animate-spin" />
@@ -349,7 +349,7 @@ export function TagManager({
                     Apply
                   </button>
                 </div>
-                <p className="mt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                <p className="mt-2 text-[11px] text-muted">
                   Source tags akan dihapus, target ditambah ke semua kontak yg
                   punya source.
                 </p>
@@ -360,8 +360,8 @@ export function TagManager({
               <div
                 className={`border-t px-4 py-2 text-xs font-medium ${
                   feedback.type === "ok"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-400"
-                    : "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-400"
+                    ? "border-success-soft bg-success-soft text-success-text"
+                    : "border-danger-soft bg-danger-soft text-danger-text"
                 }`}
               >
                 {feedback.msg}
@@ -376,8 +376,8 @@ export function TagManager({
         <div
           className={`fixed bottom-6 left-1/2 z-40 -translate-x-1/2 rounded-lg border px-4 py-2 text-xs font-medium shadow-lg ${
             feedback.type === "ok"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-400"
-              : "border-red-200 bg-red-50 text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-400"
+              ? "border-success-soft bg-success-soft text-success-text"
+              : "border-danger-soft bg-danger-soft text-danger-text"
           }`}
         >
           <div className="flex items-center gap-2">

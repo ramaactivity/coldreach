@@ -21,7 +21,7 @@ export default async function TagsPage({
     <div className="mx-auto max-w-3xl px-6 py-8 pb-32">
       <Link
         href={`/w/${slug}/contacts`}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Kembali ke Contacts
@@ -38,10 +38,10 @@ export default async function TagsPage({
         }
       />
 
-      <div className="mb-6 flex items-start gap-2 rounded-lg border border-zinc-200/60 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400">
+      <div className="mb-6 flex items-start gap-2 rounded-lg border border-border/60 bg-surface-sunken/50 px-3 py-2 text-xs text-muted">
         <Tag className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <p>
-          <strong className="font-medium text-zinc-800 dark:text-zinc-200">
+          <strong className="font-medium text-ink">
             Tag itu user-wide
           </strong>
           , beda dari pipeline stages yang per-workspace. Rename / merge / hapus

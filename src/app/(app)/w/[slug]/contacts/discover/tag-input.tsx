@@ -38,17 +38,17 @@ export function TagInput({
   }
 
   return (
-    <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 focus-within:ring-2 focus-within:ring-zinc-900/20 dark:border-zinc-700 dark:bg-zinc-900">
+    <div className="flex min-h-9 flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface px-2 py-1.5 focus-within:ring-2 focus-within:ring-accent-soft">
       {value.map((t, i) => (
         <span
           key={`${t}-${i}`}
-          className="inline-flex items-center gap-1 rounded-full bg-zinc-100 py-0.5 pl-2 pr-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+          className="inline-flex items-center gap-1 rounded-full bg-surface-sunken py-0.5 pl-2 pr-1 text-xs font-medium text-ink-secondary"
         >
           {t}
           <button
             type="button"
             onClick={() => onChange(value.filter((_, j) => j !== i))}
-            className="rounded-full p-0.5 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700 dark:hover:bg-zinc-700 dark:hover:text-zinc-200"
+            className="rounded-full p-0.5 text-faint hover:bg-surface-hover hover:text-ink-secondary"
             aria-label={`Hapus ${t}`}
           >
             <X className="h-3 w-3" />
@@ -83,7 +83,7 @@ export function TagInput({
           }
         }}
         placeholder={value.length === 0 ? placeholder : ""}
-        className="min-w-[100px] flex-1 bg-transparent py-0.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100"
+        className="min-w-[100px] flex-1 bg-transparent py-0.5 text-sm text-ink outline-none placeholder:text-faint"
       />
     </div>
   );
