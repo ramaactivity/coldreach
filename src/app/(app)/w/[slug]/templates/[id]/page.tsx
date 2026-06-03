@@ -36,7 +36,7 @@ export default async function TemplateEditPage({
     <div className="mx-auto max-w-7xl px-6 py-8">
       <Link
         href={`/w/${slug}/templates`}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Back to templates
@@ -44,10 +44,10 @@ export default async function TemplateEditPage({
 
       <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl dark:text-zinc-50">
+          <h1 className="text-2xl font-semibold tracking-tight text-ink">
             {template.name}
           </h1>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-muted">
             {template.category ? (
               <span className="capitalize">{template.category}</span>
             ) : (
@@ -80,12 +80,12 @@ export default async function TemplateEditPage({
       {/* Attachments */}
       <div className="mt-8">
         <div className="mb-3 flex items-center gap-2">
-          <Paperclip className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+          <Paperclip className="h-4 w-4 text-muted" />
+          <h2 className="text-base font-semibold text-ink">
             Attachments
           </h2>
         </div>
-        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="mb-4 text-sm text-muted">
           PDF / image lampiran untuk email. Max 5 MB per file. Dilampirkan
           otomatis di tiap email yang pakai template ini.
         </p>

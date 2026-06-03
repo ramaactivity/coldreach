@@ -74,7 +74,7 @@ export default async function CampaignsPage({
               <Link
                 key={c.id}
                 href={`/w/${slug}/campaigns/${c.id}`}
-                className="group block overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700"
+                className="group block overflow-hidden rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
@@ -84,29 +84,29 @@ export default async function CampaignsPage({
                         scheduled={!!isScheduled}
                         active={c.is_active && !isScheduled}
                       />
-                      <h2 className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                      <h2 className="truncate text-base font-semibold text-ink">
                         {c.name}
                       </h2>
                       {c.test_mode && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-info-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-info">
                           <Shield className="h-2.5 w-2.5" />
                           Test
                         </span>
                       )}
                       {isCompleted && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success-text">
                           <CheckCircle2 className="h-2.5 w-2.5" />
                           Completed
                         </span>
                       )}
                       {isScheduled && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning">
                           <Clock className="h-2.5 w-2.5" />
                           Scheduled
                         </span>
                       )}
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                       <span className="inline-flex items-center gap-1">
                         <Target className="h-3 w-3" />
                         {c.daily_target}/run rate
@@ -130,23 +130,23 @@ export default async function CampaignsPage({
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100">
+                    <p className="text-2xl font-semibold tabular tracking-tight text-ink">
                       {pct}%
                     </p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="text-xs text-muted">
                       {c.total_sent.toLocaleString("id-ID")} /{" "}
                       {c.total_in_queue.toLocaleString("id-ID")}
                     </p>
                   </div>
                 </div>
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
                   <div
                     className={`h-full rounded-full transition-all ${
                       isCompleted
-                        ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                        ? "bg-success"
                         : c.is_active && !isScheduled
-                          ? "bg-gradient-to-r from-blue-500 to-indigo-500"
-                          : "bg-zinc-300 dark:bg-zinc-700"
+                          ? "bg-info"
+                          : "bg-border-strong"
                     }`}
                     style={{ width: `${pct}%` }}
                   />
@@ -170,18 +170,18 @@ function StatusIcon({
   active: boolean;
 }) {
   if (completed) {
-    return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />;
+    return <CheckCircle2 className="h-3.5 w-3.5 text-success" />;
   }
   if (scheduled) {
-    return <Clock className="h-3.5 w-3.5 text-amber-500" />;
+    return <Clock className="h-3.5 w-3.5 text-warning" />;
   }
   if (active) {
     return (
       <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500" />
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-info opacity-75" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-info" />
       </span>
     );
   }
-  return <Pause className="h-3 w-3 text-zinc-400" />;
+  return <Pause className="h-3 w-3 text-faint" />;
 }

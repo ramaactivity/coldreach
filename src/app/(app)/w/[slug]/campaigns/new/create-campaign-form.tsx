@@ -193,26 +193,26 @@ export function CreateCampaignForm({
       </div>
 
       {/* AI opener */}
-      <div className="rounded-2xl border border-zinc-200/70 bg-gradient-to-br from-amber-50/60 to-rose-50/40 p-4 dark:border-zinc-800/80 dark:from-amber-950/20 dark:to-rose-950/10">
+      <div className="rounded-lg border border-border bg-warning-soft p-4">
         <label className="flex cursor-pointer items-start gap-3">
           <div className="relative mt-0.5">
             <input
               type="checkbox"
               name="use_ai_opener"
               defaultChecked
-              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-zinc-300 bg-white transition-colors checked:border-zinc-900 checked:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 dark:border-zinc-600 dark:bg-zinc-800 dark:checked:border-zinc-100 dark:checked:bg-zinc-100"
+              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-border-strong bg-surface transition-colors checked:border-action checked:bg-action focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
             />
-            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-white opacity-0 peer-checked:opacity-100 dark:text-zinc-900" />
+            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-on-action opacity-0 peer-checked:opacity-100" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <Sparkles className="h-3.5 w-3.5 text-warning" />
+              <p className="text-sm font-medium text-ink">
                 Pakai AI personalization
               </p>
             </div>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-              Gemini generate <code className="rounded bg-zinc-100 px-1 font-mono text-[11px] dark:bg-zinc-800">{`{ai_opener}`}</code>{" "}
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Gemini generate <code className="rounded bg-surface-sunken px-1 font-mono text-[11px]">{`{ai_opener}`}</code>{" "}
               per kontak. Cache reused dari queue lain kalau pernah generated.
             </p>
           </div>
@@ -220,30 +220,30 @@ export function CreateCampaignForm({
       </div>
 
       {/* Test mode */}
-      <div className="rounded-xl border border-blue-200/80 bg-gradient-to-br from-blue-50/80 to-indigo-50/60 p-4 dark:border-blue-900/50 dark:from-blue-950/30 dark:to-indigo-950/20">
+      <div className="rounded-xl border border-info-soft bg-info-soft p-4">
         <label className="flex cursor-pointer items-start gap-3">
           <div className="relative mt-0.5">
             <input
               type="checkbox"
               name="test_mode"
-              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-zinc-300 bg-white transition-colors checked:border-blue-600 checked:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 dark:border-zinc-600 dark:bg-zinc-800 dark:checked:border-blue-500 dark:checked:bg-blue-500"
+              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-border-strong bg-surface transition-colors checked:border-action checked:bg-action focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
             />
-            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-white opacity-0 peer-checked:opacity-100" />
+            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-on-action opacity-0 peer-checked:opacity-100" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <Shield className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <Shield className="h-3.5 w-3.5 text-info" />
+              <p className="text-sm font-medium text-ink">
                 Test mode
               </p>
-              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+              <span className="rounded-full bg-info-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-info">
                 Safe
               </span>
             </div>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+            <p className="mt-1 text-xs leading-relaxed text-ink-secondary">
               Semua email redirect ke akun Gmail terhubung lu (gak ke kontak
-              asli). Cron auto-runner skip campaign ini — cuma manual "Run
-              Now" yang trigger. Cocok untuk verify audience filter sebelum
+              asli). Cron auto-runner skip campaign ini — cuma manual &quot;Run
+              Now&quot; yang trigger. Cocok untuk verify audience filter sebelum
               real blast.
             </p>
           </div>
@@ -251,7 +251,7 @@ export function CreateCampaignForm({
       </div>
 
       {state.error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+        <p className="rounded-lg border border-danger-soft bg-danger-soft p-3 text-xs font-medium text-danger-text">
           {state.error}
         </p>
       )}
@@ -289,8 +289,8 @@ function ChoiceCard({
       onClick={onClick}
       className={`relative block cursor-pointer rounded-xl border p-3.5 transition-all ${
         selected
-          ? "border-zinc-900 bg-zinc-50 ring-2 ring-zinc-900/10 dark:border-zinc-100 dark:bg-zinc-800/40 dark:ring-zinc-100/10"
-          : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50/50 dark:border-zinc-800 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/30"
+          ? "border-action bg-surface-sunken ring-2 ring-accent-soft"
+          : "border-border hover:border-border-strong hover:bg-surface-sunken/50"
       }`}
     >
       <input
@@ -305,17 +305,17 @@ function ChoiceCard({
         <div
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
             selected
-              ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900"
-              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+              ? "bg-action text-on-action"
+              : "bg-surface-sunken text-muted"
           }`}
         >
           <Icon className="h-3.5 w-3.5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          <p className="text-sm font-medium text-ink">
             {title}
           </p>
-          <p className="mt-0.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <p className="mt-0.5 text-xs leading-relaxed text-muted">
             {description}
           </p>
           {extra}

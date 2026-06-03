@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Loader2, Users, Tag, Sparkles, Check, Shield, Flame } from "lucide-react";
+import { Users, Tag, Sparkles, Check, Shield, Flame } from "lucide-react";
 import {
   FieldLabel,
   FieldError,
@@ -72,8 +72,8 @@ export function CreateQueueForm({
                 key={t.id}
                 className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
                   checked
-                    ? "border-zinc-900 bg-zinc-50 dark:border-zinc-100 dark:bg-zinc-800/50"
-                    : "border-zinc-200 hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/30"
+                    ? "border-action bg-surface-sunken"
+                    : "border-border hover:bg-surface-sunken"
                 }`}
               >
                 <input
@@ -88,13 +88,13 @@ export function CreateQueueForm({
                         : prev.filter((id) => id !== t.id),
                     )
                   }
-                  className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/40 dark:border-zinc-700"
+                  className="h-4 w-4 rounded border-border-strong text-ink focus:ring-accent"
                 />
-                <span className="flex-1 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                <span className="flex-1 text-sm font-medium text-ink">
                   {t.name}
                 </span>
                 {t.attachmentCount > 0 && (
-                  <span className="text-xs text-zinc-400">
+                  <span className="text-xs text-faint">
                     📎 {t.attachmentCount}
                   </span>
                 )}
@@ -103,7 +103,7 @@ export function CreateQueueForm({
           })}
         </div>
         {selectedTemplates.length > 1 && (
-          <p className="mt-1.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <p className="mt-1.5 text-xs font-medium text-success">
             {selectedTemplates.length} template — dirotasi acak-merata per
             kirim.
           </p>
@@ -160,7 +160,7 @@ export function CreateQueueForm({
         <FieldLabel>Schedule</FieldLabel>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
-            <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400">
+            <label className="mb-1 block text-xs text-muted">
               Mulai jam
             </label>
             <TimePicker
@@ -171,7 +171,7 @@ export function CreateQueueForm({
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400">
+            <label className="mb-1 block text-xs text-muted">
               Sampai jam
             </label>
             <TimePicker
@@ -184,7 +184,7 @@ export function CreateQueueForm({
           <div>
             <label
               htmlFor="daily_target"
-              className="mb-1 block text-xs text-zinc-600 dark:text-zinc-400"
+              className="mb-1 block text-xs text-muted"
             >
               Target per hari
             </label>
@@ -202,28 +202,28 @@ export function CreateQueueForm({
       </div>
 
       {/* AI opener toggle */}
-      <div className="rounded-2xl border border-zinc-200/70 bg-gradient-to-br from-amber-50/60 to-rose-50/40 p-4 dark:border-zinc-800/80 dark:from-amber-950/20 dark:to-rose-950/10">
+      <div className="rounded-lg border border-border bg-warning-soft p-4">
         <label className="flex cursor-pointer items-start gap-3">
           <div className="relative mt-0.5">
             <input
               type="checkbox"
               name="use_ai_opener"
               defaultChecked
-              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-zinc-300 bg-white transition-colors checked:border-zinc-900 checked:bg-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 dark:border-zinc-600 dark:bg-zinc-800 dark:checked:border-zinc-100 dark:checked:bg-zinc-100"
+              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-border-strong bg-surface transition-colors checked:border-action checked:bg-action focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
             />
-            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-white opacity-0 peer-checked:opacity-100 dark:text-zinc-900" />
+            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-on-action opacity-0 peer-checked:opacity-100" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <Sparkles className="h-3.5 w-3.5 text-warning" />
+              <p className="text-sm font-medium text-ink">
                 Pakai AI personalization
               </p>
             </div>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+            <p className="mt-1 text-xs leading-relaxed text-muted">
               Gemini akan generate opener line per kontak (1-2 kalimat
               berdasarkan company/position). Variable{" "}
-              <code className="rounded bg-zinc-100 px-1 font-mono text-[11px] dark:bg-zinc-800">
+              <code className="rounded bg-surface-sunken px-1 font-mono text-[11px]">
                 {`{ai_opener}`}
               </code>{" "}
               di template otomatis di-fill.
@@ -233,46 +233,46 @@ export function CreateQueueForm({
       </div>
 
       {/* Pool ordering */}
-      <div className="rounded-2xl border border-zinc-200/70 bg-white p-4 dark:border-zinc-800/80 dark:bg-zinc-900">
-        <p className="mb-2 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+      <div className="rounded-lg border border-border bg-surface p-4">
+        <p className="mb-2 text-sm font-medium text-ink">
           Urutan kontak di queue
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3 transition-colors hover:border-zinc-300 has-[:checked]:border-zinc-900 has-[:checked]:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/30 dark:hover:border-zinc-700 dark:has-[:checked]:border-zinc-100 dark:has-[:checked]:bg-zinc-900">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border bg-surface-sunken p-3 transition-colors hover:border-border-strong has-[:checked]:border-action has-[:checked]:bg-surface-sunken">
             <input
               type="radio"
               name="pool_order"
               value="random"
               defaultChecked
-              className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-zinc-900 dark:accent-zinc-100"
+              className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-action"
             />
             <div>
               <div className="flex items-center gap-1.5">
-                <Sparkles className="h-3 w-3 text-zinc-500" />
-                <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                <Sparkles className="h-3 w-3 text-muted" />
+                <p className="text-xs font-semibold text-ink">
                   Random
                 </p>
               </div>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+              <p className="mt-0.5 text-[11px] leading-relaxed text-muted">
                 Acak dari pool. Default — fair distribution antar workspace.
               </p>
             </div>
           </label>
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-zinc-200 bg-zinc-50/60 p-3 transition-colors hover:border-amber-300 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50/60 dark:border-zinc-800 dark:bg-zinc-950/30 dark:hover:border-amber-800 dark:has-[:checked]:border-amber-700 dark:has-[:checked]:bg-amber-950/20">
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-border bg-surface-sunken p-3 transition-colors hover:border-warning has-[:checked]:border-warning has-[:checked]:bg-warning-soft">
             <input
               type="radio"
               name="pool_order"
               value="warm_first"
-              className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-amber-600 dark:accent-amber-500"
+              className="mt-0.5 h-3.5 w-3.5 cursor-pointer accent-warning"
             />
             <div>
               <div className="flex items-center gap-1.5">
-                <Flame className="h-3 w-3 text-amber-500" />
-                <p className="text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                <Flame className="h-3 w-3 text-warning" />
+                <p className="text-xs font-semibold text-ink">
                   Warm-first
                 </p>
               </div>
-              <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+              <p className="mt-0.5 text-[11px] leading-relaxed text-muted">
                 Kontak engaged (pernah open/reply) diprioritisasi duluan.
               </p>
             </div>
@@ -281,33 +281,33 @@ export function CreateQueueForm({
       </div>
 
       {/* Test mode toggle */}
-      <div className="rounded-xl border border-blue-200/80 bg-gradient-to-br from-blue-50/80 to-indigo-50/60 p-4 dark:border-blue-900/50 dark:from-blue-950/30 dark:to-indigo-950/20">
+      <div className="rounded-xl border border-info-soft bg-info-soft p-4">
         <label className="flex cursor-pointer items-start gap-3">
           <div className="relative mt-0.5">
             <input
               type="checkbox"
               name="test_mode"
-              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-zinc-300 bg-white transition-colors checked:border-blue-600 checked:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/20 dark:border-zinc-600 dark:bg-zinc-800 dark:checked:border-blue-500 dark:checked:bg-blue-500"
+              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-border-strong bg-surface transition-colors checked:border-action checked:bg-action focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
             />
-            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-white opacity-0 peer-checked:opacity-100" />
+            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-on-action opacity-0 peer-checked:opacity-100" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <Shield className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              <Shield className="h-3.5 w-3.5 text-info" />
+              <p className="text-sm font-medium text-ink">
                 Test mode
               </p>
-              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+              <span className="rounded-full bg-info-soft px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-info">
                 Safe
               </span>
             </div>
-            <p className="mt-1 text-xs leading-relaxed text-zinc-700 dark:text-zinc-300">
+            <p className="mt-1 text-xs leading-relaxed text-ink-secondary">
               Semua email <strong>redirect ke akun Gmail terhubung</strong> (gak
               ke kontak asli). Subject prefixed{" "}
-              <code className="rounded bg-blue-100 px-1 font-mono text-[10px] dark:bg-blue-900/50">
+              <code className="rounded bg-info-soft px-1 font-mono text-[10px]">
                 [TEST]
               </code>
-              . Cron auto-runner SKIP queue ini — cuma jalan via "Run Now"
+              . Cron auto-runner SKIP queue ini — cuma jalan via &quot;Run Now&quot;
               manual. Cocok untuk verifikasi audience filter / template /
               Gmail tanpa risk blast ke real customer.
             </p>
@@ -316,7 +316,7 @@ export function CreateQueueForm({
       </div>
 
       {state.error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+        <p className="rounded-lg border border-danger-soft bg-danger-soft p-3 text-xs font-medium text-danger-text">
           {state.error}
         </p>
       )}
@@ -354,8 +354,8 @@ function AudienceCard({
       onClick={onClick}
       className={`relative block cursor-pointer rounded-xl border p-3.5 transition-all ${
         selected
-          ? "border-zinc-900 bg-zinc-50 ring-2 ring-zinc-900/10 dark:border-zinc-100 dark:bg-zinc-800/40 dark:ring-zinc-100/10"
-          : "border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50/50 dark:border-zinc-800 dark:hover:border-zinc-700 dark:hover:bg-zinc-800/30"
+          ? "border-action bg-surface-sunken ring-2 ring-accent-soft"
+          : "border-border hover:border-border-strong hover:bg-surface-sunken/50"
       }`}
     >
       <input
@@ -370,17 +370,17 @@ function AudienceCard({
         <div
           className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors ${
             selected
-              ? "bg-zinc-900 text-zinc-50 dark:bg-zinc-100 dark:text-zinc-900"
-              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+              ? "bg-action text-on-action"
+              : "bg-surface-sunken text-muted"
           }`}
         >
           <Icon className="h-3.5 w-3.5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          <p className="text-sm font-medium text-ink">
             {title}
           </p>
-          <p className="mt-0.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+          <p className="mt-0.5 text-xs leading-relaxed text-muted">
             {description}
           </p>
           {extra}

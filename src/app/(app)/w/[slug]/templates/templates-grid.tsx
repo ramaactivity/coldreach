@@ -46,10 +46,10 @@ function formatRate(rate: number): string {
 }
 
 function rateColor(rate: number): string {
-  if (rate >= 0.15) return "text-emerald-600 dark:text-emerald-400";
-  if (rate >= 0.05) return "text-blue-600 dark:text-blue-400";
-  if (rate > 0) return "text-amber-600 dark:text-amber-400";
-  return "text-zinc-400 dark:text-zinc-500";
+  if (rate >= 0.15) return "text-success";
+  if (rate >= 0.05) return "text-info";
+  if (rate > 0) return "text-warning";
+  return "text-faint";
 }
 
 function formatRelative(iso: string): string {
@@ -187,37 +187,37 @@ export function TemplatesGrid({
             <Link
               key={t.id}
               href={`/w/${slug}/templates/${t.id}`}
-              className="group relative overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700"
+              className="group relative overflow-hidden rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h2 className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                    <h2 className="truncate text-base font-semibold text-ink">
                       {t.name}
                     </h2>
                     {t.attachments.length > 0 && (
-                      <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                      <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium text-muted">
                         <Paperclip className="h-2.5 w-2.5" />
                         {t.attachments.length}
                       </span>
                     )}
                   </div>
                   {t.category && (
-                    <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="mt-0.5 text-xs text-muted">
                       {t.category}
                     </p>
                   )}
                 </div>
-                <ArrowUpRight className="h-4 w-4 shrink-0 text-zinc-300 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-zinc-700 dark:text-zinc-700 dark:group-hover:text-zinc-300" />
+                <ArrowUpRight className="h-4 w-4 shrink-0 text-faint transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-ink-secondary" />
               </div>
 
-              <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
+              <p className="mt-3 line-clamp-2 text-xs leading-relaxed text-muted">
                 {t.subject_lines[0] ?? "(no subject)"}
               </p>
 
               {/* Stats row — prominent if data exists */}
               {hasData ? (
-                <div className="mt-4 grid grid-cols-3 gap-3 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                <div className="mt-4 grid grid-cols-3 gap-3 border-t border-border pt-3">
                   <Stat
                     label="Sent"
                     value={s.sent_count.toLocaleString("id-ID")}
@@ -237,14 +237,14 @@ export function TemplatesGrid({
                   />
                 </div>
               ) : (
-                <div className="mt-4 flex items-center gap-2 border-t border-zinc-100 pt-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                <div className="mt-4 flex items-center gap-2 border-t border-border pt-3 text-xs text-muted">
                   <Sparkles className="h-3 w-3" />
                   <span>Belum dipakai — pasangin ke queue dulu</span>
                 </div>
               )}
 
               {/* Footer meta */}
-              <div className="mt-3 flex items-center justify-between text-[10px] text-zinc-500 dark:text-zinc-400">
+              <div className="mt-3 flex items-center justify-between text-[10px] text-muted">
                 <span>
                   {t.subject_lines.length} subject{" "}
                   {t.subject_lines.length > 1 ? "variants" : "variant"}
@@ -276,19 +276,19 @@ function KPI({
   tone?: "default" | "emerald" | "blue";
 }) {
   const colors = {
-    default: "text-zinc-900 dark:text-zinc-100",
-    emerald: "text-emerald-600 dark:text-emerald-400",
-    blue: "text-blue-600 dark:text-blue-400",
+    default: "text-ink",
+    emerald: "text-success",
+    blue: "text-info",
   };
   return (
-    <div className="rounded-2xl border border-zinc-200/70 bg-white p-4 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
+    <div className="rounded-lg border border-border bg-surface p-4">
       <div className="flex items-center gap-1.5">
-        <Icon className="h-3 w-3 text-zinc-400" />
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+        <Icon className="h-3 w-3 text-faint" />
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
           {label}
         </p>
       </div>
-      <p className={`mt-1.5 text-xl font-semibold tabular-nums tracking-tight ${colors[tone]}`}>
+      <p className={`mt-1.5 text-xl font-semibold tabular tracking-tight ${colors[tone]}`}>
         {value}
       </p>
     </div>
@@ -308,13 +308,13 @@ function Stat({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+      <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted">
         <Icon className="h-2.5 w-2.5" />
         {label}
       </div>
       <p
-        className={`mt-0.5 text-sm font-semibold tabular-nums ${
-          valueColor ?? "text-zinc-900 dark:text-zinc-100"
+        className={`mt-0.5 text-sm font-semibold tabular ${
+          valueColor ?? "text-ink"
         }`}
       >
         {value}

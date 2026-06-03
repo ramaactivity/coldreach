@@ -140,14 +140,14 @@ export function QueueActionsBar({
 
   return (
     <Card className="mt-4 p-0">
-      <div className="border-b border-zinc-100 p-5 dark:border-zinc-800">
+      <div className="border-b border-border p-5">
         <div className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-amber-500" />
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <Zap className="h-4 w-4 text-warning" />
+          <h3 className="text-sm font-semibold text-ink">
             Run Now (manual test)
           </h3>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs leading-relaxed text-muted">
           Untuk testing, kirim email langsung tanpa nunggu cron schedule.
           Pakai delay 30-90 detik antar email kalau lu kirim batch &gt; 1.
         </p>
@@ -180,7 +180,7 @@ export function QueueActionsBar({
           </Button>
         </div>
         {!canSend && (
-          <div className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
+          <div className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-warning-soft px-2 py-1 text-xs text-warning-text">
             <AlertTriangle className="h-3 w-3" />
             {pendingCount === 0
               ? "Gak ada pending recipients."
@@ -191,10 +191,10 @@ export function QueueActionsBar({
           <div
             className={`mt-3 rounded-lg border p-3 text-xs ${
               resultTone === "success"
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400"
+                ? "border-success-soft bg-success-soft text-success-text"
                 : resultTone === "error"
-                  ? "border-red-200 bg-red-50 text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400"
-                  : "border-zinc-200 bg-zinc-50 text-zinc-700 dark:border-zinc-800 dark:bg-zinc-800/50 dark:text-zinc-300"
+                  ? "border-danger-soft bg-danger-soft text-danger-text"
+                  : "border-border bg-surface-sunken text-ink-secondary"
             }`}
           >
             {lastResult}
@@ -203,14 +203,14 @@ export function QueueActionsBar({
       </div>
 
       {/* Randomization & cross-account dedup */}
-      <div className="border-b border-zinc-100 p-5 dark:border-zinc-800">
+      <div className="border-b border-border p-5">
         <div className="flex items-center gap-2">
-          <Shuffle className="h-4 w-4 text-indigo-500" />
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <Shuffle className="h-4 w-4 text-muted" />
+          <h3 className="text-sm font-semibold text-ink">
             Random pick & cross-account dedup
           </h3>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs leading-relaxed text-muted">
           Pending recipients di-shuffle ulang setiap hari sebelum batch jalan,
           jadi tiap hari pick acak dari seluruh pool (atas, tengah, atau bawah
           list) — bukan urutan deterministik. Kalau lo punya queue di
@@ -232,39 +232,39 @@ export function QueueActionsBar({
             <Shuffle className="h-3.5 w-3.5" />
             Reshuffle now
           </Button>
-          <span className="inline-flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <span className="inline-flex items-center gap-1.5 text-[11px] text-muted">
             <ShieldCheck className="h-3 w-3" />
-            Last reshuffle: <strong className="font-medium text-zinc-700 dark:text-zinc-300">{timeAgo(lastShuffledAt)}</strong>
-            <span className="text-zinc-400 dark:text-zinc-600">·</span>
-            <strong className="font-medium text-zinc-700 dark:text-zinc-300">{pendingCount.toLocaleString("id-ID")}</strong> pending
+            Last reshuffle: <strong className="font-medium text-ink-secondary">{timeAgo(lastShuffledAt)}</strong>
+            <span className="text-faint">·</span>
+            <strong className="font-medium text-ink-secondary">{pendingCount.toLocaleString("id-ID")}</strong> pending
           </span>
         </div>
         {shuffleMsg && (
-          <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+          <p className="mt-2 text-xs text-muted">
             {shuffleMsg}
           </p>
         )}
       </div>
 
       {/* Auto-refill (evergreen) — info-only, no controls. */}
-      <div className="border-b border-zinc-100 p-5 dark:border-zinc-800">
+      <div className="border-b border-border p-5">
         <div className="flex items-center gap-2">
-          <RefreshCw className="h-4 w-4 text-emerald-500" />
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <RefreshCw className="h-4 w-4 text-success" />
+          <h3 className="text-sm font-semibold text-ink">
             Auto-refill
           </h3>
-          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+          <span className="inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success-text">
             {audienceType === "manual" ? "Off (manual list)" : "On"}
           </span>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+        <p className="mt-1 text-xs leading-relaxed text-muted">
           {audienceType === "manual"
             ? "Queue ini pakai manual contact list — gak di-refill otomatis. Bikin queue baru kalau mau target audience lain."
             : "Sebelum batch jalan, kalau pending recipients tipis (kurang dari 2 hari kapasitas), sistem otomatis tambah kontak baru dari pool yang match audience — tanpa duplikat dari queue ini. Lo gak perlu klik apa-apa."}
         </p>
-        <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+        <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-muted">
           <ShieldCheck className="h-3 w-3" />
-          Last refill: <strong className="font-medium text-zinc-700 dark:text-zinc-300">{timeAgo(lastRefilledAt)}</strong>
+          Last refill: <strong className="font-medium text-ink-secondary">{timeAgo(lastRefilledAt)}</strong>
         </div>
       </div>
 

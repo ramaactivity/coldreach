@@ -155,7 +155,7 @@ export function TemplateForm({
               Tulis 1 baris untuk subject tunggal, atau{" "}
               <strong>multiple baris untuk A/B testing</strong> — sistem
               random pilih satu variant tiap kirim. Variable{" "}
-              <code className="rounded bg-zinc-100 px-1 font-mono text-[11px] dark:bg-zinc-800">
+              <code className="rounded bg-surface-sunken px-1 font-mono text-[11px]">
                 {`{curly_braces}`}
               </code>{" "}
               di-replace per kontak.
@@ -192,7 +192,7 @@ export function TemplateForm({
           <div>
             <FieldLabel htmlFor="subject_lines_en" hint="Satu per baris = satu variant">
               Subject Lines (English){" "}
-              <span className="font-normal text-zinc-500">— opsional</span>
+              <span className="font-normal text-muted">— opsional</span>
             </FieldLabel>
             <Textarea
               id="subject_lines_en"
@@ -212,7 +212,7 @@ export function TemplateForm({
 
           <div>
             <FieldLabel htmlFor="body_plain_en">
-              Body (English) <span className="font-normal text-zinc-500">— opsional</span>
+              Body (English) <span className="font-normal text-muted">— opsional</span>
             </FieldLabel>
             <Textarea
               id="body_plain_en"
@@ -231,9 +231,9 @@ export function TemplateForm({
           </div>
 
           {/* Variables */}
-          <div className="rounded-2xl border border-zinc-200/70 bg-zinc-50/60 p-4 dark:border-zinc-800/80 dark:bg-zinc-900/60">
-            <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-700 dark:text-zinc-300">
-              <Sparkles className="h-3 w-3 text-amber-500" />
+          <div className="rounded-lg border border-border bg-surface-sunken p-4">
+            <p className="mb-2.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-ink-secondary">
+              <Sparkles className="h-3 w-3 text-warning" />
               Variables tersedia
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -244,8 +244,8 @@ export function TemplateForm({
                     key={v}
                     className={`rounded-md px-2 py-1 font-mono text-[11px] transition-colors ${
                       used
-                        ? "bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:ring-emerald-800/40"
-                        : "bg-white text-zinc-500 ring-1 ring-inset ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700"
+                        ? "bg-success-soft text-success-text ring-1 ring-inset ring-success-soft"
+                        : "bg-surface text-muted ring-1 ring-inset ring-border"
                     }`}
                   >
                     {`{${v}}`}
@@ -254,7 +254,7 @@ export function TemplateForm({
               })}
             </div>
             {unsupported.length > 0 && (
-              <p className="mt-3 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+              <p className="mt-3 flex items-start gap-1.5 text-xs text-warning">
                 <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
                 <span>
                   Variable gak dikenal:{" "}
@@ -268,15 +268,15 @@ export function TemplateForm({
 
         {/* Preview */}
         <div className="min-w-0 lg:sticky lg:top-6 lg:self-start">
-          <div className="rounded-2xl border border-zinc-200/70 bg-white shadow-sm dark:border-zinc-800/80 dark:bg-zinc-900">
-            <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50/60 px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/60">
-              <Mail className="h-3.5 w-3.5 text-zinc-500 dark:text-zinc-400" />
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+          <div className="rounded-lg border border-border bg-surface">
+            <div className="flex items-center gap-2 border-b border-border bg-surface-sunken px-4 py-2.5">
+              <Mail className="h-3.5 w-3.5 text-muted" />
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
                 Preview · sample values
               </p>
             </div>
             <div className="p-5">
-              <div className="space-y-2 border-b border-zinc-100 pb-3 text-xs dark:border-zinc-800">
+              <div className="space-y-2 border-b border-border pb-3 text-xs">
                 <Field
                   label="From"
                   value="Muhamad <catering.tiska@gmail.com>"
@@ -289,21 +289,21 @@ export function TemplateForm({
                   label="Subject"
                   value={
                     subjectPreview || (
-                      <span className="text-zinc-400">— belum ada subject —</span>
+                      <span className="text-faint">— belum ada subject —</span>
                     )
                   }
                   emphasis
                 />
               </div>
-              <pre className="mt-4 whitespace-pre-wrap font-sans text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
+              <pre className="mt-4 whitespace-pre-wrap font-sans text-sm leading-relaxed text-ink">
                 {bodyPreview || (
-                  <span className="italic text-zinc-400">— body kosong —</span>
+                  <span className="italic text-faint">— body kosong —</span>
                 )}
               </pre>
 
               {/* Workspace signature — auto-appended at send time */}
               {signatureEmpty ? (
-                <div className="mt-5 rounded-lg border border-dashed border-amber-300 bg-amber-50/60 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
+                <div className="mt-5 rounded-lg border border-dashed border-warning bg-warning-soft p-3 text-xs text-warning-text">
                   <div className="mb-1 flex items-center gap-1.5 font-semibold">
                     <PenLine className="h-3 w-3" />
                     Workspace signature belum di-set
@@ -322,17 +322,17 @@ export function TemplateForm({
                 </div>
               ) : (
                 <div className="mt-5">
-                  <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                  <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted">
                     <PenLine className="h-3 w-3" />
                     Auto-appended dari workspace signature
                   </div>
                   {mounted ? (
                     <div
-                      className="overflow-x-auto rounded-lg border border-zinc-200 bg-zinc-50/40 p-3 dark:border-zinc-800 dark:bg-zinc-900/40"
+                      className="overflow-x-auto rounded-lg border border-border bg-surface-sunken/40 p-3"
                       dangerouslySetInnerHTML={{ __html: signatureHtml }}
                     />
                   ) : (
-                    <div className="h-32 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
+                    <div className="h-32 animate-pulse rounded-lg bg-surface-sunken" />
                   )}
                 </div>
               )}
@@ -340,7 +340,7 @@ export function TemplateForm({
           </div>
 
           {inlineSignatureLikely && !signatureEmpty && (
-            <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-400">
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-warning-soft bg-warning-soft p-2.5 text-xs text-warning-text">
               <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
               <span>
                 Body template lo kayaknya udah punya signature inline
@@ -352,7 +352,7 @@ export function TemplateForm({
             </div>
           )}
 
-          <p className="mt-2 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
+          <p className="mt-2 text-xs leading-relaxed text-muted">
             Sample: Bella Hs / Kreston Indonesia / HR Manager. Saat kirim,
             value diganti dari kontak masing-masing.
           </p>
@@ -360,12 +360,12 @@ export function TemplateForm({
       </div>
 
       {state.error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+        <p className="rounded-lg border border-danger-soft bg-danger-soft p-3 text-xs font-medium text-danger-text">
           {state.error}
         </p>
       )}
       {state.success && (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-400">
+        <p className="rounded-lg border border-success-soft bg-success-soft p-3 text-xs font-medium text-success-text">
           ✓ Saved
         </p>
       )}
@@ -390,14 +390,14 @@ function Field({
 }) {
   return (
     <div className="flex gap-3">
-      <span className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+      <span className="w-12 shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted">
         {label}
       </span>
       <span
         className={
           emphasis
-            ? "text-sm font-medium text-zinc-900 dark:text-zinc-100"
-            : "text-zinc-700 dark:text-zinc-300"
+            ? "text-sm font-medium text-ink"
+            : "text-ink-secondary"
         }
       >
         {value}
@@ -419,7 +419,7 @@ function SubjectVariantList({ raw }: { raw: string }) {
 
   if (variants.length === 0) {
     return (
-      <div className="mt-2 text-[11px] text-zinc-400 dark:text-zinc-500">
+      <div className="mt-2 text-[11px] text-faint">
         Belum ada subject. Tulis minimal satu di atas.
       </div>
     );
@@ -427,7 +427,7 @@ function SubjectVariantList({ raw }: { raw: string }) {
 
   if (variants.length === 1) {
     return (
-      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-surface-sunken px-2.5 py-1 text-[11px] text-muted">
         <Sparkles className="h-3 w-3" />
         1 variant aktif · tambahin baris lagi untuk A/B testing
       </div>
@@ -436,7 +436,7 @@ function SubjectVariantList({ raw }: { raw: string }) {
 
   return (
     <div className="mt-2.5">
-      <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+      <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-success-text">
         <Sparkles className="h-3 w-3" />
         {variants.length} variant aktif — sistem rotate random per kirim
       </div>
@@ -444,9 +444,9 @@ function SubjectVariantList({ raw }: { raw: string }) {
         {variants.map((v, i) => (
           <li
             key={i}
-            className="flex items-start gap-2 rounded-lg border border-zinc-200/70 bg-white px-2.5 py-1.5 text-xs text-zinc-700 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+            className="flex items-start gap-2 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs text-ink-secondary"
           >
-            <span className="inline-flex h-4 min-w-[16px] shrink-0 items-center justify-center rounded bg-zinc-100 px-1 text-[9px] font-bold uppercase tracking-wider text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+            <span className="inline-flex h-4 min-w-[16px] shrink-0 items-center justify-center rounded bg-surface-sunken px-1 text-[9px] font-semibold uppercase tracking-wider text-muted">
               {String.fromCharCode(65 + i)}
             </span>
             <span className="min-w-0 flex-1 truncate font-mono text-[11px]">

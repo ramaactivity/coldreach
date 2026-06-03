@@ -99,8 +99,8 @@ export function FollowupSequenceEditor({
 
   if (!editing && steps.length === 0) {
     return (
-      <div className="rounded-2xl border border-zinc-200/70 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
-        <div className="flex items-center justify-between border-b border-zinc-200/80 px-5 py-3 dark:border-zinc-800/80">
+      <div className="rounded-lg border border-border bg-surface">
+        <div className="flex items-center justify-between border-b border-border/80 px-5 py-3">
           <Header />
           <button
             type="button"
@@ -108,17 +108,17 @@ export function FollowupSequenceEditor({
               setEditing(true);
               if (steps.length === 0) addStep();
             }}
-            className="inline-flex h-7 items-center gap-1 rounded-md bg-zinc-900 px-2.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            className="inline-flex h-7 items-center gap-1 rounded-md bg-action px-2.5 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover"
           >
             <Plus className="h-3 w-3" />
             Setup follow-up
           </button>
         </div>
         <div className="px-5 py-6 text-center">
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">
+          <p className="text-sm text-ink-secondary">
             Belum ada follow-up.
           </p>
-          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-xs text-muted">
             Cold email tanpa follow-up cuma dapet ~5-10% reply. Tambah 1-3 step
             biar reply rate naik 2-3×.
           </p>
@@ -128,18 +128,18 @@ export function FollowupSequenceEditor({
   }
 
   return (
-    <div className="rounded-2xl border border-zinc-200/70 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] dark:border-zinc-800/80 dark:bg-zinc-900">
-      <div className="flex items-center justify-between border-b border-zinc-200/80 px-5 py-3 dark:border-zinc-800/80">
+    <div className="rounded-lg border border-border bg-surface">
+      <div className="flex items-center justify-between border-b border-border/80 px-5 py-3">
         <Header />
         <div className="flex items-center gap-2">
           {savedFlash && (
-            <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 text-xs text-success">
               <Check className="h-3 w-3" />
               Tersimpan
             </span>
           )}
           {totalDays > 0 && !editing && (
-            <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+            <span className="text-[10px] font-medium uppercase tracking-wide text-muted">
               ~{totalDays} hari sequence
             </span>
           )}
@@ -147,7 +147,7 @@ export function FollowupSequenceEditor({
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="inline-flex h-7 items-center gap-1 rounded-md border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+              className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-sunken"
             >
               Edit
             </button>
@@ -155,7 +155,7 @@ export function FollowupSequenceEditor({
             <button
               type="button"
               onClick={handleCancel}
-              className="inline-flex h-7 items-center gap-1 rounded-md text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              className="inline-flex h-7 items-center gap-1 rounded-md text-xs font-medium text-muted transition-colors hover:bg-surface-sunken hover:text-ink"
             >
               Batal
             </button>
@@ -169,7 +169,7 @@ export function FollowupSequenceEditor({
           stepLabel="Email pertama"
           stepDescription="Original send ke audience"
           templateName={primaryTemplateName ?? "—"}
-          icon={<Sparkles className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />}
+          icon={<Sparkles className="h-3.5 w-3.5 text-success" />}
           isOriginal
         />
 
@@ -190,7 +190,7 @@ export function FollowupSequenceEditor({
           <button
             type="button"
             onClick={addStep}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-zinc-300 px-3 py-2.5 text-xs font-medium text-zinc-500 transition-all hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800/40 dark:hover:text-zinc-100"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border-strong px-3 py-2.5 text-xs font-medium text-muted transition-all hover:border-border-strong hover:bg-surface-sunken hover:text-ink"
           >
             <Plus className="h-3.5 w-3.5" />
             Tambah step ({steps.length + 1}/{MAX_FOLLOWUP_STEPS})
@@ -198,15 +198,15 @@ export function FollowupSequenceEditor({
         )}
 
         {error && (
-          <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-400">
+          <div className="flex items-start gap-2 rounded-lg border border-danger-soft bg-danger-soft px-3 py-2 text-xs text-danger-text">
             <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {editing && (
-          <div className="flex items-center justify-between gap-2 border-t border-zinc-100 pt-3 dark:border-zinc-800">
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+            <p className="text-xs text-muted">
               Hari = jeda dari email/step sebelumnya. Reply otomatis stop
               follow-up.
             </p>
@@ -214,7 +214,7 @@ export function FollowupSequenceEditor({
               type="button"
               onClick={handleSave}
               disabled={pending || !dirty}
-              className="inline-flex h-8 items-center gap-1 rounded-md bg-zinc-900 px-3 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-zinc-800 disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="inline-flex h-8 items-center gap-1 rounded-md bg-action px-3 text-xs font-semibold text-on-action transition-colors hover:bg-action-hover disabled:opacity-40"
             >
               {pending ? (
                 <Loader2 className="h-3 w-3 animate-spin" />
@@ -233,13 +233,13 @@ export function FollowupSequenceEditor({
 function Header() {
   return (
     <div className="flex items-center gap-2">
-      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-warning-soft text-warning">
         <Repeat className="h-3.5 w-3.5" />
       </div>
-      <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+      <h3 className="text-sm font-semibold text-ink">
         Follow-up Sequence
       </h3>
-      <span className="text-xs text-zinc-500 dark:text-zinc-400">
+      <span className="text-xs text-muted">
         max 3 step
       </span>
     </div>
@@ -263,24 +263,24 @@ function SequenceNode({
     <div
       className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
         isOriginal
-          ? "border-emerald-200/60 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20"
-          : "border-zinc-200/80 bg-zinc-50/40 dark:border-zinc-800 dark:bg-zinc-900/40"
+          ? "border-success-soft/60 bg-success-soft/40"
+          : "border-border/80 bg-surface-sunken/40"
       }`}
     >
       <div
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
           isOriginal
-            ? "bg-emerald-100 dark:bg-emerald-950/50"
-            : "bg-zinc-100 dark:bg-zinc-800"
+            ? "bg-success-soft"
+            : "bg-surface-sunken"
         }`}
       >
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+        <p className="text-sm font-medium text-ink">
           {stepLabel}
         </p>
-        <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+        <p className="truncate text-xs text-muted">
           {stepDescription} · {templateName}
         </p>
       </div>
@@ -308,7 +308,7 @@ function FollowupRow({
   return (
     <>
       <div className="flex items-center justify-center py-0.5">
-        <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+        <div className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-faint">
           <ChevronDown className="h-3 w-3" />
           tunggu {step.after_days || "?"} hari
           <ChevronDown className="h-3 w-3" />
@@ -317,19 +317,19 @@ function FollowupRow({
       <div
         className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 ${
           editing
-            ? "border-amber-200 bg-amber-50/40 dark:border-amber-900/50 dark:bg-amber-950/20"
-            : "border-zinc-200/80 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+            ? "border-warning-soft bg-warning-soft/40"
+            : "border-border/80 bg-surface"
         }`}
       >
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warning-soft text-warning">
           <Repeat className="h-3.5 w-3.5" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className="rounded bg-amber-200/60 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-900/50 dark:text-amber-300">
+            <span className="rounded bg-warning-soft/60 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning-text">
               Step {stepNumber}
             </span>
-            <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            <span className="text-sm font-medium text-ink">
               Follow-up {stepNumber}
             </span>
           </div>
@@ -350,7 +350,7 @@ function FollowupRow({
                   ))}
                 </Select>
               </div>
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="text-xs text-muted">
                 kirim
               </span>
               <input
@@ -361,17 +361,17 @@ function FollowupRow({
                 onChange={(e) =>
                   onUpdate({ after_days: parseInt(e.target.value, 10) || 0 })
                 }
-                className="h-7 w-14 rounded-md border border-zinc-200 bg-white px-2 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                className="h-7 w-14 rounded-md border border-border bg-surface px-2 text-xs text-ink focus:border-accent focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
               />
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              <span className="text-xs text-muted">
                 hari setelah {stepNumber === 1 ? "email pertama" : `step ${stepNumber - 1}`}
               </span>
             </div>
           ) : (
-            <p className="mt-1 truncate text-xs text-zinc-500 dark:text-zinc-400">
+            <p className="mt-1 truncate text-xs text-muted">
               <ArrowRight className="mr-1 inline-block h-3 w-3" />
               Template:{" "}
-              <strong className="font-medium text-zinc-700 dark:text-zinc-300">
+              <strong className="font-medium text-ink-secondary">
                 {templateName ?? "(belum dipilih)"}
               </strong>{" "}
               · setelah {step.after_days} hari
@@ -383,7 +383,7 @@ function FollowupRow({
             type="button"
             onClick={onRemove}
             title="Hapus step"
-            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-faint transition-colors hover:bg-danger-soft hover:text-danger"
             aria-label="Hapus step"
           >
             <X className="h-3.5 w-3.5" />

@@ -52,35 +52,35 @@ export default async function QueuesPage({
               <Link
                 key={q.id}
                 href={`/w/${slug}/queues/${q.id}`}
-                className="group block overflow-hidden rounded-2xl border border-zinc-200/70 bg-white p-5 shadow-[0_1px_2px_0_rgb(0_0_0/0.04)] transition-all hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700"
+                className="group block overflow-hidden rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       {q.is_active ? (
                         <span className="relative flex h-2 w-2">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                          <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                          <span className="relative inline-flex h-2 w-2 rounded-full bg-success" />
                         </span>
                       ) : (
-                        <Pause className="h-2.5 w-2.5 text-zinc-400" />
+                        <Pause className="h-2.5 w-2.5 text-faint" />
                       )}
-                      <h2 className="truncate text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                      <h2 className="truncate text-base font-semibold text-ink">
                         {q.name}
                       </h2>
                       {q.test_mode && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-info-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-info">
                           <Shield className="h-2.5 w-2.5" />
                           Test Mode
                         </span>
                       )}
                       {!q.is_active && (
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                        <span className="rounded-full bg-surface-sunken px-2 py-0.5 text-[10px] font-medium text-muted">
                           Paused
                         </span>
                       )}
                     </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
                       <span className="inline-flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         {formatDays(q.schedule_days)}
@@ -96,21 +96,21 @@ export default async function QueuesPage({
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-2xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-zinc-100">
+                    <p className="text-2xl font-semibold tabular tracking-tight text-ink">
                       {pct}%
                     </p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    <p className="text-xs text-muted">
                       {q.total_sent.toLocaleString("id-ID")} / {q.total_in_queue.toLocaleString("id-ID")}
                     </p>
                   </div>
                 </div>
                 {/* Progress bar */}
-                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
                   <div
                     className={`h-full rounded-full transition-all ${
                       q.is_active
-                        ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
-                        : "bg-zinc-400 dark:bg-zinc-600"
+                        ? "bg-success"
+                        : "bg-faint"
                     }`}
                     style={{ width: `${pct}%` }}
                   />

@@ -21,6 +21,7 @@ import { FollowupSequenceEditor } from "./followup-sequence-editor";
 import { TemplatePoolEditor } from "./template-pool-editor";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import type { FollowupStep } from "@/lib/queue-helpers";
 
 export default async function QueueDetailPage({
@@ -140,7 +141,7 @@ export default async function QueueDetailPage({
     <div className="mx-auto max-w-4xl px-6 py-8">
       <Link
         href={`/w/${slug}/queues`}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Back to queues
@@ -148,22 +149,22 @@ export default async function QueueDetailPage({
 
       {/* Test mode banner */}
       {queue.test_mode && account && (
-        <div className="mb-4 flex items-start gap-3 overflow-hidden rounded-xl border border-blue-200/80 bg-gradient-to-br from-blue-50 to-indigo-50/60 p-4 dark:border-blue-900/50 dark:from-blue-950/30 dark:to-indigo-950/20">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+        <div className="mb-4 flex items-start gap-3 overflow-hidden rounded-xl border border-info-soft bg-info-soft p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-info-soft text-info">
             <Shield className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+            <p className="text-sm font-semibold text-info-text">
               Queue ini di Test Mode — semua email aman ke{" "}
               <strong>{account.email}</strong>
             </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-blue-800 dark:text-blue-300">
-              Saat lu klik "Send", recipient asli di-override ke akun Gmail
+            <p className="mt-0.5 text-xs leading-relaxed text-info-text">
+              Saat lu klik &quot;Send&quot;, recipient asli di-override ke akun Gmail
               terhubung dengan subject{" "}
-              <code className="rounded bg-blue-100 px-1 font-mono text-[10px] dark:bg-blue-900/50">
+              <code className="rounded bg-info-soft px-1 font-mono text-[10px]">
                 [TEST]
               </code>
-              . Cron auto-run di-skip — cuma manual "Run Now" yang trigger.
+              . Cron auto-run di-skip — cuma manual &quot;Run Now&quot; yang trigger.
             </p>
           </div>
         </div>
@@ -175,13 +176,13 @@ export default async function QueueDetailPage({
           <div className="mb-2 flex items-center gap-2.5">
             {queue.is_active ? (
               <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-success" />
               </span>
             ) : (
-              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-zinc-400" />
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-faint" />
             )}
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl dark:text-zinc-50">
+            <h1 className="text-2xl font-semibold tracking-tight text-ink">
               {queue.name}
             </h1>
             {queue.test_mode && (
@@ -192,7 +193,7 @@ export default async function QueueDetailPage({
             )}
             {!queue.is_active && <Badge variant="secondary">Paused</Badge>}
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted">
             {queueTemplates.length > 0 && (
               <span className="inline-flex flex-wrap items-center gap-1">
                 <Sparkles className="h-3 w-3" />
@@ -200,7 +201,7 @@ export default async function QueueDetailPage({
                 {queueTemplates.map((t) => (
                   <strong
                     key={t.id}
-                    className="font-medium text-zinc-900 dark:text-zinc-100"
+                    className="font-medium text-ink"
                   >
                     {t.name}
                   </strong>
@@ -230,31 +231,31 @@ export default async function QueueDetailPage({
 
       {/* Progress card */}
       <Card className="overflow-hidden p-0">
-        <div className="border-b border-zinc-100 p-5 dark:border-zinc-800">
+        <div className="border-b border-border p-5">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <p className="text-sm font-semibold text-ink">
               Progress
             </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              <span className="text-base font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+            <p className="text-xs text-muted">
+              <span className="text-base font-semibold tabular text-ink">
                 {queue.total_sent.toLocaleString("id-ID")}
               </span>
               <span className="mx-1">/</span>
               {queue.total_in_queue.toLocaleString("id-ID")} sent ({pct}%)
             </p>
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-sunken">
             <div
               className={`h-full rounded-full transition-all ${
                 queue.is_active
-                  ? "bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500"
-                  : "bg-zinc-400 dark:bg-zinc-600"
+                  ? "bg-success"
+                  : "bg-faint"
               }`}
               style={{ width: `${pct}%` }}
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 divide-zinc-100 sm:grid-cols-4 sm:divide-x dark:divide-zinc-800">
+        <div className="grid grid-cols-2 divide-border sm:grid-cols-4 sm:divide-x">
           <MiniStat label="Pending" value={stats.pending} />
           <MiniStat label="Sent" value={stats.sent} accent="emerald" />
           <MiniStat label="Replied" value={stats.replied} accent="blue" />
@@ -268,39 +269,36 @@ export default async function QueueDetailPage({
       {/* Quota card */}
       <Card className="mt-4 p-5">
         <div className="flex items-center gap-2">
-          <Mail className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Today's Gmail quota
+          <Mail className="h-4 w-4 text-muted" />
+          <p className="text-sm font-semibold text-ink">
+            Today&apos;s Gmail quota
           </p>
         </div>
         {account ? (
           <div className="mt-3">
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">
+            <p className="text-sm text-ink-secondary">
               <strong>{account.email}</strong>
             </p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
+            <p className="mt-1 text-xs text-muted tabular">
               {account.emails_sent_today} / {account.daily_quota} sent today ·{" "}
               <span
                 className={
                   remainingQuota === 0
-                    ? "text-red-600 dark:text-red-400 font-medium"
+                    ? "text-danger font-medium"
                     : ""
                 }
               >
                 {remainingQuota} remaining
               </span>
             </p>
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-                style={{
-                  width: `${Math.min(100, (account.emails_sent_today / Math.max(1, account.daily_quota)) * 100)}%`,
-                }}
-              />
-            </div>
+            <Progress
+              className="mt-2"
+              value={account.emails_sent_today}
+              cap={account.daily_quota}
+            />
           </div>
         ) : (
-          <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-400">
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-warning-soft bg-warning-soft p-3 text-xs text-warning-text">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <p>
               Belum ada Gmail terhubung. Connect Gmail di{" "}
@@ -343,16 +341,16 @@ export default async function QueueDetailPage({
       {/* Per-template A/B breakdown */}
       {breakdown.length > 0 && (
         <Card className="mt-4 p-0">
-          <div className="flex items-center gap-2 border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-            <Trophy className="h-4 w-4 text-amber-500" />
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          <div className="flex items-center gap-2 border-b border-border px-5 py-3">
+            <Trophy className="h-4 w-4 text-warning" />
+            <h3 className="text-sm font-semibold text-ink">
               Performa per template
             </h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-zinc-100 text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                <tr className="border-b border-border text-left text-[10px] font-semibold uppercase tracking-wider text-muted">
                   <th className="px-5 py-2.5 font-semibold">Template</th>
                   <th className="px-3 py-2.5 text-right font-semibold">
                     Terkirim
@@ -365,11 +363,11 @@ export default async function QueueDetailPage({
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+              <tbody className="divide-y divide-border">
                 {breakdown.map((r) => (
                   <tr key={r.template_id}>
                     <td className="px-5 py-3">
-                      <span className="inline-flex items-center gap-1.5 font-medium text-zinc-900 dark:text-zinc-100">
+                      <span className="inline-flex items-center gap-1.5 font-medium text-ink">
                         {r.name}
                         {r.template_id === bestReplyId && (
                           <Badge variant="success">
@@ -379,17 +377,17 @@ export default async function QueueDetailPage({
                         )}
                       </span>
                     </td>
-                    <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+                    <td className="px-3 py-3 text-right tabular text-ink-secondary">
                       {r.sent.toLocaleString("id-ID")}
                     </td>
-                    <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+                    <td className="px-3 py-3 text-right tabular text-ink-secondary">
                       {Math.round(r.open_rate * 100)}%
                     </td>
                     <td
-                      className={`px-5 py-3 text-right font-medium tabular-nums ${
+                      className={`px-5 py-3 text-right font-medium tabular ${
                         r.template_id === bestReplyId
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-zinc-700 dark:text-zinc-300"
+                          ? "text-success"
+                          : "text-ink-secondary"
                       }`}
                     >
                       {Math.round(r.reply_rate * 100)}%
@@ -399,7 +397,7 @@ export default async function QueueDetailPage({
               </tbody>
             </table>
           </div>
-          <p className="px-5 py-2.5 text-[11px] text-zinc-400 dark:text-zinc-500">
+          <p className="px-5 py-2.5 text-[11px] text-faint">
             Atribusi per kiriman — angka mencerminkan template yang
             benar-benar dipakai tiap email.
           </p>
@@ -419,12 +417,12 @@ export default async function QueueDetailPage({
 
       {/* Settings */}
       <Card className="mt-4 p-0">
-        <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+        <div className="border-b border-border px-5 py-3">
+          <h3 className="text-sm font-semibold text-ink">
             Configuration
           </h3>
         </div>
-        <dl className="grid grid-cols-1 divide-y divide-zinc-100 sm:grid-cols-2 sm:divide-x sm:divide-y-0 dark:divide-zinc-800">
+        <dl className="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0">
           <DetailRow
             label="AI personalization"
             value={
@@ -448,7 +446,7 @@ export default async function QueueDetailPage({
           <DetailRow
             label="Created"
             value={
-              <span className="text-xs text-zinc-700 dark:text-zinc-300">
+              <span className="text-xs text-ink-secondary">
                 {new Date(queue.created_at).toLocaleString("id-ID", {
                   dateStyle: "medium",
                   timeStyle: "short",
@@ -459,7 +457,7 @@ export default async function QueueDetailPage({
           <DetailRow
             label="Last run"
             value={
-              <span className="text-xs text-zinc-700 dark:text-zinc-300">
+              <span className="text-xs text-ink-secondary">
                 {queue.last_run_at
                   ? new Date(queue.last_run_at).toLocaleString("id-ID", {
                       dateStyle: "medium",
@@ -486,16 +484,16 @@ function MiniStat({
 }) {
   return (
     <div className="p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
         {label}
       </p>
       <p
-        className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${
+        className={`mt-1 text-2xl font-semibold tabular tracking-tight ${
           accent === "emerald"
-            ? "text-emerald-600 dark:text-emerald-400"
+            ? "text-success"
             : accent === "blue"
-              ? "text-blue-600 dark:text-blue-400"
-              : "text-zinc-900 dark:text-zinc-100"
+              ? "text-info"
+              : "text-ink"
         }`}
       >
         {value.toLocaleString("id-ID")}
@@ -513,7 +511,7 @@ function DetailRow({
 }) {
   return (
     <div className="px-5 py-3.5">
-      <dt className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+      <dt className="text-[10px] font-semibold uppercase tracking-wider text-muted">
         {label}
       </dt>
       <dd className="mt-1.5">{value}</dd>

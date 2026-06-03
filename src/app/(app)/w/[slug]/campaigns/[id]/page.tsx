@@ -82,7 +82,7 @@ export default async function CampaignDetailPage({
     <div className="mx-auto max-w-4xl px-6 py-8">
       <Link
         href={`/w/${slug}/campaigns`}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm text-zinc-600 transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Back to campaigns
@@ -90,17 +90,17 @@ export default async function CampaignDetailPage({
 
       {/* Test mode banner */}
       {queue.test_mode && account && (
-        <div className="mb-4 flex items-start gap-3 overflow-hidden rounded-xl border border-blue-200/80 bg-gradient-to-br from-blue-50 to-indigo-50/60 p-4 dark:border-blue-900/50 dark:from-blue-950/30 dark:to-indigo-950/20">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+        <div className="mb-4 flex items-start gap-3 overflow-hidden rounded-xl border border-info-soft bg-info-soft p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-info-soft text-info">
             <Shield className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-blue-900 dark:text-blue-200">
+            <p className="text-sm font-semibold text-info-text">
               Campaign ini di Test Mode — semua email aman ke{" "}
               <strong>{account.email}</strong>
             </p>
-            <p className="mt-0.5 text-xs text-blue-800 dark:text-blue-300">
-              Cron auto-runner di-skip — manual "Run Now" untuk trigger.
+            <p className="mt-0.5 text-xs text-info-text">
+              Cron auto-runner di-skip — manual &quot;Run Now&quot; untuk trigger.
             </p>
           </div>
         </div>
@@ -108,19 +108,19 @@ export default async function CampaignDetailPage({
 
       {/* Scheduled banner */}
       {isScheduled && queue.scheduled_start_at && (
-        <div className="mb-4 flex items-start gap-3 overflow-hidden rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-orange-50/60 p-4 dark:border-amber-900/50 dark:from-amber-950/30 dark:to-orange-950/20">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+        <div className="mb-4 flex items-start gap-3 overflow-hidden rounded-xl border border-warning-soft bg-warning-soft p-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-warning-soft text-warning">
             <Clock className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+            <p className="text-sm font-semibold text-warning-text">
               Scheduled to start at{" "}
               {new Date(queue.scheduled_start_at).toLocaleString("id-ID", {
                 dateStyle: "full",
                 timeStyle: "short",
               })}
             </p>
-            <p className="mt-0.5 text-xs text-amber-800 dark:text-amber-300">
+            <p className="mt-0.5 text-xs text-warning-text">
               Cron pickup tiap 30 menit, akan blast otomatis setelah waktu ini.
             </p>
           </div>
@@ -132,18 +132,18 @@ export default async function CampaignDetailPage({
         <div className="min-w-0 flex-1">
           <div className="mb-2 flex items-center gap-2.5">
             {isCompleted ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+              <CheckCircle2 className="h-5 w-5 text-success" />
             ) : isScheduled ? (
-              <Clock className="h-5 w-5 text-amber-500" />
+              <Clock className="h-5 w-5 text-warning" />
             ) : queue.is_active ? (
               <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-blue-500" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-info opacity-75" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-info" />
               </span>
             ) : (
-              <Rocket className="h-5 w-5 text-zinc-400" />
+              <Rocket className="h-5 w-5 text-faint" />
             )}
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl dark:text-zinc-50">
+            <h1 className="text-2xl font-semibold tracking-tight text-ink">
               {queue.name}
             </h1>
             {queue.test_mode && (
@@ -158,11 +158,11 @@ export default async function CampaignDetailPage({
               </Badge>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted">
             {template?.name && (
               <span className="inline-flex items-center gap-1">
                 <Sparkles className="h-3 w-3" />
-                Template: <strong className="font-medium text-zinc-900 dark:text-zinc-100">{template.name}</strong>
+                Template: <strong className="font-medium text-ink">{template.name}</strong>
               </span>
             )}
             <span className="inline-flex items-center gap-1">
@@ -182,33 +182,33 @@ export default async function CampaignDetailPage({
 
       {/* Progress */}
       <Card className="overflow-hidden p-0">
-        <div className="border-b border-zinc-100 p-5 dark:border-zinc-800">
+        <div className="border-b border-border p-5">
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+            <p className="text-sm font-semibold text-ink">
               Progress
             </p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              <span className="text-base font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+            <p className="text-xs text-muted">
+              <span className="text-base font-semibold tabular text-ink">
                 {queue.total_sent.toLocaleString("id-ID")}
               </span>
               <span className="mx-1">/</span>
               {queue.total_in_queue.toLocaleString("id-ID")} sent ({pct}%)
             </p>
           </div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-sunken">
             <div
               className={`h-full rounded-full transition-all ${
                 isCompleted
-                  ? "bg-gradient-to-r from-emerald-500 to-emerald-400"
+                  ? "bg-success"
                   : queue.is_active && !isScheduled
-                    ? "bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-500"
-                    : "bg-zinc-300 dark:bg-zinc-700"
+                    ? "bg-info"
+                    : "bg-border-strong"
               }`}
               style={{ width: `${pct}%` }}
             />
           </div>
         </div>
-        <div className="grid grid-cols-2 divide-zinc-100 sm:grid-cols-4 sm:divide-x dark:divide-zinc-800">
+        <div className="grid grid-cols-2 divide-border sm:grid-cols-4 sm:divide-x">
           <MiniStat label="Pending" value={stats.pending} />
           <MiniStat label="Sent" value={stats.sent} accent="emerald" />
           <MiniStat label="Replied" value={stats.replied} accent="blue" />
@@ -222,22 +222,22 @@ export default async function CampaignDetailPage({
       {/* Quota card */}
       <Card className="mt-4 p-5">
         <div className="flex items-center gap-2">
-          <Mail className="h-4 w-4 text-zinc-500 dark:text-zinc-400" />
-          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            Today's Gmail quota
+          <Mail className="h-4 w-4 text-muted" />
+          <p className="text-sm font-semibold text-ink">
+            Today&apos;s Gmail quota
           </p>
         </div>
         {account ? (
           <div className="mt-3">
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">
+            <p className="text-sm text-ink-secondary">
               <strong>{account.email}</strong>
             </p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
+            <p className="mt-1 text-xs text-muted tabular">
               {account.emails_sent_today} / {account.daily_quota} sent today ·{" "}
               <span
                 className={
                   remainingQuota === 0
-                    ? "text-red-600 dark:text-red-400 font-medium"
+                    ? "text-danger font-medium"
                     : ""
                 }
               >
@@ -246,7 +246,7 @@ export default async function CampaignDetailPage({
             </p>
           </div>
         ) : (
-          <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-400">
+          <div className="mt-3 flex items-start gap-2 rounded-lg border border-warning-soft bg-warning-soft p-3 text-xs text-warning-text">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <p>
               Belum ada Gmail terhubung. Connect di{" "}
@@ -281,14 +281,14 @@ export default async function CampaignDetailPage({
       {isCompleted && (
         <Card className="mt-4 p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950/40">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-success-soft">
+              <CheckCircle2 className="h-5 w-5 text-success" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              <p className="text-sm font-semibold text-ink">
                 Campaign Completed
               </p>
-              <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">
+              <p className="mt-0.5 text-xs text-muted">
                 Semua kontak sudah dikirim. Cek replies di Dashboard.
               </p>
             </div>
@@ -310,16 +310,16 @@ function MiniStat({
 }) {
   return (
     <div className="p-4">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted">
         {label}
       </p>
       <p
-        className={`mt-1 text-2xl font-semibold tabular-nums tracking-tight ${
+        className={`mt-1 text-2xl font-semibold tabular tracking-tight ${
           accent === "emerald"
-            ? "text-emerald-600 dark:text-emerald-400"
+            ? "text-success"
             : accent === "blue"
-              ? "text-blue-600 dark:text-blue-400"
-              : "text-zinc-900 dark:text-zinc-100"
+              ? "text-info"
+              : "text-ink"
         }`}
       >
         {value.toLocaleString("id-ID")}
