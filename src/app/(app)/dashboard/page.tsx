@@ -13,14 +13,20 @@ import {
 import { requireCurrentUser } from "@/lib/supabase/session-helpers";
 import { getUserWorkspaces } from "@/lib/workspaces";
 import { SimpleTopbar } from "@/components/simple-topbar";
-import { getWorkspaceStats, getRecentReplies } from "@/lib/stats";
-import { StatCard } from "@/components/ui/stat-card";
+import {
+  getWorkspaceStats,
+  getRecentReplies,
+  getDailySeries,
+} from "@/lib/stats";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Sparkline, MiniBars, RadialGauge } from "@/components/ui/chart";
 import { HolidayNotice } from "@/components/holiday-notice";
 import { accentFromColorTheme } from "@/lib/workspace-constants";
+import { cn } from "@/lib/utils";
+
+const DAYS = 7;
 
 export default async function DashboardPage() {
   const user = await requireCurrentUser();
@@ -33,8 +39,9 @@ export default async function DashboardPage() {
     redirect(`/w/${workspaces[0].slug}/dashboard`);
   }
 
-  const [allStats, recentReplies] = await Promise.all([
+  const [allStats, allSeries, recentReplies] = await Promise.all([
     Promise.all(workspaces.map((w) => getWorkspaceStats(w.id))),
+    Promise.all(workspaces.map((w) => getDailySeries(w.id, DAYS))),
     getRecentReplies(null, 10),
   ]);
 
@@ -46,6 +53,14 @@ export default async function DashboardPage() {
       pending_replies: acc.pending_replies + s.pending_replies,
     }),
     { sent_today: 0, sent_7d: 0, replied_7d: 0, pending_replies: 0 },
+  );
+
+  // Element-wise sum of the per-workspace daily series → aggregate trend.
+  const aggSent = Array.from({ length: DAYS }, (_, i) =>
+    allSeries.reduce((sum, ser) => sum + (ser[i]?.sent ?? 0), 0),
+  );
+  const aggReplied = Array.from({ length: DAYS }, (_, i) =>
+    allSeries.reduce((sum, ser) => sum + (ser[i]?.replied ?? 0), 0),
   );
 
   const replyRate7d =
@@ -70,83 +85,95 @@ export default async function DashboardPage() {
 
         <HolidayNotice />
 
-        {/* Aggregate KPIs */}
+        {/* Aggregate KPIs — number + 7-day trend */}
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard
+          <KpiCard
             label="Sent today"
-            value={totals.sent_today.toLocaleString("id-ID")}
+            value={totals.sent_today}
             icon={Send}
-            tone="default"
+            spark={aggSent}
           />
-          <StatCard
+          <KpiCard
             label="Sent (7d)"
-            value={totals.sent_7d.toLocaleString("id-ID")}
+            value={totals.sent_7d}
             icon={TrendingUp}
+            spark={aggSent}
           />
-          <StatCard
+          <KpiCard
             label="Replied (7d)"
-            value={totals.replied_7d.toLocaleString("id-ID")}
+            value={totals.replied_7d}
             icon={MessageCircle}
             tone="info"
+            spark={aggReplied}
             hint={replyRate7d > 0 ? `${replyRate7d}% reply rate` : undefined}
           />
-          <Link href="/inbox" className="block">
-            <StatCard
-              label="Pending replies"
-              value={totals.pending_replies.toLocaleString("id-ID")}
-              icon={Inbox}
-              hint={
-                totals.pending_replies > 0 ? "buka inbox →" : "buka inbox"
-              }
-            />
-          </Link>
+          <KpiCard
+            label="Pending replies"
+            value={totals.pending_replies}
+            icon={Inbox}
+            href="/inbox"
+            cta={totals.pending_replies > 0 ? "buka inbox →" : "inbox kosong"}
+            highlight={totals.pending_replies > 0}
+          />
         </div>
 
-        {/* Workspaces grid */}
-        <h2 className="mt-10 mb-3 text-ink">
-          Workspaces
-        </h2>
+        {/* Workspaces — quota gauge + send trend per business */}
+        <h2 className="mb-3 mt-10 text-ink">Workspaces</h2>
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
           {workspaces.map((ws, i) => {
             const s = allStats[i];
+            const sentSeries = allSeries[i].map((d) => d.sent);
+            const quotaSent = s.quota_today?.sent ?? s.sent_today;
+            const quotaMax = s.quota_today?.quota ?? ws.daily_target;
             return (
               <Link
                 key={ws.id}
                 href={`/w/${ws.slug}/dashboard`}
                 data-accent={accentFromColorTheme(ws.color_theme)}
-                className="group relative overflow-hidden rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
+                className="group flex flex-col gap-4 rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-strong"
               >
-                {/* Workspace accent strip (its own preset via data-accent) */}
-                <div className="absolute inset-x-0 top-0 h-0.5 bg-accent" />
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-block size-2 rounded-full bg-accent" />
-                    <span className="label-eyebrow text-muted">
-                      {ws.business_type ?? "—"}
-                    </span>
-                  </div>
-                  <ArrowUpRight className="h-4 w-4 text-faint transition-transform group-hover:text-ink-secondary group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                <div className="flex items-start justify-between">
+                  <span className="label-eyebrow flex items-center gap-1.5 text-accent-text">
+                    <span className="inline-block size-1.5 rounded-full bg-accent" />
+                    {ws.business_type ?? "—"}
+                  </span>
+                  <ArrowUpRight className="h-4 w-4 text-faint transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-ink-secondary" />
                 </div>
 
-                <h3 className="mt-3 text-lg font-semibold tracking-tight text-ink">
-                  {ws.name}
-                </h3>
-                <p className="mt-0.5 text-xs text-muted">
-                  {ws.schedule_start_time.slice(0, 5)} – {ws.schedule_end_time.slice(0, 5)} WIB · {ws.daily_target}/hari
-                </p>
+                <div>
+                  <h3 className="text-[15px] font-semibold text-ink">
+                    {ws.name}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {ws.schedule_start_time.slice(0, 5)} –{" "}
+                    {ws.schedule_end_time.slice(0, 5)} WIB · {ws.daily_target}
+                    /hari
+                  </p>
+                </div>
 
-                <div className="mt-5 grid grid-cols-3 gap-3 border-t border-border pt-4 text-sm">
+                {/* Quota gauge + 7-day send trend */}
+                <div className="flex items-center gap-4">
+                  <RadialGauge value={quotaSent} max={quotaMax} />
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="label-eyebrow text-faint">Sent · 7d</span>
+                    <MiniBars data={sentSeries} className="w-full" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 border-t border-border pt-3">
                   <Mini label="Today" value={s.sent_today} />
                   <Mini label="7d sent" value={s.sent_7d} />
-                  <Mini label="Replied" value={s.replied_7d} accent="info" />
+                  <Mini label="Replied" value={s.replied_7d} tone="info" />
                 </div>
 
                 {s.queues_active > 0 && (
-                  <Badge variant="success" className="mt-3">
-                    <span className="size-1.5 rounded-full bg-success" />
+                  <span className="flex items-center gap-2 text-xs font-medium text-success-text">
+                    <span className="relative flex size-1.5">
+                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
+                      <span className="relative inline-flex size-1.5 rounded-full bg-success" />
+                    </span>
                     {s.queues_active} active queue{s.queues_active > 1 ? "s" : ""}
-                  </Badge>
+                  </span>
                 )}
               </Link>
             );
@@ -154,20 +181,16 @@ export default async function DashboardPage() {
 
           <Link
             href="/onboarding/workspace"
-            className="group flex items-center justify-center rounded-lg border border-dashed border-border-strong/70 bg-surface-sunken p-5 transition-colors hover:border-border-strong hover:bg-surface-hover"
+            className="group flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border-strong bg-surface-sunken p-5 text-muted transition-colors hover:border-action hover:text-ink"
           >
-            <div className="flex flex-col items-center gap-2 text-muted transition-colors group-hover:text-ink">
-              <Plus className="h-5 w-5" />
-              <span className="text-sm font-medium">Tambah Workspace</span>
-            </div>
+            <Plus className="h-5 w-5" />
+            <span className="text-sm font-medium">Tambah Workspace</span>
           </Link>
         </div>
 
         {/* Recent replies */}
-        <div className="mt-10 mb-3 flex items-center justify-between">
-          <h2 className="text-ink">
-            Recent Replies
-          </h2>
+        <div className="mb-3 mt-10 flex items-center justify-between">
+          <h2 className="text-ink">Recent Replies</h2>
           <span className="text-xs text-muted">
             {recentReplies.length > 0 ? `${recentReplies.length} terbaru` : "—"}
           </span>
@@ -214,7 +237,7 @@ export default async function DashboardPage() {
                       href={`https://mail.google.com/mail/u/0/#inbox/${r.gmail_thread_id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
+                      className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-border bg-surface px-3 text-xs font-medium text-ink-secondary transition-colors hover:bg-surface-hover hover:text-ink"
                     >
                       <ExternalLink className="h-3 w-3" />
                       <span>Buka di Gmail</span>
@@ -230,14 +253,88 @@ export default async function DashboardPage() {
   );
 }
 
-function Mini({
+function KpiCard({
   label,
   value,
-  accent,
+  icon: Icon,
+  spark,
+  tone = "ink",
+  hint,
+  href,
+  cta,
+  highlight,
 }: {
   label: string;
   value: number;
-  accent?: "info";
+  icon: typeof Send;
+  spark?: number[];
+  tone?: "ink" | "info";
+  hint?: string;
+  href?: string;
+  cta?: string;
+  highlight?: boolean;
+}) {
+  const body = (
+    <div
+      className={cn(
+        "flex h-full flex-col rounded-lg border bg-surface p-5 transition-colors",
+        highlight ? "border-accent-border" : "border-border",
+        href && "hover:border-border-strong",
+      )}
+    >
+      <div className="flex items-center justify-between">
+        <span className="label-eyebrow">{label}</span>
+        <span
+          className={cn(
+            "grid size-8 place-items-center rounded-md",
+            highlight ? "bg-accent-soft text-accent-text" : "bg-surface-sunken text-muted",
+          )}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <p
+        className={cn(
+          "mt-3 text-3xl font-semibold leading-none tabular",
+          tone === "info" ? "text-info" : "text-ink",
+        )}
+      >
+        {value.toLocaleString("id-ID")}
+      </p>
+      <div className="mt-3 flex-1">
+        {spark && spark.some((v) => v > 0) ? (
+          <Sparkline data={spark} />
+        ) : null}
+      </div>
+      {(hint || cta) && (
+        <p
+          className={cn(
+            "mt-1 text-[13px]",
+            highlight ? "font-medium text-accent-text" : "text-muted",
+          )}
+        >
+          {cta ?? hint}
+        </p>
+      )}
+    </div>
+  );
+  return href ? (
+    <Link href={href} className="block">
+      {body}
+    </Link>
+  ) : (
+    body
+  );
+}
+
+function Mini({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: "info";
 }) {
   return (
     <div>
@@ -245,9 +342,10 @@ function Mini({
         {label}
       </p>
       <p
-        className={`mt-1 text-lg font-semibold tabular tracking-tight ${
-          accent === "info" ? "text-info" : "text-ink"
-        }`}
+        className={cn(
+          "mt-1 text-lg font-semibold tabular tracking-tight",
+          tone === "info" ? "text-info" : "text-ink",
+        )}
       >
         {value.toLocaleString("id-ID")}
       </p>

@@ -22,6 +22,7 @@ export { KanbanCard } from "./kanban-card";
 export { EmptyState } from "./empty-state";
 export { ErrorState } from "./error-state";
 export { StatCard } from "./stat-card";
+export { Sparkline, MiniBars, RadialGauge } from "./chart";
 export { PageHeader } from "./page-header";
 export {
   Input,

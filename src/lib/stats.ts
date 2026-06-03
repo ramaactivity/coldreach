@@ -42,6 +42,68 @@ function daysAgoIso(days: number): string {
   return new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
 }
 
+export type DailyPoint = { date: string; sent: number; replied: number };
+
+/** WIB (UTC+7) calendar-day key (YYYY-MM-DD) for an ISO timestamp. */
+function wibDayKey(iso: string): string {
+  return new Date(new Date(iso).getTime() + 7 * 3600 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * Per-day sent + replied counts for the last `days` days (WIB), used by the
+ * dashboard sparklines / mini bar charts. Read-only: it buckets
+ * campaign_recipients rows by day client-side (same source as getWorkspaceStats).
+ */
+export async function getDailySeries(
+  workspaceId: string,
+  days = 7,
+): Promise<DailyPoint[]> {
+  const supabase = await createClient();
+  const since = daysAgoIso(days);
+
+  const [sentRows, repliedRows] = await Promise.all([
+    supabase
+      .from("campaign_recipients")
+      .select("created_at")
+      .eq("workspace_id", workspaceId)
+      .gte("created_at", since)
+      .in("status", ["sending", "sent", "opened", "replied", "bounced"]),
+    supabase
+      .from("campaign_recipients")
+      .select("replied_at")
+      .eq("workspace_id", workspaceId)
+      .gte("replied_at", since),
+  ]);
+
+  const sentByDay = new Map<string, number>();
+  for (const r of (sentRows.data ?? []) as { created_at: string }[]) {
+    const k = wibDayKey(r.created_at);
+    sentByDay.set(k, (sentByDay.get(k) ?? 0) + 1);
+  }
+  const repliedByDay = new Map<string, number>();
+  for (const r of (repliedRows.data ?? []) as { replied_at: string | null }[]) {
+    if (!r.replied_at) continue;
+    const k = wibDayKey(r.replied_at);
+    repliedByDay.set(k, (repliedByDay.get(k) ?? 0) + 1);
+  }
+
+  const todayWib = new Date(Date.now() + 7 * 3600 * 1000);
+  const out: DailyPoint[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const key = new Date(todayWib.getTime() - i * 24 * 3600 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    out.push({
+      date: key,
+      sent: sentByDay.get(key) ?? 0,
+      replied: repliedByDay.get(key) ?? 0,
+    });
+  }
+  return out;
+}
+
 export async function getWorkspaceStats(
   workspaceId: string,
 ): Promise<WorkspaceStats> {
