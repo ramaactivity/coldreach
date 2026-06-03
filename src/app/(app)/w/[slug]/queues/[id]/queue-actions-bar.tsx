@@ -54,6 +54,9 @@ export function QueueActionsBar({
   const router = useRouter();
   const confirm = useConfirm();
   const [pending, startTransition] = useTransition();
+  // Which Run-Now batch is in flight, so the spinner shows on the clicked
+  // button (not always on "Send 1").
+  const [runningBatch, setRunningBatch] = useState<number | null>(null);
   const [lastResult, setLastResult] = useState<string | null>(null);
   const [resultTone, setResultTone] = useState<"success" | "error" | "info">("info");
   const [shuffleMsg, setShuffleMsg] = useState<string | null>(null);
@@ -65,24 +68,29 @@ export function QueueActionsBar({
 
   function handleRun(batchSize: number) {
     setLastResult(null);
+    setRunningBatch(batchSize);
     startTransition(async () => {
-      const res = await runNowAction(slug, queueId, batchSize);
-      if ("error" in res && res.error) {
-        setResultTone("error");
-        setLastResult(`Error: ${res.error}`);
-      } else if ("result" in res && res.result) {
-        const r = res.result;
-        const parts = [`Attempted ${r.attempted}`, `sent ${r.sent}`];
-        if (r.failed > 0) parts.push(`failed ${r.failed}`);
-        if (r.skipped > 0) parts.push(`skipped ${r.skipped}`);
-        setResultTone(r.failed > 0 ? "error" : "success");
-        let msg = parts.join(", ");
-        if (r.errors.length > 0) {
-          msg += `. Errors: ${r.errors.slice(0, 2).join("; ")}`;
+      try {
+        const res = await runNowAction(slug, queueId, batchSize);
+        if ("error" in res && res.error) {
+          setResultTone("error");
+          setLastResult(`Error: ${res.error}`);
+        } else if ("result" in res && res.result) {
+          const r = res.result;
+          const parts = [`Attempted ${r.attempted}`, `sent ${r.sent}`];
+          if (r.failed > 0) parts.push(`failed ${r.failed}`);
+          if (r.skipped > 0) parts.push(`skipped ${r.skipped}`);
+          setResultTone(r.failed > 0 ? "error" : "success");
+          let msg = parts.join(", ");
+          if (r.errors.length > 0) {
+            msg += `. Errors: ${r.errors.slice(0, 2).join("; ")}`;
+          }
+          setLastResult(msg);
         }
-        setLastResult(msg);
+        router.refresh();
+      } finally {
+        setRunningBatch(null);
       }
-      router.refresh();
     });
   }
 
@@ -148,7 +156,7 @@ export function QueueActionsBar({
             size="sm"
             onClick={() => handleRun(1)}
             disabled={!canSend || pending}
-            loading={pending}
+            loading={runningBatch === 1}
           >
             Send 1 email
           </Button>
@@ -157,6 +165,7 @@ export function QueueActionsBar({
             variant="outline"
             onClick={() => handleRun(3)}
             disabled={!canSend || pending}
+            loading={runningBatch === 3}
           >
             Send 3 emails
           </Button>
@@ -165,6 +174,7 @@ export function QueueActionsBar({
             variant="outline"
             onClick={() => handleRun(10)}
             disabled={!canSend || pending}
+            loading={runningBatch === 10}
           >
             Send 10 emails
           </Button>
