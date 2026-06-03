@@ -32,7 +32,7 @@ export default async function HolidaysPage() {
         <PageHeader
           eyebrow={
             <>
-              <Sparkles className="h-3 w-3 text-amber-500" />
+              <Sparkles className="h-3 w-3 text-warning" />
               <span>Libur nasional &amp; libur sendiri</span>
             </>
           }
@@ -41,9 +41,9 @@ export default async function HolidaysPage() {
         />
 
         {holidays.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-zinc-300/70 bg-zinc-50/50 px-6 py-12 text-center dark:border-zinc-800 dark:bg-zinc-900/30">
-            <CalendarOff className="h-6 w-6 text-zinc-400" />
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-border-strong/70 bg-surface-sunken/50 px-6 py-12 text-center">
+            <CalendarOff className="h-6 w-6 text-faint" />
+            <p className="text-sm text-muted">
               Belum ada data libur tahun ini. Klik{" "}
               <span className="font-medium">Refresh sekarang</span> atau tambah
               manual di bawah.

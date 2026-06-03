@@ -19,7 +19,7 @@ export default function WorkspaceLoading() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-2xl border border-zinc-200/70 bg-white p-5 dark:border-zinc-800/80 dark:bg-zinc-900"
+            className="rounded-lg border border-border bg-surface p-5"
           >
             <Skeleton className="h-3 w-20" />
             <Skeleton className="mt-3 h-8 w-16" />
@@ -32,7 +32,7 @@ export default function WorkspaceLoading() {
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="rounded-2xl border border-zinc-200/70 bg-white p-5 dark:border-zinc-800/80 dark:bg-zinc-900"
+            className="rounded-lg border border-border bg-surface p-5"
           >
             <Skeleton className="h-5 w-3/4" />
             <Skeleton className="mt-3 h-4 w-full" />

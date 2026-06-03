@@ -47,7 +47,7 @@ export function LoginForm() {
       <button
         onClick={handleGoogleSignIn}
         disabled={loading}
-        className="group inline-flex h-11 w-full items-center justify-center gap-3 rounded-lg border border-border bg-surface px-4 text-sm font-medium text-ink transition-all hover:border-border-strong hover:bg-surface-sunken hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.99]"
+        className="group inline-flex h-11 w-full items-center justify-center gap-3 rounded-md border border-border bg-surface px-4 text-sm font-medium text-ink transition-colors hover:border-border-strong hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? (
           <Loader2 className="h-4 w-4 animate-spin" />

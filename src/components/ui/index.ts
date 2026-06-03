@@ -20,6 +20,7 @@ export { WorkspaceAvatar, UserAvatar } from "./avatar";
 export { DataTable, Th, Tr, Td, CellStack } from "./data-table";
 export { KanbanCard } from "./kanban-card";
 export { EmptyState } from "./empty-state";
+export { ErrorState } from "./error-state";
 export { StatCard } from "./stat-card";
 export { PageHeader } from "./page-header";
 export {

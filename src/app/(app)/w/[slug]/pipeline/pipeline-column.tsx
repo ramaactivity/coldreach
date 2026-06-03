@@ -40,10 +40,7 @@ export function PipelineColumn({
         <Badge variant="neutral">{items.length}</Badge>
       </div>
 
-      <div
-        className="flex flex-col gap-2 overflow-y-auto p-2"
-        style={{ maxHeight: "calc(100vh - 220px)" }}
-      >
+      <div className="flex max-h-[calc(100vh-220px)] flex-col gap-2 overflow-y-auto p-2">
         {visible.length === 0 && (
           <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-border text-xs text-faint">
             Kosong

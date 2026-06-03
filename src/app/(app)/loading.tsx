@@ -3,7 +3,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function AppLoading() {
   return (
     <div className="flex min-h-screen flex-col">
-      <div className="border-b border-zinc-200/80 bg-white px-6 py-3 dark:border-zinc-800/80 dark:bg-zinc-950">
+      <div className="border-b border-border/80 bg-surface px-6 py-3">
         <Skeleton className="h-5 w-24" />
       </div>
       <div className="mx-auto w-full max-w-6xl px-6 py-10">

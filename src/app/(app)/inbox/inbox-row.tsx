@@ -12,7 +12,10 @@ import {
   AlarmClock,
 } from "lucide-react";
 import type { InboxItem, InboxTab } from "@/lib/inbox";
-import type { PipelineStage } from "@/lib/workspace-constants";
+import {
+  accentFromColorTheme,
+  type PipelineStage,
+} from "@/lib/workspace-constants";
 import { Select, SelectItem } from "@/components/ui/select";
 import {
   markHandled,
@@ -121,8 +124,8 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
       <div className="flex items-start gap-3">
         {/* Avatar */}
         <div
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold uppercase text-on-action ring-2 ring-white"
-          style={{ backgroundColor: item.workspace_color }}
+          data-accent={accentFromColorTheme(item.workspace_color)}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold uppercase text-accent-fg ring-2 ring-surface"
         >
           {initial}
         </div>
@@ -135,8 +138,8 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
             </p>
             {showWorkspace && item.workspace_name && (
               <span
-                className="inline-flex items-center gap-1 rounded-full bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted"
-                style={{ borderLeft: `2px solid ${item.workspace_color}` }}
+                data-accent={accentFromColorTheme(item.workspace_color)}
+                className="inline-flex items-center gap-1 rounded-full border-l-2 border-l-accent bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted"
               >
                 {item.workspace_name}
               </span>

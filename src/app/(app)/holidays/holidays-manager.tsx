@@ -127,8 +127,8 @@ export function HolidaysManager({
       {/* Add + refresh */}
       <Card className="p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            <CalendarPlus className="h-4 w-4 text-zinc-500" />
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <CalendarPlus className="h-4 w-4 text-muted" />
             Tambah libur sendiri
           </h2>
           <Button
@@ -165,11 +165,11 @@ export function HolidaysManager({
           <Button type="submit" disabled={isPending}>
             Tambah
           </Button>
-          <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600 sm:col-span-3 dark:text-zinc-400">
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-muted sm:col-span-3">
             <input
               type="checkbox"
               name="is_cuti_bersama"
-              className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/40 dark:border-zinc-700"
+              className="h-3.5 w-3.5 rounded border-border-strong text-ink focus:ring-accent"
             />
             Tandai sebagai cuti bersama
           </label>
@@ -178,15 +178,15 @@ export function HolidaysManager({
 
       {/* Upcoming */}
       <section>
-        <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+        <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
           Akan datang ({upcoming.length})
         </h3>
         {upcoming.length === 0 ? (
-          <p className="px-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="px-1 text-sm text-muted">
             Tidak ada libur ke depan untuk sisa tahun ini.
           </p>
         ) : (
-          <Card className="divide-y divide-zinc-100 p-0 dark:divide-zinc-800">
+          <Card className="divide-y divide-border p-0">
             {upcoming.map((h) => (
               <HolidayRow
                 key={h.date}
@@ -204,10 +204,10 @@ export function HolidaysManager({
       {/* Past (this year) */}
       {past.length > 0 && (
         <section>
-          <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
             Sudah lewat tahun ini ({past.length})
           </h3>
-          <Card className="divide-y divide-zinc-100 p-0 opacity-80 dark:divide-zinc-800">
+          <Card className="divide-y divide-border p-0 opacity-80">
             {past.map((h) => (
               <HolidayRow
                 key={h.date}
@@ -255,12 +255,12 @@ export function HolidaysManager({
                       required
                     />
                   </div>
-                  <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400">
+                  <label className="flex cursor-pointer items-center gap-2 text-xs text-muted">
                     <input
                       type="checkbox"
                       name="is_cuti_bersama"
                       defaultChecked={editing.is_cuti_bersama}
-                      className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/40 dark:border-zinc-700"
+                      className="h-3.5 w-3.5 rounded border-border-strong text-ink focus:ring-accent"
                     />
                     Cuti bersama
                   </label>
@@ -306,14 +306,14 @@ function HolidayRow({
         <p
           className={`truncate text-sm font-medium ${
             h.enabled
-              ? "text-zinc-900 dark:text-zinc-100"
-              : "text-zinc-400 line-through dark:text-zinc-600"
+              ? "text-ink"
+              : "text-faint line-through"
           }`}
         >
           {h.name}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
+          <span className="text-xs text-muted tabular">
             {formatDate(h.date)}
           </span>
           <Badge variant={h.is_manual ? "info" : "secondary"}>
@@ -335,7 +335,7 @@ function HolidayRow({
           {h.enabled ? (
             <Eye className="h-4 w-4" />
           ) : (
-            <EyeOff className="h-4 w-4 text-zinc-400" />
+            <EyeOff className="h-4 w-4 text-faint" />
           )}
         </Button>
         <Button
@@ -356,7 +356,7 @@ function HolidayRow({
           onClick={() => onDelete(h)}
           disabled={isPending}
         >
-          <Trash2 className="h-4 w-4 text-red-500" />
+          <Trash2 className="h-4 w-4 text-danger" />
         </Button>
       </div>
     </div>
