@@ -9,6 +9,7 @@ import {
   Mail,
   AlertCircle,
   Shield,
+  Trophy,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { getQueueById, getQueueStats } from "@/lib/queues";
@@ -17,6 +18,7 @@ import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
 import { formatDays, formatTime, progressPercent } from "@/lib/queue-helpers";
 import { QueueActionsBar } from "./queue-actions-bar";
 import { FollowupSequenceEditor } from "./followup-sequence-editor";
+import { TemplatePoolEditor } from "./template-pool-editor";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { FollowupStep } from "@/lib/queue-helpers";
@@ -38,30 +40,24 @@ export default async function QueueDetailPage({
   if (!queue) notFound();
   const pct = progressPercent(queue);
 
-  // Now parallelize template + account + all-templates (depends on queue + workspace)
+  // Now parallelize account + all-templates + per-template breakdown
   const supabase = await createClient();
-  const [templateResult, accountResult, allTemplatesResult] = await Promise.all([
-    queue.template_id
-      ? supabase
-          .from("templates")
-          .select("name")
-          .eq("id", queue.template_id)
-          .maybeSingle()
-      : Promise.resolve({ data: null }),
-    supabase
-      .from("email_accounts")
-      .select("id, email, daily_quota, emails_sent_today, quota_reset_at")
-      .eq("workspace_id", workspace.id)
-      .eq("is_active", true)
-      .maybeSingle(),
-    supabase
-      .from("templates")
-      .select("id, name")
-      .eq("workspace_id", workspace.id)
-      .is("deleted_at", null)
-      .order("name"),
-  ]);
-  const template = templateResult.data;
+  const [accountResult, allTemplatesResult, breakdownResult] =
+    await Promise.all([
+      supabase
+        .from("email_accounts")
+        .select("id, email, daily_quota, emails_sent_today, quota_reset_at")
+        .eq("workspace_id", workspace.id)
+        .eq("is_active", true)
+        .maybeSingle(),
+      supabase
+        .from("templates")
+        .select("id, name")
+        .eq("workspace_id", workspace.id)
+        .is("deleted_at", null)
+        .order("name"),
+      supabase.rpc("get_queue_template_breakdown", { p_queue_id: id }),
+    ]);
   const account = accountResult.data as
     | {
         id: string;
@@ -78,6 +74,46 @@ export default async function QueueDetailPage({
     id: string;
     name: string;
   }>;
+  const templateNameById = new Map(allTemplates.map((t) => [t.id, t.name]));
+
+  // Effective template pool for this queue (new array, fallback to single).
+  const queueTemplateIds: string[] =
+    Array.isArray(queue.template_ids) && queue.template_ids.length > 0
+      ? queue.template_ids
+      : queue.template_id
+        ? [queue.template_id]
+        : [];
+  const queueTemplates = queueTemplateIds.map((tid) => ({
+    id: tid,
+    name: templateNameById.get(tid) ?? "(template terhapus)",
+  }));
+  const primaryTemplateName = queueTemplates[0]?.name ?? null;
+
+  // Per-template A/B breakdown.
+  const breakdown = (
+    (breakdownResult.data ?? []) as Array<{
+      template_id: string;
+      sent: number;
+      opened: number;
+      replied: number;
+    }>
+  )
+    .map((r) => ({
+      template_id: r.template_id,
+      name: templateNameById.get(r.template_id) ?? "(template terhapus)",
+      sent: r.sent,
+      open_rate: r.sent > 0 ? r.opened / r.sent : 0,
+      reply_rate: r.sent > 0 ? r.replied / r.sent : 0,
+    }))
+    .sort((a, b) => b.sent - a.sent);
+  // Highlight the winner (best reply rate) only when there's something to
+  // compare and at least one reply.
+  const bestReplyId =
+    breakdown.length > 1 && breakdown.some((r) => r.reply_rate > 0)
+      ? breakdown.reduce((best, r) =>
+          r.reply_rate > best.reply_rate ? r : best,
+        ).template_id
+      : null;
 
   // Resolve effective followup steps (prefer new array, fallback to legacy)
   let followupSteps: FollowupStep[] = Array.isArray(queue.followup_steps)
@@ -157,10 +193,23 @@ export default async function QueueDetailPage({
             {!queue.is_active && <Badge variant="secondary">Paused</Badge>}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-zinc-600 dark:text-zinc-400">
-            {template?.name && (
-              <span className="inline-flex items-center gap-1">
+            {queueTemplates.length > 0 && (
+              <span className="inline-flex flex-wrap items-center gap-1">
                 <Sparkles className="h-3 w-3" />
-                Template: <strong className="font-medium text-zinc-900 dark:text-zinc-100">{template.name}</strong>
+                Template:
+                {queueTemplates.map((t) => (
+                  <strong
+                    key={t.id}
+                    className="font-medium text-zinc-900 dark:text-zinc-100"
+                  >
+                    {t.name}
+                  </strong>
+                ))}
+                {queueTemplates.length > 1 && (
+                  <Badge variant="success">
+                    {queueTemplates.length} · rotasi
+                  </Badge>
+                )}
               </span>
             )}
             <span className="inline-flex items-center gap-1">
@@ -281,6 +330,82 @@ export default async function QueueDetailPage({
         }
       />
 
+      {/* Template pool (rotation) */}
+      <div className="mt-4">
+        <TemplatePoolEditor
+          slug={slug}
+          queueId={queue.id}
+          templates={allTemplates}
+          initialSelected={queueTemplateIds}
+        />
+      </div>
+
+      {/* Per-template A/B breakdown */}
+      {breakdown.length > 0 && (
+        <Card className="mt-4 p-0">
+          <div className="flex items-center gap-2 border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
+            <Trophy className="h-4 w-4 text-amber-500" />
+            <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+              Performa per template
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-zinc-100 text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                  <th className="px-5 py-2.5 font-semibold">Template</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">
+                    Terkirim
+                  </th>
+                  <th className="px-3 py-2.5 text-right font-semibold">
+                    Open rate
+                  </th>
+                  <th className="px-5 py-2.5 text-right font-semibold">
+                    Reply rate
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                {breakdown.map((r) => (
+                  <tr key={r.template_id}>
+                    <td className="px-5 py-3">
+                      <span className="inline-flex items-center gap-1.5 font-medium text-zinc-900 dark:text-zinc-100">
+                        {r.name}
+                        {r.template_id === bestReplyId && (
+                          <Badge variant="success">
+                            <Trophy className="h-2.5 w-2.5" />
+                            Terbaik
+                          </Badge>
+                        )}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+                      {r.sent.toLocaleString("id-ID")}
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+                      {Math.round(r.open_rate * 100)}%
+                    </td>
+                    <td
+                      className={`px-5 py-3 text-right font-medium tabular-nums ${
+                        r.template_id === bestReplyId
+                          ? "text-emerald-600 dark:text-emerald-400"
+                          : "text-zinc-700 dark:text-zinc-300"
+                      }`}
+                    >
+                      {Math.round(r.reply_rate * 100)}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="px-5 py-2.5 text-[11px] text-zinc-400 dark:text-zinc-500">
+            Atribusi per kiriman — angka mencerminkan template yang
+            benar-benar dipakai tiap email.
+          </p>
+        </Card>
+      )}
+
       {/* Follow-up sequence */}
       <div className="mt-4">
         <FollowupSequenceEditor
@@ -288,7 +413,7 @@ export default async function QueueDetailPage({
           queueId={queue.id}
           templates={allTemplates}
           initialSteps={followupSteps}
-          primaryTemplateName={template?.name ?? null}
+          primaryTemplateName={primaryTemplateName}
         />
       </div>
 

@@ -1,5 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEmail, type EmailAccount } from "@/lib/email-sender";
+import {
+  sendEmail,
+  type EmailAccount,
+  type EmailTemplate,
+} from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
 import { detectContactLanguage } from "@/lib/lang-detect";
@@ -129,19 +133,97 @@ export async function runQueue(
     return result;
   }
 
-  const { data: template } = await admin
+  // Effective template set. A queue may rotate across several templates
+  // (balanced-random per send) or just use its single template_id. Older
+  // queues have template_ids = NULL → fall back to [template_id].
+  const queueTemplateIds = (queue as { template_ids?: string[] | null })
+    .template_ids;
+  const requestedTemplateIds =
+    Array.isArray(queueTemplateIds) && queueTemplateIds.length > 0
+      ? queueTemplateIds
+      : queue.template_id
+        ? [queue.template_id]
+        : [];
+  if (requestedTemplateIds.length === 0) {
+    result.errors.push("Queue has no template");
+    return result;
+  }
+
+  const { data: templateRows } = await admin
     .from("templates")
     .select("id, subject_lines, body_plain, body_plain_en")
-    .eq("id", queue.template_id)
-    .maybeSingle();
-  if (!template) {
+    .in("id", requestedTemplateIds);
+  const templateMap = new Map<string, EmailTemplate>();
+  for (const t of (templateRows ?? []) as EmailTemplate[]) {
+    templateMap.set(t.id, t);
+  }
+  // Keep only ids that resolved, preserving the queue's order (stable
+  // tiebreak for the balanced rotation below).
+  const activeTemplateIds = requestedTemplateIds.filter((id) =>
+    templateMap.has(id),
+  );
+  if (activeTemplateIds.length === 0) {
     result.errors.push("Template not found");
     return result;
   }
-  const { data: attachments } = await admin
+
+  // Attachments are per-template — fetch the whole set, grouped by template.
+  type AttachmentRow = {
+    template_id: string;
+    filename: string;
+    storage_path: string;
+    mime_type: string;
+  };
+  const { data: attachmentRows } = await admin
     .from("template_attachments")
-    .select("filename, storage_path, mime_type")
-    .eq("template_id", queue.template_id);
+    .select("template_id, filename, storage_path, mime_type")
+    .in("template_id", activeTemplateIds);
+  const attachmentsByTemplate = new Map<
+    string,
+    Array<{ filename: string; storage_path: string; mime_type: string }>
+  >();
+  for (const a of (attachmentRows ?? []) as AttachmentRow[]) {
+    const list = attachmentsByTemplate.get(a.template_id) ?? [];
+    list.push({
+      filename: a.filename,
+      storage_path: a.storage_path,
+      mime_type: a.mime_type,
+    });
+    attachmentsByTemplate.set(a.template_id, list);
+  }
+
+  // Balanced rotation: seed per-template counts from this queue's real sent
+  // history, then always pick the least-used template (incremented in-memory)
+  // so volume stays even across templates over time → clean A/B/C testing.
+  const templateUseCount = new Map<string, number>();
+  for (const id of activeTemplateIds) templateUseCount.set(id, 0);
+  if (activeTemplateIds.length > 1) {
+    const { data: counts } = await admin.rpc("queue_template_send_counts", {
+      p_queue_id: queueId,
+    });
+    for (const row of (counts ?? []) as Array<{
+      template_id: string;
+      cnt: number;
+    }>) {
+      if (templateUseCount.has(row.template_id)) {
+        templateUseCount.set(row.template_id, row.cnt ?? 0);
+      }
+    }
+  }
+  // Least-used template; ties broken by the queue's order (deterministic
+  // round-robin). Caller increments the count only after a successful send.
+  function pickTemplateId(): string {
+    let best = activeTemplateIds[0];
+    let bestCount = templateUseCount.get(best) ?? 0;
+    for (const id of activeTemplateIds) {
+      const c = templateUseCount.get(id) ?? 0;
+      if (c < bestCount) {
+        best = id;
+        bestCount = c;
+      }
+    }
+    return best;
+  }
 
   // Evergreen auto-refill. Counter on send_queues drifts, so query the real
   // pending count and top up when it dips below ~2 days of capacity.
@@ -450,12 +532,18 @@ export async function runQueue(
         }
       : contact;
 
+    // Balanced rotation: pick the least-used template for this send.
+    const chosenTemplateId = pickTemplateId();
+    const chosenTemplate = templateMap.get(chosenTemplateId)!;
+    const chosenAttachments =
+      attachmentsByTemplate.get(chosenTemplateId) ?? [];
+
     const language = detectContactLanguage(contact);
     const sendResult = await sendEmail(admin, {
       account: account as EmailAccount,
       contact: testModeContact,
-      template,
-      attachments: attachments ?? [],
+      template: chosenTemplate,
+      attachments: chosenAttachments,
       aiOpener,
       trackingUrl,
       clickTrackingBase,
@@ -487,6 +575,11 @@ export async function runQueue(
     queueTotalSent++;
     queuePending = Math.max(0, queuePending - 1);
     accountSentToday++;
+    // Count this template's send so the next pick stays balanced.
+    templateUseCount.set(
+      chosenTemplateId,
+      (templateUseCount.get(chosenTemplateId) ?? 0) + 1,
+    );
     const nowIso = new Date().toISOString();
 
     // All post-send DB writes are independent — fire in parallel to keep
@@ -515,6 +608,7 @@ export async function runQueue(
           status: "sent",
           sent_at: nowIso,
           campaign_recipient_id: campaignRecipient?.id ?? null,
+          template_id: chosenTemplateId,
         })
         .eq("id", recipient.id),
       admin.from("contact_workspace_data").upsert(

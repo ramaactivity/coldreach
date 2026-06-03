@@ -13,7 +13,11 @@ import {
 
 const CreateQueueSchema = z.object({
   name: z.string().min(2, "Nama minimal 2 karakter").max(100),
-  template_id: z.string().uuid("Pilih template"),
+  // One or more templates. With >1 the queue rotates across them
+  // (balanced-random per send) for body A/B testing.
+  template_ids: z
+    .array(z.string().uuid())
+    .min(1, "Pilih minimal 1 template"),
   audience_type: z.enum(["all", "tag"]),
   audience_tag: z.string().optional(),
   schedule_start_time: z.string().regex(/^\d{2}:\d{2}$/),
@@ -49,6 +53,9 @@ export async function createQueue(
 
   const raw = {
     ...Object.fromEntries(formData),
+    // Repeated form fields collapse under Object.fromEntries — read the full
+    // list explicitly.
+    template_ids: formData.getAll("template_ids").map(String),
     use_ai_opener: formData.get("use_ai_opener") === "on",
     test_mode: formData.get("test_mode") === "on",
   };
@@ -130,7 +137,8 @@ export async function createQueue(
       user_id: user.id,
       workspace_id: workspace.id,
       name: data.name,
-      template_id: data.template_id,
+      template_id: data.template_ids[0],
+      template_ids: data.template_ids,
       audience_filter: audienceFilter,
       is_active: true,
       schedule_start_time: `${data.schedule_start_time}:00`,
@@ -203,6 +211,54 @@ export async function deleteQueueAction(slug: string, queueId: string) {
   await supabase.from("send_queues").delete().eq("id", queueId);
   revalidatePath(`/w/${slug}/queues`);
   redirect(`/w/${slug}/queues`);
+}
+
+/**
+ * Replace the template rotation pool for an existing queue. With >1 template
+ * the queue rotates across them (balanced-random per send). template_id is
+ * kept in sync with the first entry for back-compat.
+ */
+export async function updateQueueTemplates(
+  slug: string,
+  queueId: string,
+  templateIds: string[],
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const workspace = await getWorkspaceBySlug(slug);
+  if (!workspace) return { error: "Workspace not found" };
+
+  const ids = Array.from(new Set(templateIds.filter(Boolean)));
+  if (ids.length === 0) return { error: "Pilih minimal 1 template" };
+
+  // Only accept templates that belong to this workspace.
+  const { data: owned } = await supabase
+    .from("templates")
+    .select("id")
+    .eq("workspace_id", workspace.id)
+    .is("deleted_at", null)
+    .in("id", ids);
+  const ownedIds = new Set(
+    (owned ?? []).map((t) => (t as { id: string }).id),
+  );
+  // Preserve the submitted order, dropping any that aren't valid.
+  const valid = ids.filter((id) => ownedIds.has(id));
+  if (valid.length === 0) return { error: "Template tidak valid" };
+
+  const { error } = await supabase
+    .from("send_queues")
+    .update({ template_id: valid[0], template_ids: valid })
+    .eq("id", queueId)
+    .eq("workspace_id", workspace.id);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/w/${slug}/queues/${queueId}`);
+  revalidatePath(`/w/${slug}/templates`);
+  return {};
 }
 
 const FollowupStepSchema = z.object({

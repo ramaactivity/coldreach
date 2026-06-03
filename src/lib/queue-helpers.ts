@@ -6,6 +6,7 @@ export type SendQueue = {
   workspace_id: string;
   name: string;
   template_id: string | null;
+  template_ids: string[] | null;
   audience_filter: AudienceFilter;
   is_active: boolean;
   schedule_days: number[];
