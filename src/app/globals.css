@@ -112,9 +112,14 @@
    Base layer
    ============================================================================= */
 @layer base {
-  html { -webkit-text-size-adjust: 100%; }
+  /* Force light always — the app is light-only (dark mode = Known Gap).
+     This keeps native UI (scrollbars, form controls, date inputs) light even
+     when the OS is in dark mode. NOT a theme toggle. */
+  :root { color-scheme: light; }
+  html { -webkit-text-size-adjust: 100%; color-scheme: light; }
 
   body {
+    color-scheme: light;
     background-color: var(--color-bg-base);
     color: var(--color-ink);
     font-family: var(--font-sans);

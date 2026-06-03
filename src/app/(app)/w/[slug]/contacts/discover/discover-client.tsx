@@ -669,7 +669,7 @@ export function DiscoverClient({
 
       {/* Import progress overlay */}
       {importing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/45 p-4">
           <div className="flex max-w-sm items-center gap-4 rounded-lg border border-border bg-surface px-6 py-5 shadow-[var(--shadow-lg)]">
             <Spinner />
             <div>
