@@ -115,8 +115,8 @@ export default async function WorkspaceSettingsPage({
         <section>
           <SectionHeading
             icon={Calendar}
-            title="Default Schedule"
-            description="Schedule default queue auto-send. Tiap queue baru akan pakai value ini sebagai starting point."
+            title="Send Schedule"
+            description="Hari & jam auto-send untuk workspace ini. Menyimpan langsung diterapkan ke semua queue aktif."
           />
           <ScheduleForm
             slug={slug}
@@ -124,8 +124,8 @@ export default async function WorkspaceSettingsPage({
               schedule_days: workspace.schedule_days,
               schedule_start_time: workspace.schedule_start_time,
               schedule_end_time: workspace.schedule_end_time,
-              daily_target: workspace.daily_target,
             }}
+            dailyVolume={emailAccount?.daily_quota ?? workspace.daily_target}
           />
         </section>
 

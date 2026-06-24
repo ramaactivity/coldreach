@@ -185,6 +185,10 @@ export function GmailConnectionCard({
               style={{ width: `${Math.min(100, quotaPct)}%` }}
             />
           </div>
+          <p className="mt-2 text-xs text-muted">
+            Angka ini juga jadi target kirim/hari — dipakai semua queue di
+            workspace ini.
+          </p>
         </div>
         <div className="p-5">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted">

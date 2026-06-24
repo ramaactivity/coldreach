@@ -1,14 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Calendar, Clock, Target } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
   FieldLabel,
   FieldError,
   FieldDescription,
-  Input,
 } from "@/components/ui/input";
 import { TimePicker } from "@/components/ui/time-picker";
 import { updateWorkspaceSchedule, type FormState } from "./actions";
@@ -28,14 +27,15 @@ const DAYS = [
 export function ScheduleForm({
   slug,
   initial,
+  dailyVolume,
 }: {
   slug: string;
   initial: {
     schedule_days: number[];
     schedule_start_time: string;
     schedule_end_time: string;
-    daily_target: number;
   };
+  dailyVolume: number;
 }) {
   const [state, action, pending] = useActionState(
     updateWorkspaceSchedule.bind(null, slug),
@@ -89,7 +89,7 @@ export function ScheduleForm({
           <FieldError>{state.fieldErrors?.schedule_days}</FieldError>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <FieldLabel>
               <span className="inline-flex items-center gap-1.5">
@@ -117,26 +117,12 @@ export function ScheduleForm({
             />
             <FieldError>{state.fieldErrors?.schedule_end_time}</FieldError>
           </div>
-          <div>
-            <FieldLabel htmlFor="ws-target">
-              <span className="inline-flex items-center gap-1.5">
-                <Target className="h-3.5 w-3.5 text-muted" /> Target/hari
-              </span>
-            </FieldLabel>
-            <Input
-              id="ws-target"
-              name="daily_target"
-              type="number"
-              min={1}
-              max={500}
-              defaultValue={initial.daily_target}
-              required
-            />
-          </div>
         </div>
         <FieldDescription>
-          Target/hari adalah default. Quota Gmail-mu (di card atas) menentukan
-          batas keras pengiriman per hari.
+          Target kirim <strong className="text-ink-secondary">{dailyVolume}/hari</strong>{" "}
+          mengikuti Gmail quota — ubah di kartu <em>Gmail Account</em> di atas.
+          Menyimpan jadwal ini langsung diterapkan ke semua queue aktif di
+          workspace ini.
         </FieldDescription>
 
         {state.error && (

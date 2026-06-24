@@ -320,11 +320,13 @@ export async function removeWorkspaceLogo(
 // Schedule update
 // =============================================================================
 
+// Daily volume (Target/hari) is NOT part of this form anymore — it's unified
+// with the Gmail account's daily_quota and edited there. This form owns only
+// WHEN to send (days + window).
 const ScheduleSchema = z.object({
   schedule_days: z.string(), // CSV of day numbers
   schedule_start_time: z.string().regex(/^\d{2}:\d{2}$/),
   schedule_end_time: z.string().regex(/^\d{2}:\d{2}$/),
-  daily_target: z.coerce.number().int().min(1).max(500),
 });
 
 export async function updateWorkspaceSchedule(
@@ -368,20 +370,45 @@ export async function updateWorkspaceSchedule(
     };
   }
 
+  const startTime = `${parsed.data.schedule_start_time}:00`;
+  const endTime = `${parsed.data.schedule_end_time}:00`;
+
   const { error } = await supabase
     .from("workspaces")
     .update({
       schedule_days: dayNums,
-      schedule_start_time: `${parsed.data.schedule_start_time}:00`,
-      schedule_end_time: `${parsed.data.schedule_end_time}:00`,
-      daily_target: parsed.data.daily_target,
+      schedule_start_time: startTime,
+      schedule_end_time: endTime,
     })
     .eq("id", workspace.id)
     .eq("user_id", user.id);
 
   if (error) return { error: error.message };
 
+  // Single source of truth: the workspace schedule IS the schedule. Push it
+  // down to every recurring queue in this workspace so the cron runner (which
+  // reads per-queue schedule, not the workspace default) actually obeys it.
+  // Without this, editing the schedule here silently no-ops on existing queues
+  // — they keep whatever window they were created with. One-shot campaigns are
+  // excluded: they ignore the recurring window and have their own start time.
+  // Also re-aligns daily_target to the workspace value (kept = Gmail quota) so
+  // a queue can't drift below the account cap.
+  const { error: propagateError } = await supabase
+    .from("send_queues")
+    .update({
+      schedule_days: dayNums,
+      schedule_start_time: startTime,
+      schedule_end_time: endTime,
+      daily_target: workspace.daily_target,
+    })
+    .eq("workspace_id", workspace.id)
+    .eq("user_id", user.id)
+    .eq("is_one_shot", false);
+
+  if (propagateError) return { error: propagateError.message };
+
   revalidatePath(`/w/${slug}/settings`);
+  revalidatePath(`/w/${slug}/dashboard`);
   updateTag(WORKSPACE_CACHE_TAG);
   return { success: true };
 }
@@ -415,15 +442,41 @@ export async function updateGmailQuota(
     return { fieldErrors };
   }
 
+  const quota = parsed.data.daily_quota;
+
   const { error } = await supabase
     .from("email_accounts")
-    .update({ daily_quota: parsed.data.daily_quota })
+    .update({ daily_quota: quota })
     .eq("id", accountId)
     .eq("user_id", user.id);
 
   if (error) return { error: error.message };
 
+  // The Gmail quota is the single source of truth for daily send volume
+  // ("Target/hari" was merged into this). Mirror it onto the workspace default
+  // (seeds new queues + dashboard) and onto every recurring queue's
+  // daily_target (what the cron runner actually paces to), so all three stay
+  // in lockstep instead of silently drifting apart.
+  const workspace = await getWorkspaceBySlug(slug);
+  if (workspace) {
+    await supabase
+      .from("workspaces")
+      .update({ daily_target: quota })
+      .eq("id", workspace.id)
+      .eq("user_id", user.id);
+
+    await supabase
+      .from("send_queues")
+      .update({ daily_target: quota })
+      .eq("workspace_id", workspace.id)
+      .eq("user_id", user.id)
+      .eq("is_one_shot", false);
+
+    updateTag(WORKSPACE_CACHE_TAG);
+  }
+
   revalidatePath(`/w/${slug}/settings`);
+  revalidatePath(`/w/${slug}/dashboard`);
   return { success: true };
 }
 
