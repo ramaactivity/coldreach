@@ -232,6 +232,37 @@ export function CreateQueueForm({
         </label>
       </div>
 
+      {/* Cold mode toggle */}
+      <div className="rounded-lg border border-border bg-surface-sunken p-4">
+        <label className="flex cursor-pointer items-start gap-3">
+          <div className="relative mt-0.5">
+            <input
+              type="checkbox"
+              name="cold_mode"
+              defaultChecked
+              className="peer h-4 w-4 cursor-pointer appearance-none rounded border border-border-strong bg-surface transition-colors checked:border-action checked:bg-action focus:outline-none focus:ring-[3px] focus:ring-accent-soft"
+            />
+            <Check className="pointer-events-none absolute left-0.5 top-0.5 h-3 w-3 text-on-action opacity-0 peer-checked:opacity-100" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5">
+              <Flame className="h-3.5 w-3.5 text-accent" />
+              <p className="text-sm font-medium text-ink">
+                Cold mode (plain-text)
+              </p>
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Kirim sebagai email teks polos yang tampak personal 1:1 — tanpa
+              pixel tracking, tanpa rewrite link, tanpa logo HTML. Jauh lebih
+              besar peluang masuk tab <strong>Primary</strong> (bukan
+              Promotions/Spam) untuk cold outreach. Open-tracking dimatikan;
+              reply &amp; bounce tetap terdeteksi. Matikan untuk email
+              warm/branded yang butuh HTML + tracking.
+            </p>
+          </div>
+        </label>
+      </div>
+
       {/* Pool ordering */}
       <div className="rounded-lg border border-border bg-surface p-4">
         <p className="mb-2 text-sm font-medium text-ink">

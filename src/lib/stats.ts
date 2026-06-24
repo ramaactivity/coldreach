@@ -11,6 +11,13 @@ export type WorkspaceStats = {
   replied_7d: number;
   pending_replies: number; // replied but not yet handled
   bounced_7d: number;
+  // Bounces classified as an active block or spam-complaint (bounce_type
+  // 'block'/'spam') in the last 7d. This is the closest HONEST signal to
+  // "flagged as spam" — we can detect server rejections / complaint DSNs, but
+  // NOT whether a delivered email silently landed in the recipient's spam
+  // folder (no provider feeds that back to senders). True spam-folder rate
+  // needs Google Postmaster Tools on a custom domain.
+  blocked_spam_7d: number;
   skipped_total: number;
   archived_total: number;
   quota_today: { sent: number; quota: number } | null;
@@ -67,6 +74,7 @@ export async function getWorkspaceStats(
     replied7dCount,
     pendingRepliesCount,
     bounced7dCount,
+    blockedSpam7dCount,
     skippedTotalCount,
     archivedTotalCount,
     accountInfo,
@@ -131,6 +139,13 @@ export async function getWorkspaceStats(
       .eq("workspace_id", workspaceId)
       .gte("created_at", weekAgo)
       .eq("status", "bounced"),
+    // Active block / spam-complaint rejections we actually detected (DSN-based).
+    supabase
+      .from("campaign_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .gte("bounced_at", weekAgo)
+      .in("bounce_type", ["block", "spam"]),
     supabase
       .from("queue_recipients")
       .select("id", { count: "exact", head: true })
@@ -170,6 +185,7 @@ export async function getWorkspaceStats(
     replied_7d: replied7dCount.count ?? 0,
     pending_replies: pendingRepliesCount.count ?? 0,
     bounced_7d: bounced7dCount.count ?? 0,
+    blocked_spam_7d: blockedSpam7dCount.count ?? 0,
     skipped_total: skippedTotalCount.count ?? 0,
     archived_total: archivedTotalCount.count ?? 0,
     quota_today: accountInfo.data

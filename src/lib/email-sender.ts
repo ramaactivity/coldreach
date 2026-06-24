@@ -128,6 +128,10 @@ function buildMimeMessage(
    *  footer. Kept separate from `bodyPlain` so we don't naïvely convert
    *  the structured layout via plainToHtml. */
   signatureHtml: string,
+  /** Cold mode: send a single text/plain part that reads like a personal 1:1
+   *  email — no open pixel, no link rewriting, no HTML/logo. Far better inbox
+   *  (Primary tab) placement for cold outreach than a tracked HTML email. */
+  coldMode: boolean,
 ): string {
   const fromHeader = fromName
     ? `${encodeRFC2047(fromName)} <${fromEmail}>`
@@ -160,42 +164,51 @@ function buildMimeMessage(
     baseHeaders.push(`References: ${inReplyToMessageId}`);
   }
 
-  // Build the bodies. HTML version: auto-links URLs (wrapped in click
-  // tracker when base is provided) + open-tracking pixel + unsubscribe
-  // footer. Plain version keeps original URLs as-is plus its own footer.
-  const linkWrapper = clickTrackingBase
-    ? (url: string) => buildClickTrackingHref(clickTrackingBase, url)
-    : undefined;
   const bodyPlainWithFooter =
     bodyPlain + buildUnsubscribeFooterPlain(unsubscribeUrl);
-  // Body → signature → unsubscribe → tracking pixel. `bodyPlain` already
-  // has the plain-text signature appended by the caller (with RFC 3676
-  // separator); the HTML signature here is the structured rich version
-  // that replaces what plainToHtml would naïvely render.
-  const bodyHtml = `${plainToHtml(stripPlainSignature(bodyPlain), linkWrapper)}${signatureHtml}${buildUnsubscribeFooterHtml(unsubscribeUrl)}${buildTrackingPixelHtml(trackingUrl)}`;
 
-  // Outer boundary (only used if attachments)
-  const altBoundary = `----coldreach-alt-${Date.now().toString(36)}`;
-  const altPart = [
-    `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
-    "",
-    `--${altBoundary}`,
-    `Content-Type: text/plain; charset="UTF-8"`,
-    `Content-Transfer-Encoding: quoted-printable`,
-    "",
-    quotedPrintable(bodyPlainWithFooter),
-    "",
-    `--${altBoundary}`,
-    `Content-Type: text/html; charset="UTF-8"`,
-    `Content-Transfer-Encoding: quoted-printable`,
-    "",
-    quotedPrintable(bodyHtml),
-    "",
-    `--${altBoundary}--`,
-  ];
+  // The content section. Cold mode → a single text/plain part (no HTML, no
+  // pixel, no link rewriting) so the email reads like a person typed it.
+  // Otherwise → multipart/alternative with the tracked, signature-rich HTML.
+  let contentPart: string[];
+  if (coldMode) {
+    contentPart = [
+      `Content-Type: text/plain; charset="UTF-8"`,
+      `Content-Transfer-Encoding: quoted-printable`,
+      "",
+      quotedPrintable(bodyPlainWithFooter),
+    ];
+  } else {
+    // HTML version: auto-links URLs (wrapped in click tracker when base is
+    // provided) + open-tracking pixel + unsubscribe footer. `bodyPlain`
+    // already has the plain-text signature appended by the caller; the HTML
+    // signature here is the structured rich version.
+    const linkWrapper = clickTrackingBase
+      ? (url: string) => buildClickTrackingHref(clickTrackingBase, url)
+      : undefined;
+    const bodyHtml = `${plainToHtml(stripPlainSignature(bodyPlain), linkWrapper)}${signatureHtml}${buildUnsubscribeFooterHtml(unsubscribeUrl)}${buildTrackingPixelHtml(trackingUrl)}`;
+    const altBoundary = `----coldreach-alt-${Date.now().toString(36)}`;
+    contentPart = [
+      `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+      "",
+      `--${altBoundary}`,
+      `Content-Type: text/plain; charset="UTF-8"`,
+      `Content-Transfer-Encoding: quoted-printable`,
+      "",
+      quotedPrintable(bodyPlainWithFooter),
+      "",
+      `--${altBoundary}`,
+      `Content-Type: text/html; charset="UTF-8"`,
+      `Content-Transfer-Encoding: quoted-printable`,
+      "",
+      quotedPrintable(bodyHtml),
+      "",
+      `--${altBoundary}--`,
+    ];
+  }
 
   if (attachments.length === 0) {
-    return [...baseHeaders, ...altPart].join("\r\n");
+    return [...baseHeaders, ...contentPart].join("\r\n");
   }
 
   // Multipart with attachments wrapping the alternative section
@@ -205,7 +218,7 @@ function buildMimeMessage(
     `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`,
     "",
     `--${mixedBoundary}`,
-    ...altPart,
+    ...contentPart,
     "",
   ];
 
@@ -334,6 +347,10 @@ export type SendEmailParams = {
   unsubscribeUrl?: string | null;
   /** Language code to pick body variant. 'en' uses body_plain_en if set, else falls back to body_plain. */
   language?: "id" | "en";
+  /** Cold mode: plain-text-only personal-looking email — no pixel, no link
+   *  rewriting, no HTML/logo signature. Best inbox placement for cold
+   *  first-touch. Defaults to true; pass false for warm/branded sends. */
+  coldMode?: boolean;
 };
 
 export async function sendEmail(
@@ -356,6 +373,7 @@ export async function sendEmail(
     signatureFallbackColor,
     unsubscribeUrl,
     language,
+    coldMode = true,
   } = params;
 
   try {
@@ -416,7 +434,9 @@ export async function sendEmail(
       }
     }
 
-    // Build MIME (with tracking pixel if URL provided, threading if reply)
+    // Build MIME. In cold mode the pixel + click-tracking base are dropped
+    // entirely (passed as null) so no tracking artifacts leak into the
+    // plain-text body — the metrics still work via reply/bounce detection.
     const mime = buildMimeMessage(
       account.display_name,
       account.email,
@@ -424,11 +444,12 @@ export async function sendEmail(
       subject,
       body,
       attachmentBuffers,
-      trackingUrl,
-      clickTrackingBase ?? null,
+      coldMode ? null : trackingUrl,
+      coldMode ? null : (clickTrackingBase ?? null),
       inReplyToMessageId ?? null,
       unsubscribeUrl ?? null,
       sigHtml,
+      coldMode,
     );
 
     // Encode as base64url

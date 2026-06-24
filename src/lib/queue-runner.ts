@@ -552,6 +552,9 @@ export async function runQueue(
       signatureFallbackColor: workspaceColorTheme,
       unsubscribeUrl,
       language,
+      // Plain-text personal-looking send for cold outreach (no pixel / link
+      // rewrite / HTML). Defaults on; per-queue override via cold_mode.
+      coldMode: (queue as { cold_mode?: boolean }).cold_mode ?? true,
     });
 
     if (!sendResult.ok) {

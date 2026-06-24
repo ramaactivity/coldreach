@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   SkipForward,
   Archive,
+  ShieldAlert,
 } from "lucide-react";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
@@ -192,6 +193,13 @@ export default async function WorkspaceDashboardPage({
           value={stats.skipped_total.toLocaleString("id-ID")}
           icon={SkipForward}
           hint="dedup / inactive"
+        />
+        <StatCard
+          label="Blocked / spam"
+          value={stats.blocked_spam_7d.toLocaleString("id-ID")}
+          icon={ShieldAlert}
+          tone={stats.blocked_spam_7d > 0 ? "red" : "default"}
+          hint="ditolak server (7d)"
         />
       </div>
 

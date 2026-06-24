@@ -415,6 +415,7 @@ export async function runFollowupsForQueue(
       signatureFallbackColor: workspaceColorTheme,
       unsubscribeUrl,
       language,
+      coldMode: (queue as { cold_mode?: boolean }).cold_mode ?? true,
     });
 
     if (!sendResult.ok) {
