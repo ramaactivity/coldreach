@@ -1,5 +1,61 @@
 # Deploy ColdReach ke Production
 
+## Jalur Deploy (CURRENT) — GitHub Actions + Vercel Token
+
+> Ini jalur deploy yang dipakai sekarang. Section "Setup Awal" di bawah (native
+> import via vercel.com/new) sudah **superseded** — disimpan cuma sebagai referensi
+> historis env var & langkah Supabase/Google.
+
+**Ringkasan:** `git push ke main` → GitHub Actions (`.github/workflows/deploy.yml`)
+→ `vercel deploy --prod` pakai token. **Native Git integration di-disconnect** dan
+**GitHub login TIDAK di-connect** ke akun Vercel.
+
+**Kenapa pola token, bukan native Git integration?**
+Satu akun GitHub cuma bisa login-connect ke satu akun Vercel dalam satu waktu.
+Karena project tersebar di beberapa akun Vercel (free tier dipisah), native
+integration antar-project saling rebutan koneksi GitHub → lepas terus & deploy
+ke-block. Pola CI-token tidak bergantung pada GitHub↔Vercel login, jadi permanen.
+
+**Identitas project ini:**
+- Akun / team Vercel: **tetraphotobooth-8466's projects** (`tetraphotobooth-8466s-projects`)
+- Project: **coldreach**
+- Domain production: **https://coldreach-beta.vercel.app**
+- `VERCEL_ORG_ID` = `team_50lCk1o0IIRbZh8QftAKqzVe` (bukan rahasia, di-inline di workflow)
+- `VERCEL_PROJECT_ID` = `prj_ErCJf9Er3s7y8Ur6oOST6PwMBDIM` (bukan rahasia, di-inline di workflow)
+
+**Kenapa `rm -rf .git` wajib di workflow:**
+Vercel Hobby memblok deploy yang commit-author-email-nya tidak cocok dengan akun
+GitHub anggota team (error "commit email could not be matched"). Karena GitHub
+login sengaja tidak di-connect, kita buang metadata git sebelum `vercel deploy`
+supaya deploy diatribusikan ke **pemilik token** (yang memang anggota team) → lolos.
+
+**Kenapa build di Vercel, bukan prebuilt:**
+Build dijalankan di Vercel (`vercel deploy --prod`), bukan `vercel build --prebuilt`
+lokal di runner. Prebuilt sempat menggantung di "Building…" dan butuh setup pnpm
+di runner — tidak perlu, karena Vercel yang install & build.
+
+### Setup (sekali saja)
+1. Buat Vercel Token di **akun Vercel pemilik project ini** (tetraphotobooth-8466):
+   vercel.com/account/settings/tokens → Create Token → scope ke team yang benar →
+   No Expiration → copy.
+2. Tambah sebagai GitHub secret bernama `VERCEL_TOKEN` (HURUF BESAR semua) di repo
+   ini: Settings → Secrets and variables → Actions → New repository secret.
+3. Setelah run Actions hijau, disconnect native Git integration:
+   Vercel project → Settings → Git → Disconnect (biar tidak dobel-deploy).
+
+### Deploy harian
+Cukup `git push` ke `main`. Actions yang jalanin sisanya.
+
+### Troubleshooting
+- **Blocked "commit email could not be matched"** → step `rm -rf .git` hilang dari
+  workflow. Pastikan step "Strip git metadata" ada sebelum step Deploy.
+- **Deploy merah / 403 / "Not authorized"** → token expired atau salah scope. Bikin
+  token baru di akun yang benar, update GitHub secret `VERCEL_TOKEN`.
+
+---
+
+## Setup Awal (SUPERSEDED — referensi historis)
+
 Panduan deploy dari local dev ke Vercel + Supabase production. Estimasi 30-45 menit.
 
 ## Prerequisites
