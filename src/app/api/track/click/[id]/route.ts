@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyClickSignature } from "@/lib/click-tracking";
+import { classifyOpenEvent, msSinceSent } from "@/lib/open-classifier";
 
 const UUID_RE = /^[0-9a-f-]{36}$/i;
 
@@ -62,25 +63,46 @@ async function logClick(recipientId: string, url: string, userAgent: string) {
 
   const { data: recipient } = await admin
     .from("campaign_recipients")
-    .select("id, click_count, status, user_id, workspace_id")
+    .select(
+      "id, click_count, human_click_count, status, user_id, workspace_id, sent_at",
+    )
     .eq("id", recipientId)
     .maybeSingle();
   if (!recipient) return;
 
+  // Security scanners (SafeLinks etc.) follow every link at delivery time. Use
+  // the same machine filter as opens — raw click_count always increments, but
+  // human_click_count + the activity feed only move on a real human click.
+  const kind = classifyOpenEvent({
+    userAgent,
+    msSinceSent: msSinceSent((recipient as { sent_at?: string | null }).sent_at),
+  });
+  const isHuman = kind === "human";
+
+  const updates: Record<string, unknown> = {
+    click_count: (recipient.click_count ?? 0) + 1,
+  };
+  if (isHuman) {
+    updates.human_click_count =
+      ((recipient as { human_click_count?: number }).human_click_count ?? 0) + 1;
+  }
+
   await admin
     .from("campaign_recipients")
-    .update({ click_count: (recipient.click_count ?? 0) + 1 })
+    .update(updates)
     .eq("id", recipientId);
 
-  await admin.from("activity_log").insert({
-    user_id: recipient.user_id,
-    workspace_id: recipient.workspace_id,
-    activity_type: "email_clicked",
-    entity_type: "campaign_recipient",
-    entity_id: recipientId,
-    metadata: {
-      url: url.slice(0, 500),
-      user_agent: userAgent.slice(0, 200),
-    },
-  });
+  if (isHuman) {
+    await admin.from("activity_log").insert({
+      user_id: recipient.user_id,
+      workspace_id: recipient.workspace_id,
+      activity_type: "email_clicked",
+      entity_type: "campaign_recipient",
+      entity_id: recipientId,
+      metadata: {
+        url: url.slice(0, 500),
+        user_agent: userAgent.slice(0, 200),
+      },
+    });
+  }
 }

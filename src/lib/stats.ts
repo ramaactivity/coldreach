@@ -106,11 +106,14 @@ export async function getWorkspaceStats(
       .eq("workspace_id", workspaceId)
       .gte("created_at", weekAgo)
       .in("status", ["sending", "sent", "opened", "replied"]),
+    // Open rate counts only human-confirmed opens (human_opened_at), not raw
+    // pixel hits — machine scanners / MPP prefetch fire within ~60s of send
+    // and would otherwise inflate this 5-10x. See lib/open-classifier.ts.
     supabase
       .from("campaign_recipients")
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", workspaceId)
-      .gte("opened_at", weekAgo),
+      .gte("human_opened_at", weekAgo),
     supabase
       .from("campaign_recipients")
       .select("id", { count: "exact", head: true })

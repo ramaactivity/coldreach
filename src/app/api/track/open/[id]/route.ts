@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { bumpContactEngagement } from "@/lib/engagement";
+import { classifyOpenEvent, msSinceSent } from "@/lib/open-classifier";
 
 // 1x1 transparent GIF (43 bytes)
 const TRANSPARENT_GIF = Buffer.from(
@@ -47,29 +48,44 @@ async function trackOpen(recipientId: string, request: NextRequest) {
   if (!recipientId.match(/^[0-9a-f-]{36}$/i)) return; // not a UUID, ignore
 
   const userAgent = request.headers.get("user-agent") ?? "";
-  // Skip Gmail's image proxy preview that fires once on display in some clients
-  // (we still count it as an open since user actually viewed the email)
 
   const admin = createAdminClient();
 
-  // Fetch current state
+  // Fetch current state. sent_at drives the timing-based machine filter.
   const { data: recipient } = await admin
     .from("campaign_recipients")
-    .select("id, opened_at, open_count, status, user_id, contact_id")
+    .select(
+      "id, opened_at, human_opened_at, open_count, human_open_count, status, user_id, contact_id, sent_at",
+    )
     .eq("id", recipientId)
     .maybeSingle();
   if (!recipient) return;
 
+  // Separate machine traffic (scanners, MPP/proxy prefetch, bots) from a real
+  // human open. Only human opens move the metrics; everything still increments
+  // the raw open_count so the forensic record stays complete.
+  const kind = classifyOpenEvent({
+    userAgent,
+    msSinceSent: msSinceSent((recipient as { sent_at?: string | null }).sent_at),
+  });
+  const isHuman = kind === "human";
+
   const now = new Date().toISOString();
   const updates: Record<string, unknown> = {
     open_count: (recipient.open_count ?? 0) + 1,
+    last_open_at: now,
   };
+  // Keep opened_at as the first-ever raw ping (forensic), unchanged.
+  if (!recipient.opened_at) updates.opened_at = now;
 
-  // First-time open: set opened_at + bump status if still 'sent'
-  if (!recipient.opened_at) {
-    updates.opened_at = now;
-    if (recipient.status === "sent") {
-      updates.status = "opened";
+  const firstHumanOpen = isHuman && !recipient.human_opened_at;
+  if (isHuman) {
+    updates.human_open_count =
+      ((recipient as { human_open_count?: number }).human_open_count ?? 0) + 1;
+    if (firstHumanOpen) {
+      updates.human_opened_at = now;
+      // Only a genuine human read flips the status to 'opened'.
+      if (recipient.status === "sent") updates.status = "opened";
     }
   }
 
@@ -78,23 +94,23 @@ async function trackOpen(recipientId: string, request: NextRequest) {
     .update(updates)
     .eq("id", recipientId);
 
-  // Light-touch activity log (max 1 entry per first open)
-  if (!recipient.opened_at) {
+  // Activity log + engagement only fire on the first real human open, so the
+  // feed and engagement scores aren't drowned in scanner noise.
+  if (firstHumanOpen) {
     await admin.from("activity_log").insert({
       user_id: recipient.user_id,
       activity_type: "email_opened",
       entity_type: "campaign_recipient",
       entity_id: recipientId,
-      metadata: { user_agent: userAgent.slice(0, 200) },
+      metadata: { user_agent: userAgent.slice(0, 200), open_kind: kind },
     });
-  }
 
-  // Bump global engagement aggregates + recompute score on every open.
-  if ((recipient as { contact_id?: string }).contact_id) {
-    await bumpContactEngagement(
-      admin,
-      (recipient as { contact_id: string }).contact_id,
-      "open",
-    );
+    if ((recipient as { contact_id?: string }).contact_id) {
+      await bumpContactEngagement(
+        admin,
+        (recipient as { contact_id: string }).contact_id,
+        "open",
+      );
+    }
   }
 }
