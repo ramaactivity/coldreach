@@ -86,17 +86,39 @@ export async function GET(request: NextRequest) {
   // evergreen audiences, resyncs the counters, and returns early when there's
   // genuinely nothing to send. Schedule-window checks below keep us from
   // calling it on out-of-window queues.
+  // Order by last_run_at ASC (NULLS FIRST) so the most-starved queue is served
+  // first. All active queues are processed sequentially inside ONE serverless
+  // invocation capped at maxDuration (60s); with several workspaces a full tick
+  // can't drain everyone in 60s. Without fair ordering the queue that sorts last
+  // (e.g. the newest workspace) is starved every single tick — it only ever got
+  // sends on the final window tick after the others hit their daily target.
+  // Least-recently-run-first rotates that pressure so nobody is permanently
+  // skipped.
   const { data: queues } = await admin
     .from("send_queues")
     .select(
-      "id, schedule_days, schedule_start_time, schedule_end_time, daily_target, is_one_shot, scheduled_start_at",
+      "id, schedule_days, schedule_start_time, schedule_end_time, daily_target, is_one_shot, scheduled_start_at, last_run_at",
     )
     .eq("is_active", true)
-    .eq("test_mode", false);
+    .eq("test_mode", false)
+    .order("last_run_at", { ascending: true, nullsFirst: true });
 
   const results: Array<{ id: string; sent: number; failed: number; mode: string }> = [];
 
+  // Wall-clock guard. Stop starting a new queue once we're close to the
+  // function's hard timeout — a kill mid-send orphans 'sending' rows (the
+  // post-send status write never lands), which then look sent to the dedup
+  // pass and silently suppress that contact. Remaining queues are picked up
+  // next tick, and fair ordering above guarantees they rotate to the front.
+  const RUN_BUDGET_MS = 50_000;
+  const startedAtMs = now.getTime();
+  let stoppedEarly = false;
+
   for (const q of queues ?? []) {
+    if (Date.now() - startedAtMs > RUN_BUDGET_MS) {
+      stoppedEarly = true;
+      break;
+    }
     const queue = q as {
       id: string;
       schedule_days: number[];
@@ -157,6 +179,8 @@ export async function GET(request: NextRequest) {
     ok: true,
     triggered_at: now.toISOString(),
     queues_processed: results.length,
+    queues_total: (queues ?? []).length,
+    stopped_early: stoppedEarly,
     results,
   });
 }
