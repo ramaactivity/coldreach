@@ -113,6 +113,19 @@ function stripPlainSignature(plainBody: string): string {
   return plainBody.slice(0, m.index);
 }
 
+/**
+ * Insert the AI opener as its own paragraph right after the greeting line.
+ * Templates open with "Dear Bapak/Ibu {name}," then a blank line then the body;
+ * we splice the opener into that first blank-line break. Falls back to
+ * prepending if the body has no paragraph break.
+ */
+function injectOpenerAfterGreeting(body: string, opener: string): string {
+  const m = body.match(/\r?\n\r?\n/);
+  if (!m || m.index === undefined) return `${opener}\n\n${body}`;
+  const cut = m.index + m[0].length;
+  return `${body.slice(0, cut)}${opener}\n\n${body.slice(cut)}`;
+}
+
 function buildMimeMessage(
   fromName: string | null,
   fromEmail: string,
@@ -405,7 +418,13 @@ export async function sendEmail(
       language === "en" && template.body_plain_en
         ? template.body_plain_en
         : template.body_plain;
-    const renderedBody = renderPreview(sourceBody, values);
+    let renderedBody = renderPreview(sourceBody, values);
+    // If the template doesn't explicitly place {ai_opener} but we generated one,
+    // slot it in as the first personal line right after the greeting paragraph.
+    // This makes AI personalization work without rewriting every template.
+    if (aiOpener && aiOpener.trim() && !sourceBody.includes("{ai_opener}")) {
+      renderedBody = injectOpenerAfterGreeting(renderedBody, aiOpener.trim());
+    }
     // Append plain-text signature with RFC-3676 separator. The HTML version
     // is rendered separately by renderSignatureHtml and embedded in the
     // HTML MIME part — see buildMimeMessage(...signatureHtml).

@@ -1,6 +1,26 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const MODEL_NAME = "gemini-2.5-flash";
+// flash-lite, not 2.5-flash: 2.5-flash spends "thinking" tokens out of
+// maxOutputTokens, so with a tiny budget the label came back empty and every
+// reply silently fell through to "other" — breaking lead classification.
+const MODEL_NAME = "gemini-2.5-flash-lite";
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const status = (err as { status?: number })?.status;
+      if ((status !== 503 && status !== 429 && status !== 500) || i === attempts - 1) {
+        throw err;
+      }
+      await new Promise((r) => setTimeout(r, 400 * Math.pow(3, i)));
+    }
+  }
+  throw lastErr;
+}
 
 export type ReplyClass =
   | "interested"
@@ -62,11 +82,11 @@ export async function classifyReply(
       model: MODEL_NAME,
       generationConfig: {
         temperature: 0.1,
-        maxOutputTokens: 20,
+        maxOutputTokens: 40,
       },
     });
     const prompt = buildPrompt(replyText);
-    const result = await model.generateContent(prompt);
+    const result = await withRetry(() => model.generateContent(prompt));
     const raw = result.response.text().trim().toLowerCase();
     // Gemini may wrap with quotes or add a period. Take the first
     // alphabetic+underscore token only.
