@@ -39,16 +39,17 @@ export async function toggleWarmupMode(
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Warmup must NOT overwrite daily_quota. The effective daily cap is derived
+  // dynamically from days-since-start in effectiveWarmupQuota (20→40→60→80→full
+  // over 30 days), capped by daily_quota. The old code set daily_quota = 5 on
+  // enable, which became the fallback ceiling, so min(stage, 5) pinned every
+  // stage at 5 and the ramp never moved (and disabling left it stuck at 30).
+  // Keep daily_quota = the real target (e.g. 90); just flip the mode and stamp
+  // the start so the ramp clock runs and auto-completes to full at day 31.
   const updates: Record<string, unknown> = {
     warmup_mode: enabled,
+    warmup_started_at: enabled ? new Date().toISOString() : null,
   };
-  if (enabled) {
-    updates.warmup_started_at = new Date().toISOString();
-    updates.daily_quota = 5;
-  } else {
-    updates.warmup_started_at = null;
-    updates.daily_quota = 30;
-  }
 
   await supabase
     .from("email_accounts")
