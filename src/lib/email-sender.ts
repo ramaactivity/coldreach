@@ -185,11 +185,29 @@ function buildMimeMessage(
   // Otherwise → multipart/alternative with the tracked, signature-rich HTML.
   let contentPart: string[];
   if (coldMode) {
+    // Lightweight HTML: a clean, personal-looking email — the body + plain-text
+    // signature auto-linked into clickable anchors, plus a hyperlinked
+    // "Unsubscribe" (URL hidden, not shown raw). Deliberately NO tracking
+    // pixel, NO click-link rewriting, and NO logo/branded signature card, so it
+    // stays out of the Promotions/spam bucket while still looking polished.
+    const coldBodyHtml = `${plainToHtml(bodyPlain)}${buildUnsubscribeFooterHtml(unsubscribeUrl)}`;
+    const altBoundary = `----coldreach-alt-${Date.now().toString(36)}`;
     contentPart = [
+      `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
+      "",
+      `--${altBoundary}`,
       `Content-Type: text/plain; charset="UTF-8"`,
       `Content-Transfer-Encoding: quoted-printable`,
       "",
-      quotedPrintable(bodyPlainWithFooter),
+      quotedPrintable(bodyPlain),
+      "",
+      `--${altBoundary}`,
+      `Content-Type: text/html; charset="UTF-8"`,
+      `Content-Transfer-Encoding: quoted-printable`,
+      "",
+      quotedPrintable(coldBodyHtml),
+      "",
+      `--${altBoundary}--`,
     ];
   } else {
     // HTML version: auto-links URLs (wrapped in click tracker when base is
