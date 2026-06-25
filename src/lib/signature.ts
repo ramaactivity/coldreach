@@ -333,6 +333,72 @@ export function renderSignatureHtml(
 }
 
 /**
+ * Lightweight HTML signature for COLD mode. Clean, text-first, deliverability-
+ * safe: NO logo image, NO colored contact-bar table — just a tidy block with a
+ * thin brand accent bar, bold name, and contact/social links rendered as clean
+ * anchor TEXT ("Website" / "WhatsApp" / "Instagram") instead of raw URLs. This
+ * is what makes a cold email's footer look polished without screaming "bulk
+ * marketing" the way the full branded card does.
+ */
+export function renderSignatureLightHtml(
+  data: SignatureData | null | undefined,
+  opts: { fallbackBrandColor?: string } = {},
+): string {
+  if (isSignatureEmpty(data)) return "";
+  const d = data as SignatureData;
+  const brand = d.brand_color || opts.fallbackBrandColor || "#f59e0b";
+  const sep = ` <span style="color:#d1d5db;">·</span> `;
+  const linkStyle = "color:#374151;text-decoration:underline;";
+  const a = (href: string, text: string) =>
+    `<a href="${esc(href)}" style="${linkStyle}" target="_blank" rel="noopener noreferrer">${esc(text)}</a>`;
+
+  const lines: string[] = [];
+  if (d.name) {
+    lines.push(
+      `<div style="font-weight:700;font-size:15px;color:#111827;letter-spacing:-0.01em;">${esc(d.name)}</div>`,
+    );
+  }
+  const titleParts: string[] = [];
+  if (d.title) titleParts.push(esc(d.title));
+  if (d.company) titleParts.push(esc(d.company));
+  if (titleParts.length) {
+    lines.push(
+      `<div style="color:#6b7280;margin-top:1px;">${titleParts.join(sep)}</div>`,
+    );
+  }
+  if (d.tagline?.trim()) {
+    lines.push(
+      `<div style="font-style:italic;color:#9ca3af;font-size:12px;margin-top:3px;">&ldquo;${esc(d.tagline.trim())}&rdquo;</div>`,
+    );
+  }
+
+  const contact: string[] = [];
+  if (d.email) contact.push(a(`mailto:${d.email}`, d.email));
+  if (d.phone) contact.push(`<span style="color:#6b7280;">${esc(d.phone)}</span>`);
+  if (contact.length) {
+    lines.push(`<div style="margin-top:8px;">${contact.join(sep)}</div>`);
+  }
+
+  const links: string[] = [];
+  if (d.website) links.push(a(normalizeWebsiteHref(d.website), websiteDisplay(d.website)));
+  if (d.whatsapp) links.push(a(waUrl(d.whatsapp), "WhatsApp"));
+  for (const s of d.socials ?? []) {
+    if (!s.url?.trim()) continue;
+    links.push(a(normalizeWebsiteHref(s.url), socialMeta(s.platform).label));
+  }
+  if (links.length) {
+    lines.push(`<div style="margin-top:2px;">${links.join(sep)}</div>`);
+  }
+
+  return (
+    `<div style="margin-top:24px;border-left:3px solid ${esc(brand)};padding-left:14px;` +
+    `font-family:${FONT_STACK};font-size:13px;line-height:1.55;color:#4b5563;">` +
+    lines.join("") +
+    `</div>`
+  );
+}
+
+/**
  * Plain text version of the signature. Derived from the same structured data
  * so HTML + plain stay in sync. The "-- " (RFC 3676) separator is *not*
  * included here — email-sender.ts adds it once before appending.

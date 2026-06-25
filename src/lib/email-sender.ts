@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import {
   renderSignatureHtml,
+  renderSignatureLightHtml,
   renderSignaturePlain,
   type SignatureData,
 } from "@/lib/signature";
@@ -141,9 +142,11 @@ function buildMimeMessage(
    *  footer. Kept separate from `bodyPlain` so we don't naïvely convert
    *  the structured layout via plainToHtml. */
   signatureHtml: string,
-  /** Cold mode: send a single text/plain part that reads like a personal 1:1
-   *  email — no open pixel, no link rewriting, no HTML/logo. Far better inbox
-   *  (Primary tab) placement for cold outreach than a tracked HTML email. */
+  /** Clean text-first signature HTML (no logo/branded card) used in cold mode. */
+  lightSignatureHtml: string,
+  /** Cold mode: lightweight HTML — clean clickable body + light signature +
+   *  hyperlinked unsubscribe, but no open pixel, no link rewriting, no logo.
+   *  Far better inbox (Primary tab) placement for cold outreach. */
   coldMode: boolean,
 ): string {
   const fromHeader = fromName
@@ -190,7 +193,10 @@ function buildMimeMessage(
     // "Unsubscribe" (URL hidden, not shown raw). Deliberately NO tracking
     // pixel, NO click-link rewriting, and NO logo/branded signature card, so it
     // stays out of the Promotions/spam bucket while still looking polished.
-    const coldBodyHtml = `${plainToHtml(bodyPlain)}${buildUnsubscribeFooterHtml(unsubscribeUrl)}`;
+    // Strip the appended plain-text signature from the body and render the
+    // clean light HTML signature instead — so links show as tidy anchor text
+    // ("Website" / "WhatsApp" / "Instagram") rather than raw URLs.
+    const coldBodyHtml = `${plainToHtml(stripPlainSignature(bodyPlain))}${lightSignatureHtml}${buildUnsubscribeFooterHtml(unsubscribeUrl)}`;
     const altBoundary = `----coldreach-alt-${Date.now().toString(36)}`;
     contentPart = [
       `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
@@ -453,6 +459,9 @@ export async function sendEmail(
     const sigHtml = renderSignatureHtml(signatureData, {
       fallbackBrandColor: signatureFallbackColor ?? undefined,
     });
+    const sigLightHtml = renderSignatureLightHtml(signatureData, {
+      fallbackBrandColor: signatureFallbackColor ?? undefined,
+    });
 
     // Download attachment files
     const attachmentBuffers: Array<{
@@ -486,6 +495,7 @@ export async function sendEmail(
       inReplyToMessageId ?? null,
       unsubscribeUrl ?? null,
       sigHtml,
+      sigLightHtml,
       coldMode,
     );
 
