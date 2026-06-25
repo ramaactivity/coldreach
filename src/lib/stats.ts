@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { startOfTodayWibIso } from "@/lib/quota-reset";
+import { describeWarmupStage } from "@/lib/warmup";
 
 export type WorkspaceStats = {
   contacts_total: number;
@@ -20,7 +21,15 @@ export type WorkspaceStats = {
   blocked_spam_7d: number;
   skipped_total: number;
   archived_total: number;
-  quota_today: { sent: number; quota: number } | null;
+  // quota = the EFFECTIVE daily cap (during warmup this is the ramp stage, not
+  // the full target). full_target = the account's configured daily_quota.
+  // warmup_day = current day in the ramp, or null when warmup is off.
+  quota_today: {
+    sent: number;
+    quota: number;
+    full_target: number;
+    warmup_day: number | null;
+  } | null;
 };
 
 export type RecentActivity = {
@@ -163,7 +172,7 @@ export async function getWorkspaceStats(
       : Promise.resolve({ count: 0 }),
     supabase
       .from("email_accounts")
-      .select("daily_quota, emails_sent_today")
+      .select("daily_quota, emails_sent_today, warmup_mode, warmup_started_at")
       .eq("workspace_id", workspaceId)
       .eq("is_active", true)
       .maybeSingle(),
@@ -174,6 +183,31 @@ export async function getWorkspaceStats(
   // gating sends — it can be stale until the next send (lazy reset) or
   // the next pg_cron fire. For *display*, always trust the rows.
   const sentToday = sentTodayCount.count ?? 0;
+
+  // Effective daily cap honours warmup: during the ramp the real ceiling is
+  // the warmup stage (e.g. 20), not the full target (90). Surface that so the
+  // dashboard quota matches what the account can actually send today.
+  const acct = accountInfo.data as
+    | {
+        daily_quota: number;
+        warmup_mode?: boolean;
+        warmup_started_at?: string | null;
+      }
+    | null;
+  let quotaToday: WorkspaceStats["quota_today"] = null;
+  if (acct) {
+    const stage = describeWarmupStage({
+      warmupMode: acct.warmup_mode ?? false,
+      warmupStartedAt: acct.warmup_started_at ?? null,
+      fallbackQuota: acct.daily_quota,
+    });
+    quotaToday = {
+      sent: sentToday,
+      quota: stage ? stage.cap : acct.daily_quota,
+      full_target: acct.daily_quota,
+      warmup_day: stage ? stage.day : null,
+    };
+  }
 
   return {
     contacts_total: contactsCount.count ?? 0,
@@ -188,16 +222,7 @@ export async function getWorkspaceStats(
     blocked_spam_7d: blockedSpam7dCount.count ?? 0,
     skipped_total: skippedTotalCount.count ?? 0,
     archived_total: archivedTotalCount.count ?? 0,
-    quota_today: accountInfo.data
-      ? {
-          // Show actual sent count today (source-of-truth), not the
-          // potentially-stale quota counter. The dashboard's "X/Y quota"
-          // line should reflect reality so a fresh morning shows 0/90,
-          // not 90/90 from yesterday.
-          sent: sentToday,
-          quota: (accountInfo.data as { daily_quota: number }).daily_quota,
-        }
-      : null,
+    quota_today: quotaToday,
   };
 }
 

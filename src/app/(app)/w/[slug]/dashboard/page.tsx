@@ -110,7 +110,11 @@ export default async function WorkspaceDashboardPage({
           icon={Send}
           hint={
             stats.quota_today
-              ? `${stats.quota_today.sent}/${stats.quota_today.quota} quota`
+              ? `${stats.quota_today.sent}/${stats.quota_today.quota} quota${
+                  stats.quota_today.warmup_day
+                    ? ` · warmup d${stats.quota_today.warmup_day}`
+                    : ""
+                }`
               : "No Gmail connected"
           }
         />

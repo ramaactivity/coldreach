@@ -13,11 +13,19 @@ export function QuotaForm({
   accountId,
   initialQuota,
   emailsSentToday,
+  effectiveCap,
+  warmupDay = null,
 }: {
   slug: string;
   accountId: string;
+  /** Configured full daily target (what Edit changes). */
   initialQuota: number;
   emailsSentToday: number;
+  /** Cap that actually applies today — equals initialQuota unless warmup is
+   *  ramping, in which case it's the lower warmup-stage value. */
+  effectiveCap: number;
+  /** Current day in the warmup ramp, or null when warmup is off. */
+  warmupDay?: number | null;
 }) {
   const action = updateGmailQuota.bind(null, slug, accountId);
   const [state, formAction, pending] = useActionState(action, INITIAL);
@@ -26,21 +34,32 @@ export function QuotaForm({
 
   if (!editing) {
     return (
-      <div className="flex items-baseline gap-2">
-        <p className="text-2xl font-semibold tabular tracking-tight text-ink">
-          {emailsSentToday}{" "}
-          <span className="text-base font-normal text-muted">
-            / {initialQuota}
-          </span>
-        </p>
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-ink"
-        >
-          <Pencil className="h-3 w-3" />
-          Edit
-        </button>
+      <div>
+        <div className="flex items-baseline gap-2">
+          <p className="text-2xl font-semibold tabular tracking-tight text-ink">
+            {emailsSentToday}{" "}
+            <span className="text-base font-normal text-muted">
+              / {effectiveCap}
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="inline-flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-ink"
+          >
+            <Pencil className="h-3 w-3" />
+            Edit
+          </button>
+        </div>
+        {warmupDay !== null && (
+          <p className="mt-1 text-[11px] text-muted">
+            🔥 Warmup hari ke-{warmupDay} · naik bertahap ke target{" "}
+            <span className="tabular font-medium text-ink-secondary">
+              {initialQuota}
+            </span>
+            /hari
+          </p>
+        )}
       </div>
     );
   }
@@ -63,7 +82,7 @@ export function QuotaForm({
           onChange={(e) => setValue(parseInt(e.target.value, 10) || 1)}
           className="w-24 tabular"
         />
-        <span className="text-xs text-muted">/ hari</span>
+        <span className="text-xs text-muted">/ hari (target penuh)</span>
         <Button
           size="sm"
           type="submit"

@@ -155,6 +155,12 @@ export default async function DashboardPage() {
                           <span className="tabular">
                             {quota.sent}/{quota.quota}
                           </span>
+                          {quota.warmup_day !== null && (
+                            <span title={`Warmup hari ke-${quota.warmup_day} · target ${quota.full_target}`}>
+                              {" "}
+                              🔥
+                            </span>
+                          )}
                         </>
                       )}
                     </p>

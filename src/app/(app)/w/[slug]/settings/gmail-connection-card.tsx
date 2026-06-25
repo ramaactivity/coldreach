@@ -117,8 +117,17 @@ export function GmailConnectionCard({
           ? "warning"
           : "secondary";
 
+  // Single source for the warmup stage so the quota line, progress bar, and
+  // the warmup card below all show the SAME effective cap (no more 90 vs 20
+  // mismatch). During warmup the real ceiling is the ramp stage, not daily_quota.
+  const warmupStage = describeWarmupStage({
+    warmupMode: account.warmup_mode,
+    warmupStartedAt: account.warmup_started_at,
+    fallbackQuota: account.daily_quota,
+  });
+  const effectiveCap = warmupStage ? warmupStage.cap : account.daily_quota;
   const quotaPct = Math.round(
-    (account.emails_sent_today / Math.max(1, account.daily_quota)) * 100,
+    (account.emails_sent_today / Math.max(1, effectiveCap)) * 100,
   );
 
   return (
@@ -177,6 +186,8 @@ export function GmailConnectionCard({
               accountId={account.id}
               initialQuota={account.daily_quota}
               emailsSentToday={account.emails_sent_today}
+              effectiveCap={effectiveCap}
+              warmupDay={warmupStage?.day ?? null}
             />
           </div>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-sunken">
@@ -186,8 +197,9 @@ export function GmailConnectionCard({
             />
           </div>
           <p className="mt-2 text-xs text-muted">
-            Angka ini juga jadi target kirim/hari — dipakai semua queue di
-            workspace ini.
+            {warmupStage
+              ? `Batas kirim hari ini (warmup). Target penuh ${account.daily_quota}/hari, dipakai semua queue setelah warmup selesai.`
+              : "Angka ini juga jadi target kirim/hari — dipakai semua queue di workspace ini."}
           </p>
         </div>
         <div className="p-5">
@@ -232,25 +244,17 @@ export function GmailConnectionCard({
               naik bertahap: 20 → 40 → 60 → 80 → full ({account.daily_quota})
               selama 30 hari biar reputasi domain stabil.
             </p>
-            {account.warmup_mode && account.warmup_started_at && (() => {
-              const stage = describeWarmupStage({
-                warmupMode: account.warmup_mode,
-                warmupStartedAt: account.warmup_started_at,
-                fallbackQuota: account.daily_quota,
-              });
-              if (!stage) return null;
-              return (
-                <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-success-soft px-2 py-1 text-[11px] text-success-text">
-                  <span>Hari ke-{stage.day}</span>
-                  <span>·</span>
-                  <span>
-                    Cap{" "}
-                    <strong className="font-semibold">{stage.cap}</strong>
-                    /hari{stage.isCapped ? "" : " (full quota)"}
-                  </span>
-                </div>
-              );
-            })()}
+            {warmupStage && (
+              <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-success-soft px-2 py-1 text-[11px] text-success-text">
+                <span>Hari ke-{warmupStage.day}</span>
+                <span>·</span>
+                <span>
+                  Cap{" "}
+                  <strong className="font-semibold">{warmupStage.cap}</strong>
+                  /hari{warmupStage.isCapped ? "" : " (full quota)"}
+                </span>
+              </div>
+            )}
           </div>
           <Button
             variant={account.warmup_mode ? "primary" : "outline"}
