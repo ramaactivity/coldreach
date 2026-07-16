@@ -6,7 +6,10 @@ import {
 } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
-import { languageFromEmailDomain } from "@/lib/lang-detect";
+import {
+  languageFromEmailDomain,
+  corporateDomainOf,
+} from "@/lib/lang-detect";
 import { ensureDailyQuotaFresh, startOfTodayWibIso } from "@/lib/quota-reset";
 import type { SignatureData } from "@/lib/signature";
 
@@ -22,6 +25,13 @@ export type RunQueueResult = {
 const DEFAULT_BATCH_SIZE = 5;
 const DELAY_MIN_MS = 30_000;
 const DELAY_MAX_MS = 90_000;
+
+// Enterprise spam filters pattern-block senders that blast many near-identical
+// emails into one company domain in a day (we were doing 50+ per domain, with
+// zero replies from every large-corporate domain). Cap sends per corporate
+// recipient domain per WIB day, per workspace. Consumer webmail
+// (gmail/yahoo/...) is exempt — see corporateDomainOf.
+const MAX_PER_COMPANY_DOMAIN_PER_DAY = 3;
 
 // Cross-workspace dedup window. With ~14k contacts in the global pool and
 // random tiebreak ordering (see recipient query), 3 days is plenty to keep
@@ -262,6 +272,10 @@ export async function runQueue(
   }
 
   const limit = Math.min(batchSize, remainingQuota);
+  // Oversample candidates: rows skipped by dedup or the per-domain cap must
+  // not eat send slots — the loop below stops once `limit` actual
+  // sends/failures have happened, not after `limit` rows examined.
+  const candidateLimit = Math.min(limit * 4, 200);
   // Order by priority desc, then shuffle_key asc. shuffle_key is reshuffled
   // once per day (above), so today's pick is a fresh random subset of
   // pending rows — not a march down the creation-time order.
@@ -279,7 +293,7 @@ export async function runQueue(
     .eq("status", "pending")
     .order("priority", { ascending: false })
     .order("shuffle_key", { ascending: true })
-    .limit(limit);
+    .limit(candidateLimit);
 
   if (!recipients || recipients.length === 0) {
     return result;
@@ -362,6 +376,25 @@ export async function runQueue(
     }
   }
 
+  // Today's per-company-domain send counts for this workspace (WIB day) —
+  // feeds the MAX_PER_COMPANY_DOMAIN_PER_DAY cap. Includes in-flight
+  // 'sending' rows for the same reason the dedup query does.
+  const domainSentToday = new Map<string, number>();
+  {
+    const { data: todayRows } = await admin
+      .from("campaign_recipients")
+      .select("contact_email")
+      .eq("workspace_id", queue.workspace_id)
+      .gte("created_at", wibTodayStart)
+      .in("status", ["sending", "sent", "opened", "replied"]);
+    for (const row of todayRows ?? []) {
+      const dom = corporateDomainOf(
+        (row as { contact_email: string | null }).contact_email ?? "",
+      );
+      if (dom) domainSentToday.set(dom, (domainSentToday.get(dom) ?? 0) + 1);
+    }
+  }
+
   let queueTotalSent = queue.total_sent;
   let queuePending = queue.total_pending;
   let accountSentToday = account.emails_sent_today;
@@ -369,6 +402,11 @@ export async function runQueue(
   for (let i = 0; i < recipients.length; i++) {
     // Stop cleanly before the function's hard timeout kills us mid-send.
     if (deadlineEpochMs !== null && Date.now() > deadlineEpochMs) {
+      break;
+    }
+    // Candidates are oversampled (candidateLimit > limit) — stop once the
+    // requested batch of real sends/attempts is done.
+    if (result.sent + result.failed >= limit) {
       break;
     }
     const recipient = recipients[i] as unknown as {
@@ -430,6 +468,17 @@ export async function runQueue(
     // becomes eligible again once the window passes — do NOT mark it
     // 'skipped' (that would drop the contact from this queue forever).
     if (dedupedEmails.has(contact.email.toLowerCase())) {
+      result.skipped++;
+      continue;
+    }
+
+    // Per-company-domain daily cap. Leave PENDING (not 'skipped') so the
+    // contact stays in the pool and becomes eligible again on a later day.
+    const capDomain = corporateDomainOf(contact.email);
+    if (
+      capDomain &&
+      (domainSentToday.get(capDomain) ?? 0) >= MAX_PER_COMPANY_DOMAIN_PER_DAY
+    ) {
       result.skipped++;
       continue;
     }
@@ -662,6 +711,9 @@ export async function runQueue(
     // Track the just-sent email so dedup catches subsequent recipients in
     // the same batch (the DB query at batch start can't see this row yet).
     dedupedEmails.add(contact.email.toLowerCase());
+    if (capDomain) {
+      domainSentToday.set(capDomain, (domainSentToday.get(capDomain) ?? 0) + 1);
+    }
 
     result.sent++;
 

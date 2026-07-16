@@ -129,6 +129,18 @@ const INTL_WEBMAIL_DOMAINS = new Set([
 ]);
 
 /**
+ * Company-domain extractor for the per-domain daily send cap. Consumer
+ * webmail (gmail/yahoo/outlook/...) returns null — individual mailboxes
+ * aren't behind a shared corporate spam filter, so no cap applies there.
+ */
+export function corporateDomainOf(email: string): string | null {
+  const dom = domainOf(email);
+  if (!dom) return null;
+  if (ID_FREE_DOMAINS.has(dom) || INTL_WEBMAIL_DOMAINS.has(dom)) return null;
+  return dom;
+}
+
+/**
  * Automatic, zero-cost language pick from the email DOMAIN alone. This is the
  * source of truth for the send paths (queue-runner / follow-up / manual send)
  * — `language_pref` is intentionally ignored so behaviour is fully automatic
