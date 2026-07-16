@@ -39,12 +39,19 @@ function dedupCutoffIso(): string {
  * Process up to `batchSize` pending recipients in a queue.
  * Used by manual "Run Now" and the cron job.
  *
+ * `deadlineEpochMs` (optional) makes the send loop stop BEFORE the serverless
+ * function's hard timeout instead of being killed mid-send — a kill orphans
+ * the in-flight 'sending' row, which the cross-workspace dedup then treats as
+ * sent and suppresses that contact for days. Unsent recipients stay 'pending'
+ * and are picked up next tick.
+ *
  * Uses admin client because cron has no auth user context.
  */
 export async function runQueue(
   queueId: string,
   batchSize: number = DEFAULT_BATCH_SIZE,
   applyDelay: boolean = true,
+  deadlineEpochMs: number | null = null,
 ): Promise<RunQueueResult> {
   const admin = createAdminClient();
   const result: RunQueueResult = {
@@ -360,6 +367,10 @@ export async function runQueue(
   let accountSentToday = account.emails_sent_today;
 
   for (let i = 0; i < recipients.length; i++) {
+    // Stop cleanly before the function's hard timeout kills us mid-send.
+    if (deadlineEpochMs !== null && Date.now() > deadlineEpochMs) {
+      break;
+    }
     const recipient = recipients[i] as unknown as {
       id: string;
       contact:

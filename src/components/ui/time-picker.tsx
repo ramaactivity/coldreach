@@ -26,12 +26,15 @@ export function TimePicker({
   step?: 5 | 10 | 15 | 30 | 60;
   className?: string;
 }) {
-  // Derive current H:M from the controlled `value` when provided, else from
-  // internal state (uncontrolled). No effect = no cascading-render lint issue.
+  // Controlled only when the parent also listens via onValueChange. A bare
+  // `value` with no handler (plain <form> usages: settings schedule,
+  // create-queue) is just the initial default — treating it as controlled
+  // froze the picker at that value forever.
+  const isControlled = value !== undefined && onValueChange !== undefined;
   const [internal, setInternal] = React.useState(
     (value ?? "09:00").slice(0, 5),
   );
-  const composed = value !== undefined ? value.slice(0, 5) : internal;
+  const composed = isControlled ? value!.slice(0, 5) : internal;
   const [internalH, internalM] = composed.split(":");
 
   const hours = React.useMemo(
@@ -48,7 +51,7 @@ export function TimePicker({
 
   function update(h: string, m: string) {
     const next = `${h}:${m}`;
-    if (value === undefined) setInternal(next);
+    if (!isControlled) setInternal(next);
     onValueChange?.(next);
   }
 

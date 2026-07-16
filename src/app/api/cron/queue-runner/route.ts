@@ -112,6 +112,10 @@ export async function GET(request: NextRequest) {
   // next tick, and fair ordering above guarantees they rotate to the front.
   const RUN_BUDGET_MS = 50_000;
   const startedAtMs = now.getTime();
+  // Hard stop for the send loop INSIDE runQueue too — the budget check below
+  // only prevents STARTING another queue; a queue already running could blow
+  // past maxDuration and get killed mid-send (orphaned 'sending' rows).
+  const sendDeadlineMs = startedAtMs + RUN_BUDGET_MS;
   let stoppedEarly = false;
 
   for (const q of queues ?? []) {
@@ -145,7 +149,7 @@ export async function GET(request: NextRequest) {
       // afford 30-90s human-like delays between emails. Cron interval (30min)
       // is the rate limit instead.
       const batchSize = Math.max(1, queue.daily_target);
-      const result = await runQueue(queue.id, batchSize, false);
+      const result = await runQueue(queue.id, batchSize, false, sendDeadlineMs);
       results.push({
         id: result.queue_id,
         sent: result.sent,
@@ -165,7 +169,7 @@ export async function GET(request: NextRequest) {
       const ticksLeft = Math.max(1, Math.ceil(minutesLeft / 30));
       const batchSize = Math.max(1, Math.ceil(queue.daily_target / ticksLeft));
 
-      const result = await runQueue(queue.id, batchSize, false);
+      const result = await runQueue(queue.id, batchSize, false, sendDeadlineMs);
       results.push({
         id: result.queue_id,
         sent: result.sent,
