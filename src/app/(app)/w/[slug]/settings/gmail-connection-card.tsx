@@ -10,14 +10,16 @@ import {
   Activity,
   Clock,
   TrendingUp,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useConfirm } from "@/components/ui/dialog";
-import { disconnectGmail, toggleWarmupMode } from "./actions";
+import { disconnectGmail, toggleWarmupMode, toggleAutoRamp } from "./actions";
 import { QuotaForm } from "./quota-form";
 import { describeWarmupStage } from "@/lib/warmup";
+import { RAMP_MAX, RAMP_STEP } from "@/lib/quota-ramp";
 
 type EmailAccount = {
   id: string;
@@ -32,6 +34,7 @@ type EmailAccount = {
   health_notes: string | null;
   warmup_mode: boolean;
   warmup_started_at: string | null;
+  auto_ramp_enabled: boolean;
   last_used_at: string | null;
 } | null;
 
@@ -104,6 +107,14 @@ export function GmailConnectionCard({
     if (!account) return;
     startTransition(async () => {
       await toggleWarmupMode(slug, account.id, !account.warmup_mode);
+      router.refresh();
+    });
+  }
+
+  function handleToggleAutoRamp() {
+    if (!account) return;
+    startTransition(async () => {
+      await toggleAutoRamp(slug, account.id, !account.auto_ramp_enabled);
       router.refresh();
     });
   }
@@ -263,6 +274,39 @@ export function GmailConnectionCard({
             disabled={pending}
           >
             {account.warmup_mode ? "Stop Warmup" : "Start Warmup"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Auto-ramp */}
+      <div className="border-t border-border bg-surface-sunken/40 p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <Gauge className="h-4 w-4 text-muted" />
+              <p className="text-sm font-semibold text-ink">Auto-ramp quota</p>
+              {account.auto_ramp_enabled && <Badge variant="success">Active</Badge>}
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Target harian naik sendiri +{RAMP_STEP}/hari kerja sampai maksimal{" "}
+              {RAMP_MAX}. Naik cuma kalau akun sehat, warmup sudah selesai,
+              quota hari itu kepakai ≥80%, dan bounce 7 hari terakhir di bawah
+              4% — kalau salah satu gak kepenuhi, ramp nunggu tanpa perlu lu
+              apa-apain.
+            </p>
+            {account.auto_ramp_enabled && account.daily_quota >= RAMP_MAX && (
+              <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-success-soft px-2 py-1 text-[11px] text-success-text">
+                Sudah di batas maksimal {RAMP_MAX}/hari
+              </div>
+            )}
+          </div>
+          <Button
+            variant={account.auto_ramp_enabled ? "primary" : "outline"}
+            size="sm"
+            onClick={handleToggleAutoRamp}
+            disabled={pending}
+          >
+            {account.auto_ramp_enabled ? "Stop Auto-ramp" : "Start Auto-ramp"}
           </Button>
         </div>
       </div>

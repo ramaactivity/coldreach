@@ -37,7 +37,7 @@ export default async function WorkspaceSettingsPage({
   const { data: emailAccount } = await supabase
     .from("email_accounts")
     .select(
-      "id, email, display_name, oauth_scope, token_expires_at, is_active, daily_quota, emails_sent_today, quota_reset_at, health_status, health_notes, warmup_mode, warmup_started_at, last_used_at",
+      "id, email, display_name, oauth_scope, token_expires_at, is_active, daily_quota, emails_sent_today, quota_reset_at, health_status, health_notes, warmup_mode, warmup_started_at, auto_ramp_enabled, last_used_at",
     )
     .eq("workspace_id", workspace.id)
     .maybeSingle();

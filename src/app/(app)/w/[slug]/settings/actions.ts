@@ -60,6 +60,26 @@ export async function toggleWarmupMode(
   revalidatePath(`/w/${slug}/settings`);
 }
 
+export async function toggleAutoRamp(
+  slug: string,
+  accountId: string,
+  enabled: boolean,
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  await supabase
+    .from("email_accounts")
+    .update({ auto_ramp_enabled: enabled })
+    .eq("id", accountId)
+    .eq("user_id", user.id);
+
+  revalidatePath(`/w/${slug}/settings`);
+}
+
 // =============================================================================
 // Workspace info update
 // =============================================================================
