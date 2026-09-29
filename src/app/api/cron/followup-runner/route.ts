@@ -59,15 +59,32 @@ export async function GET(request: NextRequest) {
   // followup_template_id NULL, and that filter silently skipped them.
   // runFollowupsForQueue resolves steps (steps → legacy fallback) and returns
   // early when none are configured.
-  const { data: queues } = await admin
+  const { data: allQueues } = await admin
     .from("send_queues")
-    .select("id")
+    .select("id, schedule_days, schedule_start_time, schedule_end_time")
     .eq("is_active", true)
     .eq("followup_enabled", true)
     .eq("test_mode", false);
 
+  // Follow-ups go out inside the queue's own send window (days + hours), the
+  // same slot as first touches — the hourly cron runs 08:00–18:00 WIB.
+  const wibNow = new Date(Date.now() + 7 * 3600 * 1000);
+  const dowIso = wibNow.getUTCDay() === 0 ? 7 : wibNow.getUTCDay();
+  const currentTime = wibNow.toISOString().slice(11, 19);
+  const queues = (allQueues ?? []).filter((q) => {
+    const r = q as {
+      schedule_days: number[] | null;
+      schedule_start_time: string | null;
+      schedule_end_time: string | null;
+    };
+    if (r.schedule_days && !r.schedule_days.includes(dowIso)) return false;
+    if (r.schedule_start_time && currentTime < r.schedule_start_time) return false;
+    if (r.schedule_end_time && currentTime > r.schedule_end_time) return false;
+    return true;
+  });
+
   const results = [];
-  for (const q of queues ?? []) {
+  for (const q of queues) {
     const id = (q as { id: string }).id;
     try {
       const r = await runFollowupsForQueue(id);

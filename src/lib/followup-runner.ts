@@ -22,7 +22,9 @@ const DEDUP_COOLDOWN_DAYS = 3;
 // detection looks back 30 days, so anything older might already have a reply
 // we never saw — and a "following up" on a months-old email reads as spam.
 // Recipients whose auto-reply deferred the follow-up are exempt (see ooo_until).
-const FOLLOWUP_MAX_AGE_DAYS = 21;
+// 28, not 21: the sequence runs to day 16 (4 → +5 → +7) and quota/OOO can
+// push the last step a week later.
+const FOLLOWUP_MAX_AGE_DAYS = 28;
 // Follow-ups may use at most this share of the account's daily quota, so new
 // first-touch outreach never stalls behind the follow-up backlog.
 const FOLLOWUP_QUOTA_SHARE = 0.5;
