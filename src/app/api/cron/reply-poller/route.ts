@@ -44,17 +44,17 @@ export async function GET(request: NextRequest) {
   const { data: accounts } = await admin
     .from("email_accounts")
     .select(
-      "id, user_id, email, access_token_encrypted, refresh_token_encrypted, token_expires_at, last_used_at",
+      "id, user_id, workspace_id, email, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider, smtp_config, last_used_at",
     )
     .eq("is_active", true)
     .not("last_used_at", "is", null)
     .gte("last_used_at", activityCutoff);
 
-  const results = [];
-  for (const account of accounts ?? []) {
-    const r = await pollRepliesForAccount(admin, account);
-    results.push(r);
-  }
+  // Accounts are independent (own mailbox, own Gmail quota) — parallel, so a
+  // slow mailbox can't push the others past the function timeout.
+  const results = await Promise.all(
+    (accounts ?? []).map((account) => pollRepliesForAccount(admin, account)),
+  );
 
   return NextResponse.json({
     ok: true,

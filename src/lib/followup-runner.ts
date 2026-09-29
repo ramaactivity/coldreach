@@ -2,10 +2,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
-import { languageFromEmailDomain } from "@/lib/lang-detect";
 import type { FollowupStep } from "@/lib/queue-helpers";
-import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
+import { ensureDailyQuotaFresh, startOfTodayWibIso } from "@/lib/quota-reset";
 import type { SignatureData } from "@/lib/signature";
+import { followupDueAt } from "@/lib/ooo";
 
 export type FollowupRunResult = {
   queue_id: string;
@@ -18,6 +18,15 @@ export type FollowupRunResult = {
 
 const MAX_FOLLOWUPS_PER_RUN = 10;
 const DEDUP_COOLDOWN_DAYS = 3;
+// Only follow up on first-touch emails sent within this window. Reply
+// detection looks back 30 days, so anything older might already have a reply
+// we never saw — and a "following up" on a months-old email reads as spam.
+// Recipients whose auto-reply deferred the follow-up are exempt (see ooo_until).
+const FOLLOWUP_MAX_AGE_DAYS = 21;
+// Follow-ups may use at most this share of the account's daily quota, so new
+// first-touch outreach never stalls behind the follow-up backlog.
+const FOLLOWUP_QUOTA_SHARE = 0.5;
+const PAGE_SIZE = 1000;
 
 function dedupCutoffIso(): string {
   return new Date(
@@ -38,6 +47,7 @@ type Candidate = {
     company: string | null;
     position: string | null;
     status: string;
+    archived_at: string | null;
     unsubscribe_token: string;
     language_pref: string | null;
   };
@@ -47,6 +57,7 @@ type Candidate = {
     gmail_thread_id: string | null;
     gmail_subject_used: string | null;
     status: string;
+    ooo_until: string | null;
   };
   original_sent_at: string;
   next_step_index: number; // 0-based; matches followup_steps[index]
@@ -109,7 +120,7 @@ export async function runFollowupsForQueue(
   const { data: account } = await admin
     .from("email_accounts")
     .select(
-      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at",
+      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider, smtp_config, is_active, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at",
     )
     .eq("workspace_id", queue.workspace_id)
     .eq("is_active", true)
@@ -134,7 +145,20 @@ export async function runFollowupsForQueue(
       null,
     fallbackQuota: account.daily_quota,
   });
-  const remainingQuota = effectiveDailyQuota - account.emails_sent_today;
+  // Follow-ups already sent today from this workspace (followup_history has
+  // no workspace column — go through the recipient row).
+  const { count: followupsToday } = await admin
+    .from("followup_history")
+    .select("id, campaign_recipients!inner(workspace_id)", {
+      count: "exact",
+      head: true,
+    })
+    .eq("campaign_recipients.workspace_id", queue.workspace_id)
+    .gte("sent_at", startOfTodayWibIso());
+  const remainingQuota = Math.min(
+    effectiveDailyQuota - account.emails_sent_today,
+    Math.floor(effectiveDailyQuota * FOLLOWUP_QUOTA_SHARE) - (followupsToday ?? 0),
+  );
   if (remainingQuota <= 0) return result;
 
   // Pre-fetch templates referenced by steps
@@ -176,21 +200,53 @@ export async function runFollowupsForQueue(
   }
 
   // Pull all queue_recipients for this queue with their candidate metadata
-  const { data: rawRecipients } = await admin
-    .from("queue_recipients")
-    .select(
-      `id, contact_id, campaign_recipient_id, sent_at,
-       contact:contacts!inner(id, email, first_name, last_name, company, position, status, unsubscribe_token, language_pref),
+  // Two slices: recent first-touches, plus older ones held back by an
+  // out-of-office reply. Paged because PostgREST caps a response at 1000 rows
+  // and a busy queue sends more than that inside the window.
+  const selectCols = `id, contact_id, campaign_recipient_id, sent_at,
+       contact:contacts!inner(id, email, first_name, last_name, company, position, status, archived_at, unsubscribe_token, language_pref),
        campaign_recipient:campaign_recipients!inner(
-         id, gmail_message_id, gmail_thread_id, gmail_subject_used, status
-       )`,
-    )
-    .eq("queue_id", queueId)
-    .eq("status", "sent")
-    .not("campaign_recipient_id", "is", null)
-    .not("sent_at", "is", null);
+         id, gmail_message_id, gmail_thread_id, gmail_subject_used, status, ooo_until
+       )`;
+  const ageCutoffIso = new Date(
+    Date.now() - FOLLOWUP_MAX_AGE_DAYS * 24 * 3600 * 1000,
+  ).toISOString();
+  const rawRecipients: unknown[] = [];
+  const seenQr = new Set<string>();
+  for (const slice of ["recent", "ooo"] as const) {
+    for (let from = 0; ; from += PAGE_SIZE) {
+      let query = admin
+        .from("queue_recipients")
+        .select(selectCols)
+        .eq("queue_id", queueId)
+        .eq("status", "sent")
+        .not("campaign_recipient_id", "is", null)
+        .not("sent_at", "is", null);
+      query =
+        slice === "recent"
+          ? query.gte("sent_at", ageCutoffIso)
+          : query
+              .lt("sent_at", ageCutoffIso)
+              .gte("campaign_recipient.ooo_until", ageCutoffIso.slice(0, 10));
+      const { data: page, error: pageErr } = await query
+        .order("id")
+        .range(from, from + PAGE_SIZE - 1);
+      if (pageErr) {
+        result.errors.push(`queue_recipients read failed: ${pageErr.message}`);
+        return result;
+      }
+      for (const row of page ?? []) {
+        const id = (row as { id: string }).id;
+        if (!seenQr.has(id)) {
+          seenQr.add(id);
+          rawRecipients.push(row);
+        }
+      }
+      if (!page || page.length < PAGE_SIZE) break;
+    }
+  }
 
-  const allRecipients = (rawRecipients ?? []) as unknown as Array<{
+  const allRecipients = rawRecipients as unknown as Array<{
     id: string;
     contact_id: string;
     campaign_recipient_id: string;
@@ -205,10 +261,17 @@ export async function runFollowupsForQueue(
   const crIds = allRecipients
     .map((r) => r.campaign_recipient_id)
     .filter(Boolean);
-  const { data: history } = await admin
+  const { data: history, error: historyErr } = await admin
     .from("followup_history")
     .select("campaign_recipient_id, followup_step, sent_at")
     .in("campaign_recipient_id", crIds);
+  // If this read fails we CANNOT tell which contacts already got which step —
+  // proceeding would treat everyone as "never followed up" and re-blast step 1.
+  // Abort the run instead; the next tick retries.
+  if (historyErr) {
+    result.errors.push(`followup_history read failed: ${historyErr.message}`);
+    return result;
+  }
 
   // Map: cr_id → highest step + last sent_at for that step
   const historyByCR = new Map<
@@ -244,6 +307,9 @@ export async function runFollowupsForQueue(
     const cr = unwrap(r.campaign_recipient);
     if (!contact || !cr) continue;
     if (contact.status !== "active") continue;
+    // Skip contacts the user or the bounce/stale archiver has shelved —
+    // archived_at is set independently of `status`, so status alone misses them.
+    if (contact.archived_at) continue;
     if (cr.status === "replied" || cr.status === "bounced") continue;
 
     const hist = historyByCR.get(r.campaign_recipient_id);
@@ -255,9 +321,12 @@ export async function runFollowupsForQueue(
 
     const referenceTimeIso = hist?.lastSentAt ?? r.sent_at;
     if (!referenceTimeIso) continue;
-    const eligibleAt =
-      new Date(referenceTimeIso).getTime() +
-      stepCfg.after_days * 24 * 3600 * 1000;
+    // Held until the day after an out-of-office recipient is back.
+    const eligibleAt = followupDueAt(
+      referenceTimeIso,
+      stepCfg.after_days,
+      cr.ooo_until,
+    );
     if (eligibleAt > now) continue;
 
     candidates.push({
@@ -275,11 +344,13 @@ export async function runFollowupsForQueue(
 
   if (candidates.length === 0) return result;
 
-  // Cap at min(MAX_FOLLOWUPS_PER_RUN, remainingQuota); prioritize older
+  // Cap at min(MAX_FOLLOWUPS_PER_RUN, remainingQuota). Freshest-due first:
+  // a follow-up lands best a few days after the first email; oldest-first
+  // would spend the daily share on emails about to age out of the window.
   candidates.sort(
     (a, b) =>
-      new Date(a.reference_time).getTime() -
-      new Date(b.reference_time).getTime(),
+      new Date(b.reference_time).getTime() -
+      new Date(a.reference_time).getTime(),
   );
   const eligibleRaw = candidates.slice(
     0,
@@ -293,21 +364,39 @@ export async function runFollowupsForQueue(
     c.contact_email.toLowerCase(),
   );
   const dedupedEmails = new Set<string>();
+  // Permanently bounced emails — never follow-up again.
+  const bouncedEmails = new Set<string>();
   if (eligibleEmailsLower.length > 0) {
-    const { data: alreadySent } = await admin
-      .from("campaign_recipients")
-      .select("contact_email")
-      .eq("user_id", queue.user_id)
-      .gte("created_at", dedupCutoffIso())
-      .in("status", ["sending", "sent", "opened", "replied"])
-      .in("contact_email", eligibleEmailsLower);
-    for (const row of alreadySent ?? []) {
+    const [alreadySentRes, bouncedRes] = await Promise.all([
+      admin
+        .from("campaign_recipients")
+        .select("contact_email")
+        .eq("user_id", queue.user_id)
+        .gte("created_at", dedupCutoffIso())
+        .in("status", ["sending", "sent", "opened", "replied"])
+        .in("contact_email", eligibleEmailsLower),
+      // PERMANENT bounce suppression: any email that has EVER bounced
+      // under this user must never receive a follow-up.
+      admin
+        .from("campaign_recipients")
+        .select("contact_email")
+        .eq("user_id", queue.user_id)
+        .eq("status", "bounced")
+        .in("contact_email", eligibleEmailsLower),
+    ]);
+    for (const row of alreadySentRes.data ?? []) {
       const e = (row as { contact_email: string | null }).contact_email;
       if (e) dedupedEmails.add(e.toLowerCase());
     }
+    for (const row of bouncedRes.data ?? []) {
+      const e = (row as { contact_email: string | null }).contact_email;
+      if (e) bouncedEmails.add(e.toLowerCase());
+    }
   }
   const eligible = eligibleRaw.filter(
-    (c) => !dedupedEmails.has(c.contact_email.toLowerCase()),
+    (c) =>
+      !dedupedEmails.has(c.contact_email.toLowerCase()) &&
+      !bouncedEmails.has(c.contact_email.toLowerCase()),
   );
 
   // Workspace meta for AI opener + structured signature + brand color
@@ -332,8 +421,6 @@ export async function runFollowupsForQueue(
     }
   }
 
-  let accountSentToday = account.emails_sent_today;
-
   for (const c of eligible) {
     result.attempted++;
     const stepCfg = steps[c.next_step_index];
@@ -346,8 +433,10 @@ export async function runFollowupsForQueue(
     }
     const tmplAttachments = attachmentsByTemplate.get(stepCfg.template_id) ?? [];
 
-    // Auto language from email domain (free, no AI) — drives opener + body.
-    const language = languageFromEmailDomain(c.contact.email);
+    // Indonesian unless the contact is explicitly marked English. Guessing
+    // from the domain sent English to every .com (Pertamina, Erajaya…) and
+    // English emails got ~20% fewer replies per send than Indonesian ones.
+    const language = c.contact.language_pref === "en" ? "en" : "id";
 
     let aiOpener: string | null = null;
     if (queue.use_ai_opener && workspaceMeta) {
@@ -373,8 +462,10 @@ export async function runFollowupsForQueue(
       }
     }
 
-    // Pre-create new campaign_recipient for this follow-up
-    const { data: followupCR } = await admin
+    // Pre-create new campaign_recipient for this follow-up. If the insert
+    // fails, DON'T send: a send with no CR row is invisible to dedup, stats,
+    // and reply detection (queue-runner guards this the same way).
+    const { data: followupCR, error: followupCRErr } = await admin
       .from("campaign_recipients")
       .insert({
         campaign_id: null,
@@ -387,6 +478,15 @@ export async function runFollowupsForQueue(
       })
       .select("id")
       .maybeSingle();
+    if (followupCRErr || !followupCR?.id) {
+      result.failed++;
+      result.errors.push(
+        `${c.contact.email}: campaign_recipient insert failed${
+          followupCRErr ? ` — ${followupCRErr.message}` : ""
+        }`,
+      );
+      continue;
+    }
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const trackingUrl = followupCR?.id
@@ -454,14 +554,14 @@ export async function runFollowupsForQueue(
       gmail_message_id: sendResult.gmail_message_id,
     });
 
-    accountSentToday++;
-    await admin
-      .from("email_accounts")
-      .update({
-        emails_sent_today: accountSentToday,
-        last_used_at: new Date().toISOString(),
-      })
-      .eq("id", account.id);
+    // Atomic quota increment (conditional-reset-then-+1 in one SQL statement)
+    // so this hourly cron can't lose updates against the 30-min queue cron or
+    // a concurrent Run Now writing the same account counter.
+    await admin.rpc("bump_emails_sent", {
+      p_account_id: account.id,
+      p_delta: 1,
+      p_day_start: startOfTodayWibIso(),
+    });
 
     await admin.from("activity_log").insert({
       user_id: queue.user_id,

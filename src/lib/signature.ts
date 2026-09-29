@@ -150,10 +150,8 @@ function brandIconPng(slug: string, colorHex: string, size = 56): string {
  *  already downsizes uploads to ≤800px and removes manual padding, so
  *  the proxy added nothing recipients couldn't get from Supabase
  *  directly. Direct URL = one less moving part + universally reachable.
- *
- *  `_size` is kept in the signature to avoid touching every call site.
  */
-function proxyLogoUrl(rawUrl: string, _size = 240): string {
+function proxyLogoUrl(rawUrl: string): string {
   return rawUrl;
 }
 
@@ -188,7 +186,7 @@ export function renderSignatureHtml(
   // square logo) from dominating the row.
   const logoCell = d.logo_url
     ? `<td width="30%" align="center" valign="middle" style="width:30%;padding:12px 22px 12px 0;border-right:1px solid #cbd5e1;vertical-align:middle;">` +
-        `<img src="${esc(proxyLogoUrl(d.logo_url, 320))}" alt="${esc(d.company || d.name || "Logo")}" width="160" style="display:block;border:0;width:160px;max-width:100%;height:auto;max-height:160px;margin:0 auto;object-fit:contain;">` +
+        `<img src="${esc(proxyLogoUrl(d.logo_url))}" alt="${esc(d.company || d.name || "Logo")}" width="160" style="display:block;border:0;width:160px;max-width:100%;height:auto;max-height:160px;margin:0 auto;object-fit:contain;">` +
       `</td>`
     : `<td width="30%" valign="middle" style="width:30%;padding:12px 22px 12px 0;border-right:1px solid #cbd5e1;vertical-align:middle;">&nbsp;</td>`;
 

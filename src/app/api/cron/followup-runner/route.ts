@@ -52,18 +52,38 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Exclude test_mode queues — those send only to the owner's inbox via
+  // "Run Now" and must NEVER fire follow-ups at the real contacts recorded
+  // during the test run. Do NOT filter on followup_template_id: queues
+  // configured with the newer `followup_steps` array leave the legacy
+  // followup_template_id NULL, and that filter silently skipped them.
+  // runFollowupsForQueue resolves steps (steps → legacy fallback) and returns
+  // early when none are configured.
   const { data: queues } = await admin
     .from("send_queues")
     .select("id")
     .eq("is_active", true)
     .eq("followup_enabled", true)
-    .not("followup_template_id", "is", null);
+    .eq("test_mode", false);
 
   const results = [];
   for (const q of queues ?? []) {
     const id = (q as { id: string }).id;
-    const r = await runFollowupsForQueue(id);
-    results.push(r);
+    try {
+      const r = await runFollowupsForQueue(id);
+      results.push(r);
+    } catch (err) {
+      // One queue's failure must not abort the whole cron run.
+      console.error(`[followup-runner] queue ${id} failed:`, err);
+      results.push({
+        queue_id: id,
+        attempted: 0,
+        sent: 0,
+        failed: 0,
+        errors: [err instanceof Error ? err.message : "unknown error"],
+        by_step: {},
+      });
+    }
   }
 
   return NextResponse.json({

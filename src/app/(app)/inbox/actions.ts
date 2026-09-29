@@ -91,6 +91,16 @@ export async function updateInboxStage(
 ): Promise<Result> {
   const userId = await getUserId();
   const supabase = await createClient();
+  // Confirm the caller owns this workspace before writing a cwd row for it —
+  // workspaceId arrives from the client and RLS (user_id = auth.uid()) would
+  // still pass for a row carrying the caller's own id, so verify explicitly.
+  const { data: ws } = await supabase
+    .from("workspaces")
+    .select("id")
+    .eq("id", workspaceId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!ws) return { ok: false, error: "Workspace tidak ditemukan" };
   const { error } = await supabase
     .from("contact_workspace_data")
     .upsert(

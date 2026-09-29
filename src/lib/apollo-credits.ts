@@ -96,7 +96,10 @@ export async function getApolloCreditStatus(
       .select("metadata, created_at")
       .eq("user_id", userId)
       .eq("activity_type", "apollo_credits_used")
-      .gte("created_at", new Date(spendSinceMs).toISOString());
+      // Strictly-after the sync baseline: a reveal logged in the same second
+      // as the manual sync is already reflected in that synced figure, so
+      // counting it again would drift the estimate pessimistic.
+      .gt("created_at", new Date(spendSinceMs).toISOString());
     for (const r of rows ?? []) {
       const c = (r as { metadata?: { count?: unknown } | null }).metadata
         ?.count;

@@ -37,6 +37,9 @@ export function AltEmailsPanel({ slug, contactId, primary, alts }: Props) {
   }
 
   function handleAdd() {
+    // Guard against a double-fire (button click + Enter, or Enter pressed
+    // twice) while a transition is already in flight.
+    if (pending) return;
     setError(null);
     const value = draft.trim();
     if (!value) return;

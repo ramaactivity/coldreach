@@ -50,20 +50,31 @@ function normalizeKey(name: string | null, company: string | null): string | nul
 export async function getDuplicateReport(): Promise<DupReport> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("contacts")
-    .select(
-      "id, email, alt_emails, first_name, last_name, company, position, created_at",
-    )
-    .is("deleted_at", null)
-    .order("created_at", { ascending: true });
+  // Supabase caps a single request at 1000 rows. Page through the whole pool
+  // so duplicate detection covers every contact — not just the oldest 1000.
+  const PAGE = 1000;
+  const contacts: ContactRow[] = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const { data, error } = await supabase
+      .from("contacts")
+      .select(
+        "id, email, alt_emails, first_name, last_name, company, position, created_at",
+      )
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true })
+      .range(offset, offset + PAGE - 1);
 
-  if (error) {
-    console.error("getDuplicateReport error:", error);
-    return { totalContacts: 0, crossLinks: [], nameCompanyClusters: [] };
+    if (error) {
+      console.error("getDuplicateReport error:", error);
+      if (offset === 0) {
+        return { totalContacts: 0, crossLinks: [], nameCompanyClusters: [] };
+      }
+      break;
+    }
+    const batch = (data ?? []) as ContactRow[];
+    contacts.push(...batch);
+    if (batch.length < PAGE) break;
   }
-
-  const contacts = (data ?? []) as ContactRow[];
 
   // === Cross-link detection ===
   // For every contact A's alt_email that equals contact B's primary email,

@@ -4,9 +4,21 @@
  * Doubles up internal double-quotes (RFC 4180).
  */
 
+// CSV/spreadsheet formula-injection guard. A cell beginning with = + - @ (or a
+// leading tab/CR) is interpreted as a formula by Excel/Sheets — a scraped value
+// like `=HYPERLINK("http://evil",…)` would execute on open. Prefix such cells
+// with a single quote to neutralize them, but leave plain numbers (incl.
+// negatives like -12.5) untouched so real data isn't mangled.
+function neutralizeFormula(str: string): string {
+  if (!/^[=+\-@\t\r]/.test(str)) return str;
+  if (/^-?\d+(\.\d+)?$/.test(str)) return str; // pure number, safe
+  return `'${str}`;
+}
+
 export function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
-  const str = typeof value === "string" ? value : String(value);
+  const raw = typeof value === "string" ? value : String(value);
+  const str = neutralizeFormula(raw);
   if (/[",\r\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;
   }

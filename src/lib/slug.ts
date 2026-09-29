@@ -1,5 +1,5 @@
 export function slugify(input: string): string {
-  return input
+  const slug = input
     .toLowerCase()
     .trim()
     .normalize("NFD")
@@ -8,4 +8,7 @@ export function slugify(input: string): string {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+  // Fully non-Latin input (e.g. CJK/Arabic names) reduces to "" — fall back to
+  // a stable default so callers never get an empty route segment.
+  return slug || "workspace";
 }

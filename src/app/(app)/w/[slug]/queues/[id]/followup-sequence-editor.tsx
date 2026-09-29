@@ -41,12 +41,16 @@ export function FollowupSequenceEditor({
   const [steps, setSteps] = useState<FollowupStep[]>(
     initialSteps.length > 0 ? initialSteps : [],
   );
+  // Baseline the "dirty" check against the last SAVED state, not the initial
+  // prop — after a successful save the prop stays stale (no router.refresh),
+  // which would otherwise leave the Save button enabled on unchanged data.
+  const [savedSteps, setSavedSteps] = useState<FollowupStep[]>(initialSteps);
   const [editing, setEditing] = useState(initialSteps.length === 0);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState(false);
 
-  const dirty = JSON.stringify(steps) !== JSON.stringify(initialSteps);
+  const dirty = JSON.stringify(steps) !== JSON.stringify(savedSteps);
   const templateById = new Map(templates.map((t) => [t.id, t.name]));
 
   function addStep() {
@@ -79,6 +83,7 @@ export function FollowupSequenceEditor({
     startTransition(async () => {
       const res = await updateFollowupSequence(slug, queueId, steps);
       if (res.ok) {
+        setSavedSteps(steps); // new baseline → dirty resets to false
         setSavedFlash(true);
         setEditing(false);
         setTimeout(() => setSavedFlash(false), 2200);
@@ -89,7 +94,9 @@ export function FollowupSequenceEditor({
   }
 
   function handleCancel() {
-    setSteps(initialSteps);
+    // Revert to the last saved baseline (which is initialSteps until the first
+    // successful save), not the stale prop.
+    setSteps(savedSteps);
     setEditing(false);
     setError(null);
   }

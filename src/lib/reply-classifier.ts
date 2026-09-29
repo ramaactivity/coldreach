@@ -88,14 +88,57 @@ export async function classifyReply(
     const prompt = buildPrompt(replyText);
     const result = await withRetry(() => model.generateContent(prompt));
     const raw = result.response.text().trim().toLowerCase();
-    // Gemini may wrap with quotes or add a period. Take the first
-    // alphabetic+underscore token only.
-    const match = raw.match(/[a-z_]+/);
-    const label = match?.[0] as ReplyClass | undefined;
-    if (label && VALID.has(label)) return label;
+    // Gemini may add a preamble ("label: interested") or quotes/period. Scan
+    // for the first KNOWN label anywhere in the output rather than the first
+    // token — otherwise "label:" itself is taken and everything falls to
+    // "other".
+    for (const token of raw.match(/[a-z_]+/g) ?? []) {
+      if (VALID.has(token as ReplyClass)) return token as ReplyClass;
+    }
     return "other";
   } catch (err) {
     console.error("classifyReply error:", err);
+    return null;
+  }
+}
+
+/**
+ * Pull the "back in the office" date out of an out-of-office auto-reply.
+ * Returns YYYY-MM-DD, or null when the text names no date or Gemini fails —
+ * the caller (resolveReturnDate) then falls back to a default leave length.
+ * `receivedIso` anchors relative phrases ("back next Monday", "besok").
+ */
+export async function extractReturnDate(
+  replyText: string,
+  receivedIso: string,
+): Promise<string | null> {
+  if (!replyText.trim()) return null;
+  try {
+    const model = getClient().getGenerativeModel({
+      model: MODEL_NAME,
+      generationConfig: { temperature: 0, maxOutputTokens: 20 },
+    });
+    const prompt = `Email berikut adalah auto-reply out-of-office / cuti. Email diterima pada ${receivedIso.slice(0, 10)} (zona WIB).
+
+Tentukan tanggal yang disebut sebagai akhir cuti ATAU tanggal kembali ke kantor (pakai yang disebut di teks, jangan ditambah/dikurangi).
+- "cuti sampai 10 Oktober" / "out until Oct 10" / "back on Oct 10" → 10 Oktober.
+- Rentang "from 1 Oct to 9 Oct" → tanggal akhir rentang.
+- Frasa relatif ("next Monday", "besok") dihitung dari tanggal email diterima.
+- Tahun tidak disebut → tahun terdekat setelah tanggal diterima.
+- Tidak ada tanggal sama sekali → NONE.
+
+Jawab HANYA format YYYY-MM-DD atau NONE.
+
+Email:
+"""
+${replyText.slice(0, 1500)}
+"""
+
+Jawaban:`;
+    const result = await withRetry(() => model.generateContent(prompt));
+    return result.response.text().match(/\d{4}-\d{2}-\d{2}/)?.[0] ?? null;
+  } catch (err) {
+    console.error("extractReturnDate error:", err);
     return null;
   }
 }

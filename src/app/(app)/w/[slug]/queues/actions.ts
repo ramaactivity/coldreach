@@ -180,9 +180,42 @@ export async function createQueue(
   return { success: true, queueId: queue.id };
 }
 
-export async function pauseQueue(slug: string, queueId: string) {
+type QueueMutResult = { ok: true } | { ok: false; error: string };
+
+// Resolve the queue only if it belongs to a workspace the current user owns.
+// Guards these bare-id mutations against acting across workspaces and makes
+// them robust even if RLS is ever loosened.
+async function ownedQueue(
+  slug: string,
+  queueId: string,
+): Promise<
+  | { ok: true; supabase: Awaited<ReturnType<typeof createClient>> }
+  | { ok: false; error: string }
+> {
   const supabase = await createClient();
-  await supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+  const workspace = await getWorkspaceBySlug(slug);
+  if (!workspace) return { ok: false, error: "Workspace not found" };
+  const { data: queue } = await supabase
+    .from("send_queues")
+    .select("id")
+    .eq("id", queueId)
+    .eq("workspace_id", workspace.id)
+    .maybeSingle();
+  if (!queue) return { ok: false, error: "Queue not found" };
+  return { ok: true, supabase };
+}
+
+export async function pauseQueue(
+  slug: string,
+  queueId: string,
+): Promise<QueueMutResult> {
+  const owned = await ownedQueue(slug, queueId);
+  if (!owned.ok) return owned;
+  const { error } = await owned.supabase
     .from("send_queues")
     .update({
       is_active: false,
@@ -190,13 +223,19 @@ export async function pauseQueue(slug: string, queueId: string) {
       paused_reason: "Manually paused",
     })
     .eq("id", queueId);
+  if (error) return { ok: false, error: error.message };
   revalidatePath(`/w/${slug}/queues/${queueId}`);
   revalidatePath(`/w/${slug}/queues`);
+  return { ok: true };
 }
 
-export async function resumeQueue(slug: string, queueId: string) {
-  const supabase = await createClient();
-  await supabase
+export async function resumeQueue(
+  slug: string,
+  queueId: string,
+): Promise<QueueMutResult> {
+  const owned = await ownedQueue(slug, queueId);
+  if (!owned.ok) return owned;
+  const { error } = await owned.supabase
     .from("send_queues")
     .update({
       is_active: true,
@@ -204,14 +243,24 @@ export async function resumeQueue(slug: string, queueId: string) {
       paused_reason: null,
     })
     .eq("id", queueId);
+  if (error) return { ok: false, error: error.message };
   revalidatePath(`/w/${slug}/queues/${queueId}`);
   revalidatePath(`/w/${slug}/queues`);
+  return { ok: true };
 }
 
-export async function deleteQueueAction(slug: string, queueId: string) {
-  const supabase = await createClient();
+export async function deleteQueueAction(
+  slug: string,
+  queueId: string,
+): Promise<QueueMutResult> {
+  const owned = await ownedQueue(slug, queueId);
+  if (!owned.ok) return owned;
   // Hard delete the queue (queue_recipients cascade)
-  await supabase.from("send_queues").delete().eq("id", queueId);
+  const { error } = await owned.supabase
+    .from("send_queues")
+    .delete()
+    .eq("id", queueId);
+  if (error) return { ok: false, error: error.message };
   revalidatePath(`/w/${slug}/queues`);
   redirect(`/w/${slug}/queues`);
 }

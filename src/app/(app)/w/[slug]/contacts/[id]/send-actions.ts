@@ -7,8 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import { sendEmail, type EmailAccount } from "@/lib/email-sender";
 import { generateOpener } from "@/lib/ai-opener";
-import { languageFromEmailDomain } from "@/lib/lang-detect";
-import { ensureDailyQuotaFresh } from "@/lib/quota-reset";
+import { ensureDailyQuotaFresh, startOfTodayWibIso } from "@/lib/quota-reset";
 
 export type SendOneEmailResult =
   | {
@@ -49,7 +48,7 @@ export async function sendOneEmailToContact(
   const { data: contact } = await admin
     .from("contacts")
     .select(
-      "id, user_id, email, first_name, last_name, company, position, status, total_emails_sent_all_workspaces",
+      "id, user_id, email, first_name, last_name, company, position, status, language_pref, total_emails_sent_all_workspaces",
     )
     .eq("id", opts.contactId)
     .eq("user_id", user.id)
@@ -65,7 +64,7 @@ export async function sendOneEmailToContact(
   const { data: account } = await admin
     .from("email_accounts")
     .select(
-      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today, quota_reset_at",
+      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider, smtp_config, is_active, daily_quota, emails_sent_today, quota_reset_at",
     )
     .eq("workspace_id", workspace.id)
     .eq("is_active", true)
@@ -92,8 +91,8 @@ export async function sendOneEmailToContact(
     };
   }
 
-  // Auto language from email domain (free, no AI) — drives subject/body/opener.
-  const language = languageFromEmailDomain(contact.email);
+  // Indonesian unless the contact is explicitly marked English.
+  const language = contact.language_pref === "en" ? "en" : "id";
 
   // Template + attachments
   const { data: template } = await admin
@@ -248,14 +247,14 @@ export async function sendOneEmailToContact(
       .eq("id", contact.id);
   }
 
-  // Always count against today's Gmail quota (even test mode uses real send)
-  await admin
-    .from("email_accounts")
-    .update({
-      emails_sent_today: account.emails_sent_today + 1,
-      last_used_at: new Date().toISOString(),
-    })
-    .eq("id", account.id);
+  // Always count against today's Gmail quota (even test mode uses real send).
+  // Atomic conditional-reset-then-+1 so this direct send can't lose an update
+  // against an overlapping cron writing the same account counter.
+  await admin.rpc("bump_emails_sent", {
+    p_account_id: account.id,
+    p_delta: 1,
+    p_day_start: startOfTodayWibIso(),
+  });
 
   await admin.from("activity_log").insert({
     user_id: user.id,

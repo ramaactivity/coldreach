@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { useConfirm } from "@/components/ui/dialog";
 import { disconnectGmail, toggleWarmupMode, toggleAutoRamp } from "./actions";
 import { QuotaForm } from "./quota-form";
+import { SmtpConnectForm } from "./smtp-connect-form";
 import { describeWarmupStage } from "@/lib/warmup";
 import { RAMP_MAX, RAMP_STEP } from "@/lib/quota-ramp";
 
@@ -83,6 +84,7 @@ export function GmailConnectionCard({
             <Plus className="h-4 w-4" />
             Connect Gmail
           </Link>
+          <SmtpConnectForm slug={slug} />
         </div>
       </Card>
     );

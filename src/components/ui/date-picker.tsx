@@ -32,10 +32,14 @@ export function DatePicker({
 }) {
   const [internal, setInternal] = React.useState<string>(value ?? "");
   const [open, setOpen] = React.useState(false);
-  const current = value !== undefined ? value : internal;
+  // Controlled ONLY when a change handler is also supplied. A bare `value`
+  // (e.g. a custom date field seeding its initial value) stays uncontrolled,
+  // otherwise picking a day would be a dead no-op. Mirrors TimePicker.
+  const isControlled = value !== undefined && onValueChange !== undefined;
+  const current = isControlled ? value : internal;
 
   function setValue(v: string) {
-    if (value === undefined) setInternal(v);
+    if (!isControlled) setInternal(v);
     onValueChange?.(v);
   }
 

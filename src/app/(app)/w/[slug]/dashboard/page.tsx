@@ -405,6 +405,8 @@ function activityEmoji(type: string): string {
       return "👁";
     case "email_replied":
       return "💬";
+    case "email_out_of_office":
+      return "🌴";
     case "followup_sent":
       return "🔁";
     case "stage_changed":
@@ -422,6 +424,8 @@ function describeActivity(a: { activity_type: string; metadata: Record<string, u
       return "Email opened";
     case "email_replied":
       return `Reply from ${(a.metadata.contact_email as string) ?? "contact"}`;
+    case "email_out_of_office":
+      return `${(a.metadata.contact_email as string) ?? "Contact"} sedang cuti, follow-up ditunda sampai lewat ${(a.metadata.return_date as string) ?? "tanggal kembali"}${a.metadata.date_found ? "" : " (perkiraan)"}`;
     case "followup_sent":
       return `Follow-up sent`;
     case "stage_changed":

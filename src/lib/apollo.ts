@@ -154,9 +154,10 @@ export async function apolloSearchPeople(
     typeof data.total_entries === "number"
       ? data.total_entries
       : peopleRaw.length;
-  // Apollo caps api_search paging (≈ 50k records); keep totalPages sane.
+  // Apollo caps api_search paging at ~50k records. Cap by records (not a flat
+  // 500 pages) so a larger per_page still reaches the full window.
   const totalPages = Math.min(
-    500,
+    Math.ceil(50_000 / perPage),
     Math.max(1, Math.ceil(totalEntries / perPage)),
   );
   return {
@@ -234,6 +235,22 @@ function normalizeMatch(raw: Record<string, unknown>): ApolloMatch {
   };
 }
 
+const EMPTY_MATCH: ApolloMatch = {
+  id: null,
+  email: null,
+  email_status: null,
+  first_name: null,
+  last_name: null,
+  name: null,
+  title: null,
+  linkedin_url: null,
+  city: null,
+  state: null,
+  country: null,
+  organization_name: null,
+  organization_website: null,
+};
+
 /**
  * Bulk reveal — ~1 credit per record, max 10/call. Auto-chunks. Returns
  * matches keyed in input order; email is null when Apollo couldn't reveal it.
@@ -249,8 +266,12 @@ export async function apolloBulkMatch(ids: string[]): Promise<ApolloMatch[]> {
     const matchesRaw = Array.isArray(data.matches)
       ? (data.matches as Array<Record<string, unknown> | null>)
       : [];
+    // Pad null slots so results stay aligned with the input `ids` order
+    // (Apollo returns null for an unmatched id) — mirrors
+    // apolloBulkEnrichByEmail. A null-email placeholder is filtered out by
+    // callers that only care about revealed emails.
     for (const m of matchesRaw) {
-      if (m && typeof m === "object") out.push(normalizeMatch(m));
+      out.push(m && typeof m === "object" ? normalizeMatch(m) : EMPTY_MATCH);
     }
   }
   return out;

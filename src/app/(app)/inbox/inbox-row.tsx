@@ -17,6 +17,7 @@ import {
   type PipelineStage,
 } from "@/lib/workspace-constants";
 import { Select, SelectItem } from "@/components/ui/select";
+import { toast } from "@/components/ui/toast-provider";
 import {
   markHandled,
   unmarkHandled,
@@ -54,6 +55,7 @@ function formatRelative(iso: string): string {
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "Asia/Jakarta",
   });
 }
 
@@ -84,34 +86,49 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
     : null;
 
   function onStageChange(newId: string) {
+    const prev = stageId;
     setStageId(newId);
     startTransition(async () => {
-      await updateInboxStage(item.contact_id, item.workspace_id, newId, slug);
+      const res = await updateInboxStage(
+        item.contact_id,
+        item.workspace_id,
+        newId,
+        slug,
+      );
+      if (!res.ok) {
+        // Roll the dropdown back so it never shows a stage the server rejected.
+        setStageId(prev);
+        toast.error("Gagal mengubah stage", { description: res.error });
+      }
     });
   }
 
   function onMarkHandled() {
     startTransition(async () => {
-      await markHandled(item.id, slug);
+      const res = await markHandled(item.id, slug);
+      if (!res.ok) toast.error("Gagal menandai handled", { description: res.error });
     });
   }
 
   function onUnmark() {
     startTransition(async () => {
-      await unmarkHandled(item.id, slug);
+      const res = await unmarkHandled(item.id, slug);
+      if (!res.ok) toast.error("Gagal membuka kembali", { description: res.error });
     });
   }
 
   function onSnooze(hours: number) {
     setShowSnooze(false);
     startTransition(async () => {
-      await snoozeReply(item.id, hours, slug);
+      const res = await snoozeReply(item.id, hours, slug);
+      if (!res.ok) toast.error("Gagal snooze", { description: res.error });
     });
   }
 
   function onUnsnooze() {
     startTransition(async () => {
-      await unsnooze(item.id, slug);
+      const res = await unsnooze(item.id, slug);
+      if (!res.ok) toast.error("Gagal unsnooze", { description: res.error });
     });
   }
 

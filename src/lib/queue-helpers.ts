@@ -59,9 +59,12 @@ export function formatDays(days: number[]): string {
   ) {
     return "Sen-Jum";
   }
-  return days
+  // schedule_days is ISO (1=Mon .. 7=Sun); DAY_NAMES is 0-indexed Sunday-first,
+  // so map via `d % 7` (Sunday 7 → 0 = "Min", others unchanged). Copy before
+  // sorting so we don't mutate the caller's array.
+  return [...days]
     .sort((a, b) => a - b)
-    .map((d) => DAY_NAMES[d])
+    .map((d) => DAY_NAMES[d % 7])
     .join(", ");
 }
 

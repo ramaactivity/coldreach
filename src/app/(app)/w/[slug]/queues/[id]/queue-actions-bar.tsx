@@ -114,11 +114,14 @@ export function QueueActionsBar({
   function handlePauseToggle() {
     startTransition(async () => {
       // Flip optimistically — UI updates instantly, server reconciles
-      setOptimisticActive(!optimisticActive);
-      if (optimisticActive) {
-        await pauseQueue(slug, queueId);
-      } else {
-        await resumeQueue(slug, queueId);
+      const wasActive = optimisticActive;
+      setOptimisticActive(!wasActive);
+      const res = wasActive
+        ? await pauseQueue(slug, queueId)
+        : await resumeQueue(slug, queueId);
+      if (!res.ok) {
+        setResultTone("error");
+        setLastResult(`Error: ${res.error}`);
       }
       router.refresh();
     });
@@ -134,7 +137,13 @@ export function QueueActionsBar({
     });
     if (!ok) return;
     startTransition(async () => {
-      await deleteQueueAction(slug, queueId);
+      const res = await deleteQueueAction(slug, queueId);
+      // On success the action redirects (never returns); a returned result
+      // therefore means failure.
+      if (res && !res.ok) {
+        setResultTone("error");
+        setLastResult(`Error: ${res.error}`);
+      }
     });
   }
 

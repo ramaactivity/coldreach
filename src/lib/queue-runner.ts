@@ -7,11 +7,11 @@ import {
 import { generateOpener } from "@/lib/ai-opener";
 import { effectiveWarmupQuota } from "@/lib/warmup";
 import {
-  languageFromEmailDomain,
   corporateDomainOf,
 } from "@/lib/lang-detect";
 import { ensureDailyQuotaFresh, startOfTodayWibIso } from "@/lib/quota-reset";
 import type { SignatureData } from "@/lib/signature";
+import { wibDate } from "@/lib/ooo";
 
 export type RunQueueResult = {
   queue_id: string;
@@ -27,16 +27,20 @@ const DELAY_MIN_MS = 30_000;
 const DELAY_MAX_MS = 90_000;
 
 // Enterprise spam filters pattern-block senders that blast many near-identical
-// emails into one company domain in a day (we were doing 50+ per domain, with
-// zero replies from every large-corporate domain). Cap sends per corporate
-// recipient domain per WIB day, per workspace. Consumer webmail
-// (gmail/yahoo/...) is exempt — see corporateDomainOf.
-const MAX_PER_COMPANY_DOMAIN_PER_DAY = 3;
+// emails into one company domain (we were doing 20–30 per domain per 14 days
+// across four senders, with zero replies from every large-corporate domain).
+// Caps count ALL of the user's workspaces — the gateway sees one campaign.
+// Consumer webmail (gmail/yahoo/...) is exempt — see corporateDomainOf.
+const MAX_PER_COMPANY_DOMAIN_PER_DAY = 2;
+const MAX_PER_COMPANY_DOMAIN_PER_WINDOW = 8;
+const DOMAIN_WINDOW_DAYS = 14;
 
-// Cross-workspace dedup window. With ~14k contacts in the global pool and
-// random tiebreak ordering (see recipient query), 3 days is plenty to keep
-// a single recipient from being touched twice across all workspaces.
-const DEDUP_COOLDOWN_DAYS = 3;
+// Cross-workspace person cooldown: once any workspace emails an address, no
+// other workspace may cold-email it for this long (977 people got 2+ brands
+// within 30 days before this). Contacts held back are deferred via
+// queue_recipients.scheduled_for_date so they stop occupying candidate slots.
+const DEDUP_COOLDOWN_DAYS = 45;
+const DAY_MS = 24 * 3600 * 1000;
 
 // Cutoff timestamp (UTC ISO) for the dedup window: now() minus N days.
 function dedupCutoffIso(): string {
@@ -98,24 +102,77 @@ export async function runQueue(
   const wibTodayStart = startOfTodayWibIso();
   const lastShuffled = (queue as { last_shuffled_at?: string | null })
     .last_shuffled_at;
-  if (!lastShuffled || lastShuffled < wibTodayStart) {
-    const { error: reshuffleErr } = await admin.rpc("reshuffle_queue", {
-      p_queue_id: queueId,
-    });
-    if (reshuffleErr) {
-      // Non-fatal: send proceeds with yesterday's order rather than aborting.
-      console.error("reshuffle_queue rpc failed:", reshuffleErr);
-    }
+  const needsReshuffle = !lastShuffled || lastShuffled < wibTodayStart;
+
+  // Effective template set. A queue may rotate across several templates
+  // (balanced-random per send) or just use its single template_id. Older
+  // queues have template_ids = NULL → fall back to [template_id].
+  const queueTemplateIds = (queue as { template_ids?: string[] | null })
+    .template_ids;
+  const requestedTemplateIds =
+    Array.isArray(queueTemplateIds) && queueTemplateIds.length > 0
+      ? queueTemplateIds
+      : queue.template_id
+        ? [queue.template_id]
+        : [];
+  if (requestedTemplateIds.length === 0) {
+    result.errors.push("Queue has no template");
+    return result;
   }
 
-  const { data: account } = await admin
-    .from("email_accounts")
-    .select(
-      "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, is_active, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at",
-    )
-    .eq("workspace_id", queue.workspace_id)
-    .eq("is_active", true)
-    .maybeSingle();
+  // Everything below is independent of everything else in this group, so it
+  // goes out as ONE round of round trips instead of ten sequential ones. With
+  // the DB in ap-southeast-1 the serial version burned ~10s of the tick's
+  // budget before the first email even started rendering.
+  const [
+    accountRes,
+    templateRes,
+    attachmentRes,
+    workspaceRes,
+    pendingRes,
+    ,
+  ] = await Promise.all([
+    admin
+      .from("email_accounts")
+      .select(
+        "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider, smtp_config, is_active, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at",
+      )
+      .eq("workspace_id", queue.workspace_id)
+      .eq("is_active", true)
+      .maybeSingle(),
+    admin
+      .from("templates")
+      .select("id, subject_lines, subject_lines_en, body_plain, body_plain_en")
+      .in("id", requestedTemplateIds),
+    admin
+      .from("template_attachments")
+      .select("template_id, filename, storage_path, mime_type")
+      .in("template_id", requestedTemplateIds),
+    admin
+      .from("workspaces")
+      .select("name, business_type, signature_data, color_theme")
+      .eq("id", queue.workspace_id)
+      .maybeSingle(),
+    admin
+      .from("queue_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("queue_id", queueId)
+      .eq("status", "pending"),
+    // Daily reshuffle. shuffle_key on queue_recipients is regenerated once
+    // per WIB day so each day's batch picks a fresh random subset across the
+    // whole pool (top / middle / bottom) instead of marching down the
+    // creation-time shuffle. Non-fatal: on failure the send proceeds with
+    // yesterday's order rather than aborting.
+    needsReshuffle
+      ? admin
+          .rpc("reshuffle_queue", { p_queue_id: queueId })
+          .then(({ error }) => {
+            if (error) console.error("reshuffle_queue rpc failed:", error);
+          })
+      : Promise.resolve(),
+  ]);
+
+  const account = accountRes.data;
   if (!account) {
     result.errors.push("No connected Gmail for this workspace");
     return result;
@@ -150,26 +207,7 @@ export async function runQueue(
     return result;
   }
 
-  // Effective template set. A queue may rotate across several templates
-  // (balanced-random per send) or just use its single template_id. Older
-  // queues have template_ids = NULL → fall back to [template_id].
-  const queueTemplateIds = (queue as { template_ids?: string[] | null })
-    .template_ids;
-  const requestedTemplateIds =
-    Array.isArray(queueTemplateIds) && queueTemplateIds.length > 0
-      ? queueTemplateIds
-      : queue.template_id
-        ? [queue.template_id]
-        : [];
-  if (requestedTemplateIds.length === 0) {
-    result.errors.push("Queue has no template");
-    return result;
-  }
-
-  const { data: templateRows } = await admin
-    .from("templates")
-    .select("id, subject_lines, subject_lines_en, body_plain, body_plain_en")
-    .in("id", requestedTemplateIds);
+  const templateRows = templateRes.data;
   const templateMap = new Map<string, EmailTemplate>();
   for (const t of (templateRows ?? []) as EmailTemplate[]) {
     templateMap.set(t.id, t);
@@ -191,10 +229,7 @@ export async function runQueue(
     storage_path: string;
     mime_type: string;
   };
-  const { data: attachmentRows } = await admin
-    .from("template_attachments")
-    .select("template_id, filename, storage_path, mime_type")
-    .in("template_id", activeTemplateIds);
+  const attachmentRows = attachmentRes.data;
   const attachmentsByTemplate = new Map<
     string,
     Array<{ filename: string; storage_path: string; mime_type: string }>
@@ -242,16 +277,12 @@ export async function runQueue(
     return best;
   }
 
-  // Evergreen auto-refill. Counter on send_queues drifts, so query the real
-  // pending count and top up when it dips below ~2 days of capacity.
+  // Evergreen auto-refill. The counter on send_queues drifts, so this uses
+  // the real pending count (fetched in the parallel group above) and tops up
+  // when it dips below ~2 days of capacity.
   // Audience type 'manual' is a no-op inside the RPC (fixed list).
   {
-    const { count: actualPending } = await admin
-      .from("queue_recipients")
-      .select("id", { count: "exact", head: true })
-      .eq("queue_id", queueId)
-      .eq("status", "pending");
-    const pending = actualPending ?? 0;
+    const pending = pendingRes.count ?? 0;
     const dailyTarget = queue.daily_target ?? 50;
     const refillThreshold = dailyTarget * 2;
     if (pending < refillThreshold) {
@@ -291,6 +322,7 @@ export async function runQueue(
     )
     .eq("queue_id", queueId)
     .eq("status", "pending")
+    .or(`scheduled_for_date.is.null,scheduled_for_date.lte.${wibDate(Date.now())}`)
     .order("priority", { ascending: false })
     .order("shuffle_key", { ascending: true })
     .limit(candidateLimit);
@@ -299,19 +331,14 @@ export async function runQueue(
     return result;
   }
 
-  // Fetch workspace meta for AI opener prompt context
+  // Workspace meta (fetched in the parallel group above) covers AI-opener
+  // prompt context + structured signature + brand color fallback.
   let workspaceMeta: { name: string; business_type: string | null } | null =
     null;
   let workspaceSignatureData: SignatureData | null = null;
   let workspaceColorTheme: string | null = null;
-  // One workspace fetch covers AI-opener metadata + structured signature
-  // + brand color fallback
   {
-    const { data: ws } = await admin
-      .from("workspaces")
-      .select("name, business_type, signature_data, color_theme")
-      .eq("id", queue.workspace_id)
-      .maybeSingle();
+    const ws = workspaceRes.data;
     if (ws) {
       if (queue.use_ai_opener) {
         workspaceMeta = { name: ws.name, business_type: ws.business_type };
@@ -332,20 +359,6 @@ export async function runQueue(
     })
     .filter((id): id is string => typeof id === "string");
 
-  const openerCache = new Map<string, string>();
-  if (queue.use_ai_opener && candidateContactIds.length > 0) {
-    const { data: cached } = await admin
-      .from("contact_workspace_data")
-      .select("contact_id, ai_opener")
-      .eq("workspace_id", queue.workspace_id)
-      .in("contact_id", candidateContactIds)
-      .not("ai_opener", "is", null);
-    for (const row of cached ?? []) {
-      const r = row as { contact_id: string; ai_opener: string | null };
-      if (r.ai_opener) openerCache.set(r.contact_id, r.ai_opener);
-    }
-  }
-
   // Cross-workspace daily dedup: any contact_email already received an email
   // today (under this user, across any workspace) is skipped. Includes
   // in-flight 'sending' rows so we don't double-send when a previous batch
@@ -358,46 +371,110 @@ export async function runQueue(
     })
     .filter((e): e is string => !!e);
 
-  const dedupedEmails = new Set<string>();
-  if (candidateEmailsLower.length > 0) {
+  // These four are independent of each other — one round of round trips.
+  const [openerRes, alreadySentRes, todayRowsRes, bouncedRes] = await Promise.all([
+    queue.use_ai_opener && candidateContactIds.length > 0
+      ? admin
+          .from("contact_workspace_data")
+          .select("contact_id, ai_opener")
+          .eq("workspace_id", queue.workspace_id)
+          .in("contact_id", candidateContactIds)
+          .not("ai_opener", "is", null)
+      : Promise.resolve({ data: null }),
     // Use created_at (always set) instead of sent_at (NULL for 'sending'
     // rows) so we also catch in-flight rows from a prior batch that timed
     // out mid-iteration.
-    const { data: alreadySent } = await admin
-      .from("campaign_recipients")
-      .select("contact_email")
-      .eq("user_id", queue.user_id)
-      .gte("created_at", dedupCutoffIso())
-      .in("status", ["sending", "sent", "opened", "replied"])
-      .in("contact_email", candidateEmailsLower);
-    for (const row of alreadySent ?? []) {
-      const e = (row as { contact_email: string | null }).contact_email;
-      if (e) dedupedEmails.add(e.toLowerCase());
-    }
+    candidateEmailsLower.length > 0
+      ? admin
+          .from("campaign_recipients")
+          .select("contact_email, created_at")
+          .eq("user_id", queue.user_id)
+          .gte("created_at", dedupCutoffIso())
+          .in("status", ["sending", "sent", "opened", "replied"])
+          .in("contact_email", candidateEmailsLower)
+      : Promise.resolve({ data: null }),
+    // Per-company-domain send counts across ALL workspaces (today + window)
+    // for the candidate domains — feeds the domain caps.
+    admin.rpc("domain_send_counts", {
+      p_user_id: queue.user_id,
+      p_domains: Array.from(
+        new Set(
+          candidateEmailsLower
+            .map((e) => corporateDomainOf(e))
+            .filter((d): d is string => !!d),
+        ),
+      ),
+      p_today_start: wibTodayStart,
+      p_window_start: new Date(
+        Date.now() - DOMAIN_WINDOW_DAYS * DAY_MS,
+      ).toISOString(),
+    }),
+    // PERMANENT bounce suppression (JS-level fast path): any email that has
+    // EVER bounced under this user — across all workspaces, no time limit —
+    // must never be sent again. The SQL claim_contact_send has the same
+    // guard, but catching it here avoids the round-trip + advisory lock.
+    candidateEmailsLower.length > 0
+      ? admin
+          .from("campaign_recipients")
+          .select("contact_email")
+          .eq("user_id", queue.user_id)
+          .eq("status", "bounced")
+          .in("contact_email", candidateEmailsLower)
+      : Promise.resolve({ data: null }),
+  ]);
+
+  // Pre-fetched cached AI openers for the candidate contacts in this batch.
+  const openerCache = new Map<string, string>();
+  for (const row of openerRes.data ?? []) {
+    const r = row as { contact_id: string; ai_opener: string | null };
+    if (r.ai_opener) openerCache.set(r.contact_id, r.ai_opener);
   }
 
-  // Today's per-company-domain send counts for this workspace (WIB day) —
-  // feeds the MAX_PER_COMPANY_DOMAIN_PER_DAY cap. Includes in-flight
-  // 'sending' rows for the same reason the dedup query does.
+  // Permanently bounced emails — never send again, regardless of cooldown.
+  const bouncedEmails = new Set<string>();
+  for (const row of bouncedRes.data ?? []) {
+    const e = (row as { contact_email: string | null }).contact_email;
+    if (e) bouncedEmails.add(e.toLowerCase());
+  }
+
+  // Last time each candidate address was emailed by any workspace.
+  const lastTouchedMs = new Map<string, number>();
+  for (const row of alreadySentRes.data ?? []) {
+    const r = row as { contact_email: string | null; created_at: string };
+    if (!r.contact_email) continue;
+    const e = r.contact_email.toLowerCase();
+    const t = new Date(r.created_at).getTime();
+    if (t > (lastTouchedMs.get(e) ?? 0)) lastTouchedMs.set(e, t);
+  }
+
   const domainSentToday = new Map<string, number>();
-  {
-    const { data: todayRows } = await admin
-      .from("campaign_recipients")
-      .select("contact_email")
-      .eq("workspace_id", queue.workspace_id)
-      .gte("created_at", wibTodayStart)
-      .in("status", ["sending", "sent", "opened", "replied"]);
-    for (const row of todayRows ?? []) {
-      const dom = corporateDomainOf(
-        (row as { contact_email: string | null }).contact_email ?? "",
-      );
-      if (dom) domainSentToday.set(dom, (domainSentToday.get(dom) ?? 0) + 1);
-    }
+  const domainSentWindow = new Map<string, number>();
+  for (const row of (todayRowsRes.data ?? []) as Array<{
+    domain: string;
+    today: number;
+    recent: number;
+  }>) {
+    domainSentToday.set(row.domain, row.today);
+    domainSentWindow.set(row.domain, row.recent);
+  }
+  if (todayRowsRes.error) {
+    // Without counts the caps can't be enforced — don't send blind.
+    result.errors.push(`domain_send_counts: ${todayRowsRes.error.message}`);
+    return result;
   }
 
-  let queueTotalSent = queue.total_sent;
+  // Park a pending row until `days` from now so it stops taking candidate
+  // slots on every tick while it is capped/cooling down.
+  const deferRecipient = (id: string, untilMs: number) =>
+    admin
+      .from("queue_recipients")
+      .update({ scheduled_for_date: wibDate(untilMs) })
+      .eq("id", id);
+
+  // Local view of how many recipients are still pending, used only for the
+  // one-shot auto-deactivate check at the end. The persisted counters are
+  // recomputed once per run by sync_queue_counters.
   let queuePending = queue.total_pending;
-  let accountSentToday = account.emails_sent_today;
 
   for (let i = 0; i < recipients.length; i++) {
     // Stop cleanly before the function's hard timeout kills us mid-send.
@@ -462,12 +539,26 @@ export async function runQueue(
       continue;
     }
 
-    // Cross-workspace dedup: if this contact's email was already touched
-    // (or is mid-receiving) within the dedup window by any of this user's
-    // workspaces, skip THIS run but leave the queue_recipient PENDING so it
-    // becomes eligible again once the window passes — do NOT mark it
-    // 'skipped' (that would drop the contact from this queue forever).
-    if (dedupedEmails.has(contact.email.toLowerCase())) {
+    // Cross-workspace cooldown: emailed by any workspace inside the window →
+    // stay PENDING (not 'skipped', which would drop it from this queue
+    // forever) but deferred to the day the window ends.
+    const lastTouch = lastTouchedMs.get(contact.email.toLowerCase());
+    if (lastTouch !== undefined) {
+      await deferRecipient(recipient.id, lastTouch + DEDUP_COOLDOWN_DAYS * DAY_MS);
+      result.skipped++;
+      continue;
+    }
+
+    // PERMANENT bounce suppression: if this email has EVER bounced under
+    // any workspace, mark the queue_recipient as 'skipped' (permanent —
+    // unlike the dedup check which stays pending). A bounced address
+    // doesn't un-bounce; re-sending only burns quota and damages
+    // sender reputation across all connected Gmail accounts.
+    if (bouncedEmails.has(contact.email.toLowerCase())) {
+      await admin
+        .from("queue_recipients")
+        .update({ status: "skipped" })
+        .eq("id", recipient.id);
       result.skipped++;
       continue;
     }
@@ -475,40 +566,23 @@ export async function runQueue(
     // Per-company-domain daily cap. Leave PENDING (not 'skipped') so the
     // contact stays in the pool and becomes eligible again on a later day.
     const capDomain = corporateDomainOf(contact.email);
-    if (
-      capDomain &&
-      (domainSentToday.get(capDomain) ?? 0) >= MAX_PER_COMPANY_DOMAIN_PER_DAY
-    ) {
-      result.skipped++;
-      continue;
-    }
-
-    // Race-window re-check: the batch-start dedup query is now stale by up
-    // to ~30-90s per recipient (delay loop). Another workspace's runner
-    // may have inserted a campaign_recipient for the same email since.
-    // One small query per send to close the window; pre-create insert
-    // happens immediately after, so the window collapses to <50ms.
-    {
-      const { data: raceRow } = await admin
-        .from("campaign_recipients")
-        .select("id")
-        .eq("user_id", queue.user_id)
-        .eq("contact_email", contact.email.toLowerCase())
-        .gte("created_at", dedupCutoffIso())
-        .in("status", ["sending", "sent", "opened", "replied"])
-        .limit(1)
-        .maybeSingle();
-      if (raceRow) {
-        // Same as above: leave PENDING so it retries after the dedup window.
-        dedupedEmails.add(contact.email.toLowerCase());
+    if (capDomain) {
+      if ((domainSentWindow.get(capDomain) ?? 0) >= MAX_PER_COMPANY_DOMAIN_PER_WINDOW) {
+        await deferRecipient(recipient.id, Date.now() + 3 * DAY_MS);
+        result.skipped++;
+        continue;
+      }
+      if ((domainSentToday.get(capDomain) ?? 0) >= MAX_PER_COMPANY_DOMAIN_PER_DAY) {
+        await deferRecipient(recipient.id, Date.now() + DAY_MS);
         result.skipped++;
         continue;
       }
     }
 
-    // Auto language from the email domain (free, no AI). Drives subject,
-    // body, and the AI opener so the whole email is one language.
-    const language = languageFromEmailDomain(contact.email);
+    // Indonesian unless the contact is explicitly marked English. Guessing
+    // from the domain sent English to every .com (Pertamina, Erajaya…) and
+    // English emails got ~20% fewer replies per send than Indonesian ones.
+    const language = contact.language_pref === "en" ? "en" : "id";
 
     // Resolve AI opener: cache → generate → fallback null
     let aiOpener: string | null = null;
@@ -543,30 +617,39 @@ export async function runQueue(
       }
     }
 
-    // Pre-create campaign_recipient row so we can embed its ID as tracking pixel URL
-    const { data: campaignRecipient, error: crInsertError } = await admin
-      .from("campaign_recipients")
-      .insert({
-        campaign_id: null,
-        contact_id: contact.id,
-        user_id: queue.user_id,
-        workspace_id: queue.workspace_id,
-        contact_email: contact.email,
-        status: "sending",
-      })
-      .select("id")
-      .maybeSingle();
+    // Claim the address and pre-create its campaign_recipient row in ONE
+    // atomic statement (see claim_contact_send). This replaces the old
+    // re-check-then-insert pair: the batch-start dedup snapshot goes stale
+    // the moment another runner sends, and all workspace queues now run
+    // concurrently in the same tick. The RPC takes a per-address advisory
+    // lock, so exactly one runner can win a given recipient.
+    const { data: claimedId, error: claimError } = await admin.rpc(
+      "claim_contact_send",
+      {
+        p_user_id: queue.user_id,
+        p_workspace_id: queue.workspace_id,
+        p_contact_id: contact.id,
+        p_contact_email: contact.email,
+        p_cutoff: dedupCutoffIso(),
+      },
+    );
     // Loud failure — earlier we silently swallowed this and ended up with
     // 0 campaign_recipients while emails were still going out via Gmail.
-    if (crInsertError || !campaignRecipient?.id) {
+    if (claimError) {
       result.failed++;
       result.errors.push(
-        `${contact.email}: campaign_recipient insert failed${
-          crInsertError ? ` — ${crInsertError.message}` : ""
-        }`,
+        `${contact.email}: claim failed — ${claimError.message}`,
       );
       continue;
     }
+    if (!claimedId) {
+      // Another runner already holds this address inside the dedup window.
+      // Leave the queue_recipient PENDING so it retries once the window passes.
+      lastTouchedMs.set(contact.email.toLowerCase(), Date.now());
+      result.skipped++;
+      continue;
+    }
+    const campaignRecipient = { id: claimedId as string };
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const trackingUrl = campaignRecipient?.id
@@ -634,10 +717,9 @@ export async function runQueue(
       continue;
     }
 
-    // Counter bookkeeping (in-memory; DB writes follow in parallel below)
-    queueTotalSent++;
+    // Counter bookkeeping (in-memory; DB writes follow in parallel below).
+    // emails_sent_today is bumped atomically via RPC below, not tracked here.
     queuePending = Math.max(0, queuePending - 1);
-    accountSentToday++;
     // Count this template's send so the next pick stays balanced.
     templateUseCount.set(
       chosenTemplateId,
@@ -691,28 +773,26 @@ export async function runQueue(
           last_contacted_at_any: nowIso,
         })
         .eq("id", contact.id),
-      admin
-        .from("send_queues")
-        .update({
-          total_sent: queueTotalSent,
-          total_pending: queuePending,
-          last_run_at: nowIso,
-        })
-        .eq("id", queueId),
-      admin
-        .from("email_accounts")
-        .update({
-          emails_sent_today: accountSentToday,
-          last_used_at: nowIso,
-        })
-        .eq("id", account.id),
+      // NOTE: send_queues counters are deliberately NOT written here. They
+      // were one extra round trip on every single email, and
+      // sync_queue_counters below recomputes all of them from the real rows
+      // anyway — the per-send write was pure overhead on the hot path.
+      // Atomic quota increment — a conditional-reset-then-+1 in a single SQL
+      // statement so overlapping runners (queue cron + followup cron + Run Now)
+      // can't lose updates the way an absolute write from a stale read would.
+      admin.rpc("bump_emails_sent", {
+        p_account_id: account.id,
+        p_delta: 1,
+        p_day_start: startOfTodayWibIso(),
+      }),
     ]);
 
     // Track the just-sent email so dedup catches subsequent recipients in
     // the same batch (the DB query at batch start can't see this row yet).
-    dedupedEmails.add(contact.email.toLowerCase());
+    lastTouchedMs.set(contact.email.toLowerCase(), Date.now());
     if (capDomain) {
       domainSentToday.set(capDomain, (domainSentToday.get(capDomain) ?? 0) + 1);
+      domainSentWindow.set(capDomain, (domainSentWindow.get(capDomain) ?? 0) + 1);
     }
 
     result.sent++;
@@ -724,16 +804,19 @@ export async function runQueue(
     }
   }
 
-  // Truth-sync the cached counters from the real queue_recipients rows.
-  // The in-loop writes only decrement total_pending per *sent* email — they
-  // never account for recipients marked 'skipped' (cross-workspace dedup,
-  // archived contacts) this run, so the cache drifts low over time. This
-  // single recompute converges every counter back to reality on every run,
-  // so nothing downstream is ever misled by a stale value. Non-fatal.
+  // Truth-sync the cached counters from the real queue_recipients rows, and
+  // stamp last_run_at once for the whole run. A single recompute converges
+  // every counter back to reality (skips, archived contacts and external
+  // inserts all drift the cache), so nothing downstream is ever misled by a
+  // stale value. Both are non-fatal.
   {
-    const { error: syncErr } = await admin.rpc("sync_queue_counters", {
-      p_queue_id: queueId,
-    });
+    const [{ error: syncErr }] = await Promise.all([
+      admin.rpc("sync_queue_counters", { p_queue_id: queueId }),
+      admin
+        .from("send_queues")
+        .update({ last_run_at: new Date().toISOString() })
+        .eq("id", queueId),
+    ]);
     if (syncErr) {
       console.error("sync_queue_counters rpc failed:", syncErr);
     }

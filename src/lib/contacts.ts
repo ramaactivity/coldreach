@@ -34,6 +34,7 @@ export type Contact = {
   archived_at: string | null;
   archive_reason:
     | "hard_bounce"
+    | "soft_bounce"
     | "soft_bounce_threshold"
     | "domain_blocked"
     | "manual"
@@ -87,6 +88,26 @@ export type ContactsListResult = {
   total: number;
 };
 
+// Segment/stage filters constrain columns on the embedded
+// contact_workspace_data row. With a !left join PostgREST only filters the
+// rows INSIDE the embed (parents survive with an empty embed), so those
+// filters need !inner to actually exclude parent rows. Everything else keeps
+// !left so contacts without workspace data still show up.
+function cwdJoinFor(filter: ContactsFilter): "!inner" | "!left" {
+  const needsInner =
+    !!filter.lead_stage_id ||
+    filter.segment === "never_contacted" ||
+    filter.segment === "replied" ||
+    filter.segment === "stale_30d";
+  return needsInner ? "!inner" : "!left";
+}
+
+// Strip PostgREST-reserved chars (`,()"`), which would break the .or()
+// filter grammar and 400 the whole request.
+function sanitizeSearchTerm(raw: string): string {
+  return raw.replace(/[,()"]/g, " ").trim();
+}
+
 export async function listContacts(
   workspace: Workspace,
   filter: ContactsFilter = {},
@@ -109,7 +130,7 @@ export async function listContacts(
       enriched_at, email_verified_at, email_status, apollo_id,
       archived_at, archive_reason,
       unsubscribe_token, created_at, updated_at, deleted_at,
-      workspace_data:contact_workspace_data!left(
+      workspace_data:contact_workspace_data${cwdJoinFor(filter)}(
         lead_stage_id, workspace_notes, total_emails_sent,
         total_emails_opened, total_replies, last_contacted_at, is_excluded
       )
@@ -126,11 +147,13 @@ export async function listContacts(
   }
 
   if (filter.search) {
-    const term = filter.search.trim();
+    const term = sanitizeSearchTerm(filter.search);
     // alt_emails::text gives us "{a@b.com,c@d.com}" so substring ilike works
-    query = query.or(
-      `email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,company.ilike.%${term}%,alt_emails::text.ilike.%${term}%`,
-    );
+    if (term) {
+      query = query.or(
+        `email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,company.ilike.%${term}%,alt_emails::text.ilike.%${term}%`,
+      );
+    }
   }
   if (filter.tags && filter.tags.length > 0) {
     query = query.contains("tags", filter.tags);
@@ -197,18 +220,21 @@ export async function listContacts(
     case "company_asc":
       query = query.order("company", { ascending: true, nullsFirst: false });
       break;
+    // PostgREST can't order PARENT rows by an embedded (contact_workspace_data)
+    // column — foreignTable ordering only sorts rows *inside* the embed, which
+    // is a no-op here. Sort by the denormalized parent column
+    // `last_contacted_at_any` instead, which tracks the most recent contact
+    // across any workspace and gives a stable, correct order.
     case "last_contacted_desc":
-      query = query.order("last_contacted_at", {
+      query = query.order("last_contacted_at_any", {
         ascending: false,
         nullsFirst: false,
-        foreignTable: "contact_workspace_data",
       });
       break;
     case "last_contacted_asc":
-      query = query.order("last_contacted_at", {
+      query = query.order("last_contacted_at_any", {
         ascending: true,
         nullsFirst: true,
-        foreignTable: "contact_workspace_data",
       });
       break;
     case "created_desc":
@@ -278,7 +304,7 @@ export async function listAllContactsForExport(
     .select(
       `email, alt_emails, first_name, last_name, company, position, phone,
        website, notes, tags, status, priority, source, created_at,
-       workspace_data:contact_workspace_data!left(
+       workspace_data:contact_workspace_data${cwdJoinFor(filter)}(
          lead_stage_id, workspace_notes, total_emails_sent,
          total_emails_opened, total_replies, last_contacted_at
        )`,
@@ -291,10 +317,12 @@ export async function listAllContactsForExport(
   }
 
   if (filter.search) {
-    const term = filter.search.trim();
-    query = query.or(
-      `email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,company.ilike.%${term}%,alt_emails::text.ilike.%${term}%`,
-    );
+    const term = sanitizeSearchTerm(filter.search);
+    if (term) {
+      query = query.or(
+        `email.ilike.%${term}%,first_name.ilike.%${term}%,last_name.ilike.%${term}%,company.ilike.%${term}%,alt_emails::text.ilike.%${term}%`,
+      );
+    }
   }
   if (filter.tags && filter.tags.length > 0) {
     query = query.contains("tags", filter.tags);
@@ -337,13 +365,23 @@ export async function listAllContactsForExport(
   }
   query = query.order("created_at", { ascending: false });
 
-  const { data, error } = await query;
-  if (error) {
-    console.error("listAllContactsForExport error:", error);
-    return [];
+  // Supabase caps a single request at 1000 rows. Page through with .range()
+  // until a short page signals the end — otherwise a >1000-contact export is
+  // silently truncated to the newest 1000.
+  const PAGE = 1000;
+  const rows: Record<string, unknown>[] = [];
+  for (let offset = 0; ; offset += PAGE) {
+    const { data, error } = await query.range(offset, offset + PAGE - 1);
+    if (error) {
+      console.error("listAllContactsForExport error:", error);
+      break;
+    }
+    const batch = (data ?? []) as Record<string, unknown>[];
+    rows.push(...batch);
+    if (batch.length < PAGE) break;
   }
 
-  return (data ?? []).map((c: Record<string, unknown>) => ({
+  return rows.map((c) => ({
     ...c,
     workspace_data: Array.isArray(c.workspace_data)
       ? (c.workspace_data[0] ?? null)

@@ -187,19 +187,16 @@ export async function refreshHolidays(
   const years = [currentYear, currentYear + 1];
 
   // Never overwrite user-managed rows (added / corrected / disabled).
+  // supabase-js does NOT throw on query errors — it returns { error }. A
+  // try/catch here would be dead code, so check `error` explicitly and bail
+  // rather than proceed with an empty protected set (which would clobber the
+  // user's corrected/disabled holiday rows).
   const protectedDates = new Set<string>();
-  try {
-    const { data } = await admin
-      .from("id_holidays")
-      .select("date")
-      .eq("is_manual", true);
-    for (const row of data ?? []) {
-      if (typeof (row as { date?: string }).date === "string") {
-        protectedDates.add((row as { date: string }).date);
-      }
-    }
-  } catch {
-    // If we can't read the protected set, bail rather than risk clobbering.
+  const { data: protectedRows, error: protectedErr } = await admin
+    .from("id_holidays")
+    .select("date")
+    .eq("is_manual", true);
+  if (protectedErr) {
     return {
       ok: false,
       today_wib: today,
@@ -207,6 +204,11 @@ export async function refreshHolidays(
       protected_dates: 0,
       years: [],
     };
+  }
+  for (const row of protectedRows ?? []) {
+    if (typeof (row as { date?: string }).date === "string") {
+      protectedDates.add((row as { date: string }).date);
+    }
   }
 
   const summary: RefreshSummary["years"] = [];

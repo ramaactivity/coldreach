@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug, WORKSPACE_CACHE_TAG } from "@/lib/workspaces";
 import type { PipelineStage, CustomField } from "@/lib/workspace-constants";
 import type { SignatureData, SignatureSocial, SocialPlatform } from "@/lib/signature";
+import { encrypt } from "@/lib/crypto";
+import { verifySmtpImap } from "@/lib/imap-smtp";
 
 export async function disconnectGmail(slug: string, accountId: string) {
   const supabase = await createClient();
@@ -623,4 +625,97 @@ export async function updateCustomFieldsSchema(
   revalidatePath(`/w/${slug}/contacts`);
   updateTag(WORKSPACE_CACHE_TAG);
   return { ok: true };
+}
+
+// =============================================================================
+// SMTP/IMAP account connect (custom-domain mailbox, e.g. Hostinger)
+// =============================================================================
+
+const SmtpConnectSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Email tidak valid"),
+  password: z.string().min(1, "Password wajib diisi"),
+  display_name: z.string().trim().max(80).optional(),
+  smtp_host: z.string().trim().min(3),
+  smtp_port: z.coerce.number().int().min(1).max(65535),
+  imap_host: z.string().trim().min(3),
+  imap_port: z.coerce.number().int().min(1).max(65535),
+});
+
+export async function connectSmtpAccount(
+  slug: string,
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const workspace = await getWorkspaceBySlug(slug);
+  if (!workspace) return { error: "Workspace tidak ditemukan" };
+
+  const parsed = SmtpConnectSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) {
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      fieldErrors[issue.path[0] as string] = issue.message;
+    }
+    return { fieldErrors };
+  }
+  const { email, password, display_name, ...hosts } = parsed.data;
+
+  // Same 1-workspace-1-account rules as the Gmail OAuth callback.
+  const { data: byWorkspace } = await supabase
+    .from("email_accounts")
+    .select("id, email")
+    .eq("user_id", user.id)
+    .eq("workspace_id", workspace.id)
+    .maybeSingle();
+  if (byWorkspace && byWorkspace.email !== email) {
+    return {
+      error: `Workspace ini sudah punya ${byWorkspace.email}. Disconnect dulu.`,
+    };
+  }
+  const { data: byEmail } = await supabase
+    .from("email_accounts")
+    .select("id, workspace_id")
+    .eq("user_id", user.id)
+    .eq("email", email)
+    .maybeSingle();
+  if (byEmail?.workspace_id && byEmail.workspace_id !== workspace.id) {
+    return { error: `${email} sudah terhubung ke workspace lain.` };
+  }
+
+  try {
+    await verifySmtpImap(email, hosts, password);
+  } catch (err) {
+    return {
+      error: `Gagal login: ${err instanceof Error ? err.message : "unknown"}`,
+    };
+  }
+
+  const row = {
+    workspace_id: workspace.id,
+    display_name: display_name || null,
+    provider: "smtp",
+    smtp_config: { ...hosts, password_encrypted: encrypt(password) },
+    // OAuth columns are NOT NULL but unused for SMTP rows.
+    access_token_encrypted: "",
+    refresh_token_encrypted: "",
+    token_expires_at: "2099-12-31T00:00:00Z",
+    oauth_scope: null,
+    is_active: true,
+    health_status: "healthy",
+    health_notes: null,
+  };
+  const { error } = byEmail
+    ? await supabase.from("email_accounts").update(row).eq("id", byEmail.id)
+    : await supabase
+        .from("email_accounts")
+        .insert({ ...row, user_id: user.id, email, daily_quota: 30 });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/w/${slug}/settings`);
+  return { success: true };
 }

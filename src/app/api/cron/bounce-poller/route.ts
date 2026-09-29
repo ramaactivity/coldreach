@@ -4,7 +4,7 @@ import { pollBouncesForAccount } from "@/lib/bounce-detector";
 
 // Lowered from 60s default. With FETCH_CONCURRENCY=8 in bounce-detector,
 // pulling 50 message bodies in parallel finishes in seconds rather than ~35s.
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // Bounces are scanned via Gmail's `newer_than:7d` filter. Anything older
 // won't show up — so don't bother polling accounts that haven't sent in
@@ -39,17 +39,25 @@ export async function GET(request: NextRequest) {
   const { data: accounts } = await admin
     .from("email_accounts")
     .select(
-      "id, user_id, email, access_token_encrypted, refresh_token_encrypted, token_expires_at, last_used_at",
+      "id, user_id, workspace_id, email, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider, smtp_config, last_used_at",
     )
     .eq("is_active", true)
     .not("last_used_at", "is", null)
     .gte("last_used_at", activityCutoff);
 
-  const results = [];
-  for (const account of accounts ?? []) {
-    const r = await pollBouncesForAccount(admin, account);
-    results.push(r);
-  }
+  // Accounts are independent (own mailbox, own Gmail quota) — run them in
+  // parallel. Sequentially, the last accounts were cut off by the function
+  // timeout and never had their bounces recorded.
+  // ?days=N widens the Gmail window once, to catch up after downtime.
+  const days = Math.min(
+    7,
+    Math.max(1, Number(request.nextUrl.searchParams.get("days")) || 2),
+  );
+  const results = await Promise.all(
+    (accounts ?? []).map((account) =>
+      pollBouncesForAccount(admin, account, days),
+    ),
+  );
 
   return NextResponse.json({
     ok: true,

@@ -76,20 +76,42 @@ export type ScrapeResult = {
 
 const PRIVATE_HOST = /^(localhost|.*\.local|.*\.internal)$/i;
 
+function isPrivateIpv4(h: string): boolean {
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (!m) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  if (a === 10 || a === 127 || a === 0) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64.0.0/10
+  if (a === 198 && (b === 18 || b === 19)) return true; // benchmark 198.18.0.0/15
+  return false;
+}
+
 function isPrivateHost(hostname: string): boolean {
   const h = hostname.toLowerCase().replace(/^\[|\]$/g, "");
   if (PRIVATE_HOST.test(h)) return true;
   if (h === "::1" || h.startsWith("fe80:") || h.startsWith("fc") || h.startsWith("fd"))
     return true;
-  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
-  if (m) {
-    const [a, b] = [Number(m[1]), Number(m[2])];
-    if (a === 10 || a === 127 || a === 0) return true;
-    if (a === 169 && b === 254) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
+  // IPv4-mapped IPv6 (::ffff:10.0.0.1)
+  const mapped = h.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (mapped) return isPrivateIpv4(mapped[1]);
+  return isPrivateIpv4(h);
+}
+
+/** Resolve the hostname and reject names that point at private/internal IPs
+ *  (SSRF via DNS — a public-looking name resolving to 169.254.169.254 etc). */
+async function resolvesToPrivateIp(hostname: string): Promise<boolean> {
+  // Literal IPs are already handled by isPrivateHost.
+  if (/^[\d.]+$/.test(hostname) || hostname.includes(":")) return false;
+  try {
+    const { lookup } = await import("node:dns/promises");
+    const addrs = await lookup(hostname, { all: true, verbatim: true });
+    return addrs.some((a) => isPrivateHost(a.address));
+  } catch {
+    return true; // unresolvable → treat as unsafe (fetch would fail anyway)
   }
-  return false;
 }
 
 export function normalizeUrl(input: string): URL | null {
@@ -156,29 +178,50 @@ async function readBody(res: Response): Promise<string> {
   }
 }
 
-/** Fetch a URL as text. `htmlOnly` rejects non-HTML responses (used for pages). */
+const MAX_REDIRECTS = 5;
+
+/** Fetch a URL as text. `htmlOnly` rejects non-HTML responses (used for pages).
+ *  Redirects are followed manually so every hop is re-validated against the
+ *  SSRF guard — `redirect: "follow"` would happily hop to 169.254.169.254. */
 async function rawFetch(
   url: string,
   signal: AbortSignal,
   htmlOnly: boolean,
 ): Promise<string | null> {
-  let res: Response;
+  let res: Response | null = null;
+  let current = url;
   try {
-    res = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      signal,
-      headers: {
-        ...BROWSER_HEADERS,
-        Accept: htmlOnly
-          ? "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-          : "*/*",
-      },
-      cache: "no-store",
-    });
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const target = new URL(current);
+      if (target.protocol !== "https:" && target.protocol !== "http:") return null;
+      if (isPrivateHost(target.hostname)) return null;
+      if (await resolvesToPrivateIp(target.hostname)) return null;
+
+      res = await fetch(current, {
+        method: "GET",
+        redirect: "manual",
+        signal,
+        headers: {
+          ...BROWSER_HEADERS,
+          Accept: htmlOnly
+            ? "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            : "*/*",
+        },
+        cache: "no-store",
+      });
+
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get("location");
+        if (!loc || hop === MAX_REDIRECTS) return null;
+        current = new URL(loc, current).toString();
+        continue;
+      }
+      break;
+    }
   } catch {
     return null;
   }
+  if (!res) return null;
   if (!res.ok) {
     if (res.status === 403 || res.status === 429 || res.status === 503)
       throw new BlockedError();
@@ -272,8 +315,8 @@ function decodeEntities(s: string): string {
     .replace(/&amp;/gi, "&");
 }
 function safeChar(code: number): string {
-  return Number.isFinite(code) && code > 0 && code < 0x10ffff
-    ? String.fromCharCode(code)
+  return Number.isFinite(code) && code > 0 && code <= 0x10ffff
+    ? String.fromCodePoint(code)
     : "";
 }
 function stripCode(html: string): string {
@@ -509,7 +552,9 @@ export function extractSocials(html: string): ScrapedSocials {
 function extractTitle(html: string): string | undefined {
   const m = html.match(/<title[^>]*>([^<]+)<\/title>/i);
   if (!m) return undefined;
-  return decodeEntities(m[1]).trim().split(/[|·–—-]/)[0].trim() || undefined;
+  // Split only on separator chars flanked by whitespace so hyphenated brand
+  // names ("Astra-Honda Motor") don't get truncated to their first word.
+  return decodeEntities(m[1]).trim().split(/\s+[|·–—-]\s+|\s*[|]\s*/)[0].trim() || undefined;
 }
 
 function extractOrgName(html: string): string | undefined {

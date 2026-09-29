@@ -28,9 +28,13 @@ export function WorkspaceShell({
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
-  useEffect(() => {
+  // Close the drawer when the route changes (adjust-state-during-render
+  // pattern — avoids a cascading render from setState inside an effect).
+  const [prevPathname, setPrevPathname] = useState(pathname);
+  if (pathname !== prevPathname) {
+    setPrevPathname(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   // Lock body scroll while drawer is open on mobile
   useEffect(() => {

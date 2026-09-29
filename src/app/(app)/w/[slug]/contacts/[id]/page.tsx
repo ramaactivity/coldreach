@@ -103,6 +103,7 @@ export default async function ContactDetailPage({
 
   const archiveReasonLabels: Record<string, string> = {
     hard_bounce: "Email tidak ditemukan (hard bounce)",
+    soft_bounce: "Gagal terkirim (sementara/lainnya) — auto-archived",
     soft_bounce_threshold: "Soft bounce 3x — auto-archived",
     domain_blocked: "Domain di-block (banyak hard bounce)",
     manual: "Di-archive manual oleh kamu",

@@ -20,9 +20,10 @@ type EmailIndex = {
   altsToContact: Map<string, string>;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
 async function loadExistingEmailIndex(
-  supabase: any,
+  supabase: Supabase,
   userId: string,
 ): Promise<EmailIndex> {
   const { data } = await supabase

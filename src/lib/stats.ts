@@ -122,7 +122,7 @@ export async function getWorkspaceStats(
       .select("id", { count: "exact", head: true })
       .eq("workspace_id", workspaceId)
       .gte("created_at", weekAgo)
-      .in("status", ["sending", "sent", "opened", "replied"]),
+      .in("status", ["sending", "sent", "opened", "replied", "bounced"]),
     // Open rate counts only human-confirmed opens (human_opened_at), not raw
     // pixel hits — machine scanners / MPP prefetch fire within ~60s of send
     // and would otherwise inflate this 5-10x. See lib/open-classifier.ts.
@@ -175,6 +175,7 @@ export async function getWorkspaceStats(
       .select("daily_quota, emails_sent_today, warmup_mode, warmup_started_at")
       .eq("workspace_id", workspaceId)
       .eq("is_active", true)
+      .limit(1)
       .maybeSingle(),
   ]);
 

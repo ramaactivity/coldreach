@@ -7,8 +7,14 @@ import {
 } from "@/lib/signature";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken, refreshAccessToken } from "@/lib/gmail";
-import { plainToHtml, renderPreview } from "@/lib/template-helpers";
+import {
+  displayCompany,
+  displayPersonName,
+  plainToHtml,
+  renderPreview,
+} from "@/lib/template-helpers";
 import { buildClickTrackingHref } from "@/lib/click-tracking";
+import { sendRawViaSmtp, type SmtpConfig } from "@/lib/imap-smtp";
 
 export type EmailContact = {
   id: string;
@@ -40,6 +46,9 @@ export type EmailAccount = {
   access_token_encrypted: string;
   refresh_token_encrypted: string;
   token_expires_at: string;
+  /** 'smtp' = custom-domain mailbox (SMTP send). Missing = gmail. */
+  provider?: string | null;
+  smtp_config?: SmtpConfig | null;
 };
 
 export type SendResult = {
@@ -57,12 +66,16 @@ function buildContactValues(
   contact: EmailContact,
   aiOpener: string | null,
 ): Record<string, string> {
+  // Names/companies come from scraped/imported data ("INTI CAKRAWALA CITRA,
+  // PT"); render them the way a person would type them.
+  const first = displayPersonName(contact.first_name);
+  const last = displayPersonName(contact.last_name);
   return {
-    first_name: contact.first_name ?? "",
-    last_name: contact.last_name ?? "",
-    full_name: [contact.first_name, contact.last_name].filter(Boolean).join(" "),
+    first_name: first,
+    last_name: last,
+    full_name: [first, last].filter(Boolean).join(" "),
     email: contact.email,
-    company: contact.company ?? "",
+    company: displayCompany(contact.company),
     position: contact.position ?? "",
     ai_opener: aiOpener ?? "",
   };
@@ -85,18 +98,31 @@ function buildTrackingPixelHtml(trackingUrl: string | null): string {
   return `<img src="${trackingUrl}" width="1" height="1" alt="" border="0" style="display:block;border:0;outline:none;text-decoration:none;height:1px;width:1px;" />`;
 }
 
-function buildUnsubscribeFooterHtml(unsubscribeUrl: string | null): string {
+const UNSUBSCRIBE_COPY = {
+  id: { prompt: "Tidak ingin menerima email seperti ini lagi?", link: "Berhenti berlangganan" },
+  en: { prompt: "Don't want to receive these emails?", link: "Unsubscribe" },
+} as const;
+
+function buildUnsubscribeFooterHtml(
+  unsubscribeUrl: string | null,
+  language: "id" | "en",
+): string {
   if (!unsubscribeUrl) return "";
+  const copy = UNSUBSCRIBE_COPY[language];
   return `
 <div style="margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:11px;line-height:1.4;color:#6b7280;font-family:-apple-system,system-ui,sans-serif;">
-  Don't want to receive these emails?
-  <a href="${unsubscribeUrl}" style="color:#6b7280;text-decoration:underline;">Unsubscribe</a>
+  ${copy.prompt}
+  <a href="${unsubscribeUrl}" style="color:#6b7280;text-decoration:underline;">${copy.link}</a>
 </div>`;
 }
 
-function buildUnsubscribeFooterPlain(unsubscribeUrl: string | null): string {
+function buildUnsubscribeFooterPlain(
+  unsubscribeUrl: string | null,
+  language: "id" | "en",
+): string {
   if (!unsubscribeUrl) return "";
-  return `\n\n--\nDon't want to receive these emails? Unsubscribe: ${unsubscribeUrl}`;
+  const copy = UNSUBSCRIBE_COPY[language];
+  return `\n\n--\n${copy.prompt} ${copy.link}: ${unsubscribeUrl}`;
 }
 
 /**
@@ -148,12 +174,15 @@ function buildMimeMessage(
    *  hyperlinked unsubscribe, but no open pixel, no link rewriting, no logo.
    *  Far better inbox (Primary tab) placement for cold outreach. */
   coldMode: boolean,
+  /** RFC 2822 Message-ID (with angle brackets) to stamp on this message. */
+  messageId: string,
+  /** Language of the footer copy — matches the body. */
+  language: "id" | "en",
 ): string {
   const fromHeader = fromName
     ? `${encodeRFC2047(fromName)} <${fromEmail}>`
     : fromEmail;
   const subjectHeader = encodeRFC2047(subject);
-  const messageId = `<${Date.now()}.${Math.random().toString(36).slice(2)}@coldreach>`;
 
   const baseHeaders = [
     `From: ${fromHeader}`,
@@ -181,7 +210,7 @@ function buildMimeMessage(
   }
 
   const bodyPlainWithFooter =
-    bodyPlain + buildUnsubscribeFooterPlain(unsubscribeUrl);
+    bodyPlain + buildUnsubscribeFooterPlain(unsubscribeUrl, language);
 
   // The content section. Cold mode → a single text/plain part (no HTML, no
   // pixel, no link rewriting) so the email reads like a person typed it.
@@ -196,7 +225,7 @@ function buildMimeMessage(
     // Strip the appended plain-text signature from the body and render the
     // clean light HTML signature instead — so links show as tidy anchor text
     // ("Website" / "WhatsApp" / "Instagram") rather than raw URLs.
-    const coldBodyHtml = `${plainToHtml(stripPlainSignature(bodyPlain))}${lightSignatureHtml}${buildUnsubscribeFooterHtml(unsubscribeUrl)}`;
+    const coldBodyHtml = `${plainToHtml(stripPlainSignature(bodyPlain))}${lightSignatureHtml}${buildUnsubscribeFooterHtml(unsubscribeUrl, language)}`;
     const altBoundary = `----coldreach-alt-${Date.now().toString(36)}`;
     contentPart = [
       `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
@@ -205,7 +234,10 @@ function buildMimeMessage(
       `Content-Type: text/plain; charset="UTF-8"`,
       `Content-Transfer-Encoding: quoted-printable`,
       "",
-      quotedPrintable(bodyPlain),
+      // Append the unsubscribe line so plain-text-only clients still get a
+      // working opt-out (compliance + deliverability) — the HTML part has the
+      // hyperlinked version.
+      quotedPrintable(bodyPlainWithFooter),
       "",
       `--${altBoundary}`,
       `Content-Type: text/html; charset="UTF-8"`,
@@ -223,7 +255,7 @@ function buildMimeMessage(
     const linkWrapper = clickTrackingBase
       ? (url: string) => buildClickTrackingHref(clickTrackingBase, url)
       : undefined;
-    const bodyHtml = `${plainToHtml(stripPlainSignature(bodyPlain), linkWrapper)}${signatureHtml}${buildUnsubscribeFooterHtml(unsubscribeUrl)}${buildTrackingPixelHtml(trackingUrl)}`;
+    const bodyHtml = `${plainToHtml(stripPlainSignature(bodyPlain), linkWrapper)}${signatureHtml}${buildUnsubscribeFooterHtml(unsubscribeUrl, language)}${buildTrackingPixelHtml(trackingUrl)}`;
     const altBoundary = `----coldreach-alt-${Date.now().toString(36)}`;
     contentPart = [
       `Content-Type: multipart/alternative; boundary="${altBoundary}"`,
@@ -414,10 +446,6 @@ export async function sendEmail(
   } = params;
 
   try {
-    const accessToken = await ensureFreshToken(supabase, account);
-    const oauth = new google.auth.OAuth2();
-    oauth.setCredentials({ access_token: accessToken });
-
     // Render variables
     const values = buildContactValues(contact, aiOpener);
     // Subject pool follows the same language as the body. Falls back to the
@@ -480,6 +508,16 @@ export async function sendEmail(
       }
     }
 
+    // RFC 2822 Message-ID — domain is the sender's real domain (some spam
+    // filters score a bogus Message-ID host). This exact value is returned as
+    // gmail_message_id so a later follow-up's In-Reply-To/References thread
+    // against it (Gmail's API message id would NOT thread in the recipient's
+    // client).
+    const senderDomain = account.email.split("@")[1] || "coldreach.app";
+    const messageId = `<${Date.now()}.${Math.random()
+      .toString(36)
+      .slice(2)}@${senderDomain}>`;
+
     // Build MIME. In cold mode the pixel + click-tracking base are dropped
     // entirely (passed as null) so no tracking artifacts leak into the
     // plain-text body — the metrics still work via reply/bounce detection.
@@ -497,7 +535,26 @@ export async function sendEmail(
       sigHtml,
       sigLightHtml,
       coldMode,
+      messageId,
+      language === "en" ? "en" : "id",
     );
+
+    if (account.provider === "smtp" && account.smtp_config) {
+      await sendRawViaSmtp(account.email, account.smtp_config, contact.email, mime);
+      return {
+        ok: true,
+        gmail_message_id: messageId,
+        // No server-side thread id outside Gmail: the thread key is the
+        // first message's Message-ID, which follow-ups keep passing back.
+        gmail_thread_id: gmailThreadId || messageId,
+        subject_used: subject,
+        subject_index: picked.index,
+      };
+    }
+
+    const accessToken = await ensureFreshToken(supabase, account);
+    const oauth = new google.auth.OAuth2();
+    oauth.setCredentials({ access_token: accessToken });
 
     // Encode as base64url
     const raw = Buffer.from(mime, "utf8")
@@ -515,9 +572,31 @@ export async function sendEmail(
         : { raw },
     });
 
+    // Gmail replaces the Message-ID we stamp with its own
+    // (<…@mail.gmail.com>), so read back the one the recipient actually got —
+    // follow-ups put it in In-Reply-To/References, and a made-up id there
+    // makes Outlook show the follow-up as a brand-new email.
+    let sentMessageId = messageId;
+    if (result.data.id) {
+      try {
+        const sent = await gmail.users.messages.get({
+          userId: "me",
+          id: result.data.id,
+          format: "metadata",
+          metadataHeaders: ["Message-ID"],
+        });
+        sentMessageId =
+          sent.data.payload?.headers?.find(
+            (h) => h.name?.toLowerCase() === "message-id",
+          )?.value ?? messageId;
+      } catch {
+        // Best-effort: the send itself succeeded.
+      }
+    }
+
     return {
       ok: true,
-      gmail_message_id: result.data.id ?? "",
+      gmail_message_id: sentMessageId,
       gmail_thread_id: result.data.threadId ?? "",
       subject_used: subject,
       subject_index: picked.index,

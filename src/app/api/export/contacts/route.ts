@@ -117,12 +117,16 @@ export async function GET(request: NextRequest) {
 
   const csv = buildCsv(HEADERS, rows);
 
-  // Build filename: workspace-slug + filter hint + date
+  // Build filename: workspace-slug + filter hint + date. `stage`/`tag` are
+  // attacker-controllable, so strip everything but safe filename chars before
+  // interpolating into the Content-Disposition header (defense-in-depth
+  // against header injection even though the runtime also strips CR/LF).
+  const safe = (v: string) => v.replace(/[^a-zA-Z0-9._-]/g, "").slice(0, 40);
   const date = new Date().toISOString().slice(0, 10);
   const filterParts: string[] = [];
-  if (sp.get("segment")) filterParts.push(sp.get("segment") as string);
-  if (sp.get("stage")) filterParts.push(`stage-${sp.get("stage")}`);
-  if (sp.get("tag")) filterParts.push(`tag-${sp.get("tag")}`);
+  if (sp.get("segment")) filterParts.push(safe(sp.get("segment") as string));
+  if (sp.get("stage")) filterParts.push(`stage-${safe(sp.get("stage") as string)}`);
+  if (sp.get("tag")) filterParts.push(`tag-${safe(sp.get("tag") as string)}`);
   if (sp.get("q")) filterParts.push("search");
   const filterStr = filterParts.length > 0 ? `-${filterParts.join("-")}` : "";
   const filename = `coldreach-${workspace.slug}${filterStr}-${date}.csv`;

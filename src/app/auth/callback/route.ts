@@ -9,7 +9,13 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const redirectTo = searchParams.get("redirect") ?? "/dashboard";
+  // Only allow same-origin relative paths — "https://evil.com" and
+  // protocol-relative "//evil.com" would otherwise become open redirects.
+  const rawRedirect = searchParams.get("redirect") ?? "";
+  const redirectTo =
+    rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "/dashboard";
   const error = searchParams.get("error");
   const errorDescription = searchParams.get("error_description");
 

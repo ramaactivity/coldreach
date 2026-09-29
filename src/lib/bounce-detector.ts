@@ -1,11 +1,22 @@
 import { google, type gmail_v1 } from "googleapis";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptToken, encryptToken, refreshAccessToken } from "@/lib/gmail";
+import { fetchRecentInbox, type SmtpConfig } from "@/lib/imap-smtp";
 
 // Gmail search filter for bounce / DSN messages. Covers Google, Microsoft
 // Office 365, and most SMTP-RFC-3464 bounce flavours we've seen in the wild.
-const BOUNCE_QUERY =
-  "(from:mailer-daemon OR from:postmaster OR subject:(undeliverable OR undelivered OR \"address not found\" OR \"delivery status\" OR \"failure notice\" OR \"returned mail\" OR \"message blocked\" OR \"spam\")) newer_than:7d in:inbox";
+// Note: no bare "spam" subject term — it matches ordinary human mail that
+// merely mentions spam (e.g. "your email went to my spam folder") and would
+// wrongly hard-bounce a live contact. Real spam-block DSNs are caught by
+// "message blocked" + the mailer-daemon/postmaster senders.
+// MDaemon and gateway quarantine notices (e.g. "Email has been quarantined"
+// from noreply@) don't come from mailer-daemon/postmaster, hence the extras.
+const BOUNCE_FILTER =
+  "(from:mailer-daemon OR from:postmaster OR from:mdaemon OR subject:(undeliverable OR undelivered OR quarantined OR \"address not found\" OR \"delivery status\" OR \"delivery incomplete\" OR \"delivery has failed\" OR \"failure notice\" OR \"returned mail\" OR \"message blocked\" OR \"not delivered\" OR \"couldn't be delivered\" OR \"could not be delivered\")) in:inbox";
+// Routine window. The poller runs every 30 min and a processed bounce is
+// never re-matched, so re-reading a whole week each run only burned the
+// function's time budget. Pass a longer window to catch up after downtime.
+export const DEFAULT_BOUNCE_WINDOW_DAYS = 2;
 
 const MAX_BOUNCES_PER_RUN = 50;
 const BOUNCE_LOOKBACK_DAYS = 7;
@@ -13,8 +24,6 @@ const BOUNCE_LOOKBACK_DAYS = 7;
 // I/O-bound, so concurrency near-linearly cuts wall-clock — and therefore
 // Vercel's Provisioned Memory bill. Gmail per-user quota easily absorbs 8.
 const FETCH_CONCURRENCY = 8;
-// After this many soft bounces, treat the contact as effectively bounced.
-const SOFT_BOUNCE_THRESHOLD = 3;
 // If this many contacts at the same domain hard-bounce within the lookback,
 // AND the bounce rate at that domain crosses DOMAIN_BLOCK_RATE, auto-archive
 // every other contact at that domain too.
@@ -109,6 +118,8 @@ type EmailAccountRow = {
   id: string;
   user_id: string;
   email: string;
+  provider?: string | null;
+  smtp_config?: SmtpConfig | null;
   access_token_encrypted: string;
   refresh_token_encrypted: string;
   token_expires_at: string;
@@ -128,6 +139,15 @@ export type BouncePollResult = {
 };
 
 type BounceType = "hard" | "soft" | "block" | "spam";
+
+type BounceMessage = {
+  id: string;
+  subject: string;
+  body: string;
+  /** Values to match against campaign_recipients.gmail_thread_id. */
+  threadIds: string[];
+};
+type FetchedBounce = BounceMessage | { id: string; error: string };
 
 async function getFreshToken(
   admin: SupabaseClient,
@@ -229,9 +249,9 @@ function classifyBounce(subject: string, body: string): BounceType {
     return "spam";
   }
 
-  // Active blocks (policy / sender reputation / blacklist)
+  // Active blocks (policy / sender reputation / blacklist / quarantine)
   if (
-    /\b(message blocked|blocked due to|policy violation|550[ -]5\.7|access denied|blacklisted|recipient rejected by .* policy)\b/.test(
+    /\b(message blocked|blocked due to|policy violation|5\d\d[ -]5\.7\.\d|access denied|blacklisted|recipient rejected by .* policy|quarantined|connection refused|only accepts messages from people in its organi[sz]ation|allowed senders list)\b/.test(
       blob,
     )
   ) {
@@ -240,18 +260,23 @@ function classifyBounce(subject: string, body: string): BounceType {
 
   // Hard bounces — recipient definitely doesn't exist
   if (
-    /\b(address not found|user unknown|no such user|recipient not found|does not exist|invalid recipient|no mailbox|address rejected|account that you tried to reach does not exist|550[ -]5\.1\.1)\b/.test(
+    /\b(address not found|user unknown|no such user|recipient not found|does not exist|invalid recipient|no mailbox|address rejected|account that you tried to reach does not exist|550[ -]5\.1\.1|couldn't be delivered|could not be delivered)\b/.test(
       blob,
     )
   ) {
     return "hard";
   }
 
-  // Soft / deferred: temporary problems
+  // Soft / deferred: temporary problems. SMTP reply codes (451/452/421) must
+  // appear as standalone codes (leading whitespace + trailing space/dash/colon)
+  // so version strings and incidental numbers in a quoted body don't match; the
+  // enhanced status form 4.x.x is already specific enough on its own.
   if (
-    /\b(mailbox full|over quota|temporarily (deferred|unavailable)|try again later|greylisted|451|452|421|4\.\d\.\d)\b/.test(
+    /\b(mailbox full|over quota|temporarily (deferred|unavailable)|try again later|greylisted)\b/.test(
       blob,
-    )
+    ) ||
+    /4\.\d\.\d/.test(blob) ||
+    /(?:^|\s)(?:451|452|421)(?:[ \-:]|$)/.test(blob)
   ) {
     return "soft";
   }
@@ -262,8 +287,9 @@ function classifyBounce(subject: string, body: string): BounceType {
   // Google "Address not found" subject
   if (/\baddress not found\b/.test(blob)) return "hard";
 
-  // Default to hard so we err on the side of suppressing
-  return "hard";
+  // Ambiguous DSN → "soft". Every type suppresses the address; the label
+  // only matters for the domain-block check, which counts hard bounces.
+  return "soft";
 }
 
 function domainOf(email: string): string {
@@ -381,6 +407,7 @@ async function maybeBlockDomain(
 export async function pollBouncesForAccount(
   admin: SupabaseClient,
   account: EmailAccountRow,
+  windowDays: number = DEFAULT_BOUNCE_WINDOW_DAYS,
 ): Promise<BouncePollResult> {
   const result: BouncePollResult = {
     account_email: account.email,
@@ -395,36 +422,17 @@ export async function pollBouncesForAccount(
     errors: [],
   };
 
-  let accessToken: string;
+  let fetched: FetchedBounce[];
   try {
-    accessToken = await getFreshToken(admin, account);
+    fetched =
+      account.provider === "smtp" && account.smtp_config
+        ? await fetchImapBounces(account.email, account.smtp_config, windowDays)
+        : await fetchGmailBounces(admin, account, windowDays);
   } catch (err) {
-    result.errors.push(
-      `Token refresh: ${err instanceof Error ? err.message : "unknown"}`,
-    );
+    result.errors.push(err instanceof Error ? err.message : "unknown");
     return result;
   }
-
-  const oauth = new google.auth.OAuth2();
-  oauth.setCredentials({ access_token: accessToken });
-  const gmail = google.gmail({ version: "v1", auth: oauth });
-
-  let messageList;
-  try {
-    messageList = await gmail.users.messages.list({
-      userId: "me",
-      q: BOUNCE_QUERY,
-      maxResults: MAX_BOUNCES_PER_RUN,
-    });
-  } catch (err) {
-    result.errors.push(
-      `messages.list: ${err instanceof Error ? err.message : "unknown"}`,
-    );
-    return result;
-  }
-
-  const messages = messageList.data.messages ?? [];
-  if (messages.length === 0) return result;
+  if (fetched.length === 0) return result;
 
   const cutoffIso = new Date(
     Date.now() - BOUNCE_LOOKBACK_DAYS * 24 * 3600 * 1000,
@@ -436,56 +444,15 @@ export async function pollBouncesForAccount(
   // Contact ids freshly archived this run — used for queue cleanup batch.
   const archivedContactIds = new Set<string>();
 
-  // Prefetch all bounce message bodies in parallel. Without this, the
-  // outer for-loop awaited each Gmail get sequentially — 50 × ~700ms = 35s
-  // of wall-clock just to read the inbox, which Vercel bills as provisioned
-  // memory the whole time.
-  type FetchedMessage = {
-    id: string;
-    full: { data: gmail_v1.Schema$Message } | null;
-    error: string | null;
-  };
-  const fetched: FetchedMessage[] = [];
-  for (let i = 0; i < messages.length; i += FETCH_CONCURRENCY) {
-    const batch = messages.slice(i, i + FETCH_CONCURRENCY);
-    const batchResults = await Promise.all(
-      batch.map(async (m): Promise<FetchedMessage | null> => {
-        if (!m.id) return null;
-        try {
-          const full = await gmail.users.messages.get({
-            userId: "me",
-            id: m.id,
-            format: "full",
-          });
-          return { id: m.id, full, error: null };
-        } catch (err) {
-          return {
-            id: m.id,
-            full: null,
-            error: err instanceof Error ? err.message : "unknown",
-          };
-        }
-      }),
-    );
-    for (const r of batchResults) if (r) fetched.push(r);
-  }
-
   for (const f of fetched) {
     result.scanned++;
-    if (f.error || !f.full) {
-      if (f.error) {
-        result.errors.push(`messages.get ${f.id}: ${f.error}`);
-      }
+    if ("error" in f) {
+      result.errors.push(`messages.get ${f.id}: ${f.error}`);
       continue;
     }
-    const full = f.full;
     const m = { id: f.id };
-
-    const subject = extractHeaderValue(
-      full.data.payload?.headers ?? undefined,
-      "Subject",
-    );
-    const body = extractMessageText(full.data.payload);
+    const { subject, body } = f;
+    const threadId = f.threadIds[0] ?? null;
     if (!body) {
       // Diagnostic — most-likely-cause: image-only DSN we can't parse
       await admin.from("activity_log").insert({
@@ -496,7 +463,7 @@ export async function pollBouncesForAccount(
         metadata: {
           reason: "empty_body",
           subject: subject.slice(0, 200),
-          gmail_thread_id: full.data.threadId,
+          gmail_thread_id: threadId,
         },
       });
       continue;
@@ -504,7 +471,6 @@ export async function pollBouncesForAccount(
 
     const bounceType = classifyBounce(subject, body);
     const bouncedEmails = extractBouncedEmails(body, account.email);
-    const threadId = full.data.threadId ?? null;
 
     // Strategy 1 (most reliable): Gmail threads bounces back into the same
     // thread as the original outgoing message. If we have a campaign_recipient
@@ -518,12 +484,12 @@ export async function pollBouncesForAccount(
     };
     let hits: Hit[] | null = null;
 
-    if (threadId) {
+    if (f.threadIds.length > 0) {
       const { data: byThread } = await admin
         .from("campaign_recipients")
         .select("id, contact_id, contact_email, workspace_id, status")
         .eq("user_id", account.user_id)
-        .eq("gmail_thread_id", threadId)
+        .in("gmail_thread_id", f.threadIds)
         .in("status", ["sending", "sent", "opened", "replied"]);
       if (byThread && byThread.length > 0) {
         hits = byThread as Hit[];
@@ -637,9 +603,13 @@ export async function pollBouncesForAccount(
       } else if (bounceType === "spam") {
         nextStatus = "blocked";
         archiveReason = "spam_complaint";
-      } else if (bounceType === "soft" && newCount >= SOFT_BOUNCE_THRESHOLD) {
+      } else {
+        // Soft/deferred too: any failed delivery ends outreach to this
+        // address in every workspace (owner's rule, 2026-09-29). Cold
+        // outreach loses little by dropping one address; retrying a dead
+        // one from another workspace costs reputation.
         nextStatus = "bounced";
-        archiveReason = "soft_bounce_threshold";
+        archiveReason = "soft_bounce";
       }
 
       const contactUpdate: Record<string, unknown> = {
@@ -709,4 +679,109 @@ export async function pollBouncesForAccount(
   }
 
   return result;
+}
+
+async function fetchGmailBounces(
+  admin: SupabaseClient,
+  account: EmailAccountRow,
+  windowDays: number,
+): Promise<FetchedBounce[]> {
+  let accessToken: string;
+  try {
+    accessToken = await getFreshToken(admin, account);
+  } catch (err) {
+    throw new Error(`Token refresh: ${err instanceof Error ? err.message : "unknown"}`);
+  }
+
+  const oauth = new google.auth.OAuth2();
+  oauth.setCredentials({ access_token: accessToken });
+  const gmail = google.gmail({ version: "v1", auth: oauth });
+
+  let messageList;
+  try {
+    messageList = await gmail.users.messages.list({
+      userId: "me",
+      q: `${BOUNCE_FILTER} newer_than:${windowDays}d`,
+      maxResults: MAX_BOUNCES_PER_RUN,
+    });
+  } catch (err) {
+    throw new Error(`messages.list: ${err instanceof Error ? err.message : "unknown"}`);
+  }
+  const messages = messageList.data.messages ?? [];
+
+  // Prefetch all bounce message bodies in parallel. Without this, the
+  // outer for-loop awaited each Gmail get sequentially — 50 × ~700ms = 35s
+  // of wall-clock just to read the inbox, which Vercel bills as provisioned
+  // memory the whole time.
+  const fetched: FetchedBounce[] = [];
+  for (let i = 0; i < messages.length; i += FETCH_CONCURRENCY) {
+    const batch = messages.slice(i, i + FETCH_CONCURRENCY);
+    const batchResults = await Promise.all(
+      batch.map(async (m): Promise<FetchedBounce | null> => {
+        if (!m.id) return null;
+        try {
+          const full: { data: gmail_v1.Schema$Message } =
+            await gmail.users.messages.get({
+              userId: "me",
+              id: m.id,
+              format: "full",
+            });
+          return {
+            id: m.id,
+            subject: extractHeaderValue(
+              full.data.payload?.headers ?? undefined,
+              "Subject",
+            ),
+            // To/Cc too: quarantine notices are often addressed to both
+            // sides and name the recipient only in the header.
+            body: [
+              extractMessageText(full.data.payload),
+              extractHeaderValue(full.data.payload?.headers ?? undefined, "To"),
+              extractHeaderValue(full.data.payload?.headers ?? undefined, "Cc"),
+            ].join("\n"),
+            threadIds: full.data.threadId ? [full.data.threadId] : [],
+          };
+        } catch (err) {
+          return { id: m.id, error: err instanceof Error ? err.message : "unknown" };
+        }
+      }),
+    );
+    for (const r of batchResults) if (r) fetched.push(r);
+  }
+  return fetched;
+}
+
+const DSN_SENDER_RX = /^(mailer-daemon|postmaster|mailerdaemon|mdaemon)@/i;
+const DSN_SUBJECT_RX =
+  /undeliverable|undelivered|quarantined|address not found|delivery status|delivery incomplete|delivery has failed|failure notice|returned mail|message blocked|mail delivery failed|not delivered|couldn't be delivered|could not be delivered|tidak terkirim/i;
+
+/**
+ * IMAP variant of the Gmail BOUNCE_FILTER. The DSN quotes the original
+ * headers, so every <Message-ID> we stamped (@sender-domain) that appears in
+ * its source is a candidate thread key — the first-touch id is the thread
+ * key, and follow-ups carry it in References.
+ */
+async function fetchImapBounces(
+  email: string,
+  cfg: SmtpConfig,
+  windowDays: number,
+): Promise<FetchedBounce[]> {
+  const inbox = await fetchRecentInbox(email, cfg, windowDays);
+  const domain = email.split("@")[1]?.toLowerCase() ?? "";
+  const idRx = /<[^<>\s]+@([^<>\s]+)>/g;
+  return inbox
+    .filter((m) => DSN_SENDER_RX.test(m.from) || DSN_SUBJECT_RX.test(m.subject))
+    .slice(-MAX_BOUNCES_PER_RUN)
+    .map((m) => ({
+      id: `imap:${m.uid}`,
+      subject: m.subject,
+      body: `${m.text}\n${m.raw}`,
+      threadIds: Array.from(
+        new Set(
+          Array.from(m.raw.matchAll(idRx))
+            .filter((x) => x[1].toLowerCase() === domain)
+            .map((x) => x[0]),
+        ),
+      ),
+    }));
 }

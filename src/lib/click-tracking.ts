@@ -12,8 +12,14 @@ import crypto from "node:crypto";
 const SIG_LEN = 16;
 
 function getSecret(): string {
-  const secret =
-    process.env.ENCRYPTION_KEY ?? process.env.CRON_SECRET ?? "coldreach-dev";
+  const secret = process.env.ENCRYPTION_KEY ?? process.env.CRON_SECRET;
+  if (!secret) {
+    // Fail loudly: a guessable fallback would let anyone mint valid
+    // signatures and turn /api/track/click into an open redirect.
+    throw new Error(
+      "click-tracking: ENCRYPTION_KEY or CRON_SECRET must be set",
+    );
+  }
   return secret;
 }
 

@@ -149,10 +149,17 @@ export function CreateCampaignForm({
             description="Kirim di waktu tertentu (cth: Senin 09:00)."
             extra={
               <div className="mt-2.5 space-y-2">
+                {/* Stamp the WIB offset so the picked wall-clock time is
+                    interpreted as Asia/Jakarta, not the server's UTC — a naive
+                    string parsed server-side would send 7h late. */}
                 <input
                   type="hidden"
                   name="scheduled_start_at"
-                  value={`${scheduledDate}T${scheduledTime}`}
+                  value={
+                    scheduledDate && scheduledTime
+                      ? `${scheduledDate}T${scheduledTime}:00+07:00`
+                      : ""
+                  }
                 />
                 <DatePicker
                   value={scheduledDate}

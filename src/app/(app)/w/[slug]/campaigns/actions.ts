@@ -78,11 +78,14 @@ export async function createCampaign(
     scheduledStartAt = scheduledDate.toISOString();
   }
 
-  // Resolve audience
+  // Resolve audience. Exclude archived contacts — archiveContact sets
+  // archived_at (bounce threshold / manual) but leaves status='active', so a
+  // status-only filter would re-enlist a contact the user deliberately shelved.
   let contactQuery = supabase
     .from("contacts")
     .select("id")
     .is("deleted_at", null)
+    .is("archived_at", null)
     .eq("status", "active");
   if (data.audience_type === "tag" && data.audience_tag) {
     contactQuery = contactQuery.contains("tags", [data.audience_tag]);

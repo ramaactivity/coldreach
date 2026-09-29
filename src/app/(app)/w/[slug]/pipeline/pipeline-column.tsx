@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight, Check, Mail, MessageCircle } from "lucide-react";
-import { Badge } from "@/components/ui";
+import { Badge, toast } from "@/components/ui";
 import type { PipelineStage } from "@/lib/workspace-constants";
 import type { PipelineContact } from "./page";
 import { moveContactStage } from "./actions";
@@ -90,7 +90,11 @@ function ContactCard({
   function handleMove(stageId: string) {
     setMenuOpen(false);
     startTransition(async () => {
-      await moveContactStage(slug, item.contact_id, stageId);
+      const res = await moveContactStage(slug, item.contact_id, stageId);
+      if (res?.error) {
+        toast.error("Gagal memindahkan kontak", { description: res.error });
+        return;
+      }
       router.refresh();
     });
   }
@@ -151,6 +155,7 @@ function ContactCard({
               {new Date(item.last_replied_at).toLocaleDateString("id-ID", {
                 day: "numeric",
                 month: "short",
+                timeZone: "Asia/Jakarta",
               })}
             </Badge>
           )}
@@ -160,6 +165,7 @@ function ContactCard({
               {new Date(item.last_contacted_at).toLocaleDateString("id-ID", {
                 day: "numeric",
                 month: "short",
+                timeZone: "Asia/Jakarta",
               })}
             </Badge>
           )}

@@ -66,6 +66,21 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // Confirm the target workspace actually belongs to this user before we
+  // attach a Gmail account to it. state.workspace_id comes from the OAuth
+  // `state` round-trip and is otherwise trusted blindly.
+  const { data: ownedWs } = await supabase
+    .from("workspaces")
+    .select("id, slug")
+    .eq("id", state.workspace_id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!ownedWs) {
+    return redirectToSettings(request, null, {
+      gmail_error: "Workspace tidak ditemukan atau bukan milik Anda.",
+    });
+  }
+
   // Exchange code for tokens + user info
   let exchanged;
   try {
