@@ -120,7 +120,7 @@ export function ScheduleForm({
         </div>
         <FieldDescription>
           Target kirim <strong className="text-ink-secondary">{dailyVolume}/hari</strong>{" "}
-          mengikuti Gmail quota — ubah di kartu <em>Gmail Account</em> di atas.
+          mengikuti quota akun email — ubah di kartu <em>Email Account</em> di atas.
           Menyimpan jadwal ini langsung diterapkan ke semua queue aktif di
           workspace ini.
         </FieldDescription>

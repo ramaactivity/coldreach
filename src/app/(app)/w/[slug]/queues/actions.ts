@@ -72,6 +72,26 @@ export async function createQueue(
   }
 
   const data = parsed.data;
+
+  // Follow-up templates never go out as a first email — they belong in the
+  // Follow-up Sequence. Drop them from the rotation the form submitted.
+  const { data: firstTouch } = await supabase
+    .from("templates")
+    .select("id")
+    .eq("workspace_id", workspace.id)
+    .is("deleted_at", null)
+    .or("category.is.null,category.neq.follow-up")
+    .in("id", data.template_ids);
+  const firstTouchIds = new Set((firstTouch ?? []).map((t) => t.id as string));
+  data.template_ids = data.template_ids.filter((id) => firstTouchIds.has(id));
+  if (data.template_ids.length === 0) {
+    return {
+      fieldErrors: {
+        template_ids:
+          "Pilih minimal 1 template email pertama (template follow-up dipasang di Follow-up Sequence).",
+      },
+    };
+  }
   const audienceFilter =
     data.audience_type === "tag"
       ? { type: "tag", tag: data.audience_tag ?? "" }
@@ -288,11 +308,14 @@ export async function updateQueueTemplates(
   if (ids.length === 0) return { error: "Pilih minimal 1 template" };
 
   // Only accept templates that belong to this workspace.
+  // Follow-up templates are excluded: they only make sense as a reply in an
+  // existing thread (Follow-up Sequence), never as the first email.
   const { data: owned } = await supabase
     .from("templates")
     .select("id")
     .eq("workspace_id", workspace.id)
     .is("deleted_at", null)
+    .or("category.is.null,category.neq.follow-up")
     .in("id", ids);
   const ownedIds = new Set(
     (owned ?? []).map((t) => (t as { id: string }).id),

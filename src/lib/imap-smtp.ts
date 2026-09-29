@@ -118,7 +118,6 @@ export async function fetchRecentInbox(
         if (!msg.source) continue;
         const parsed = await simpleParser(msg.source);
         const refs = parsed.references;
-        const autoSub = parsed.headers.get("auto-submitted");
         out.push({
           uid: msg.uid,
           from: (parsed.from?.value[0]?.address ?? "").toLowerCase(),
@@ -126,7 +125,7 @@ export async function fetchRecentInbox(
           date: parsed.date ?? new Date(),
           inReplyTo: parsed.inReplyTo ?? null,
           references: Array.isArray(refs) ? refs : refs ? [refs] : [],
-          autoSubmitted: typeof autoSub === "string" ? autoSub : null,
+          autoSubmitted: headerText(parsed.headers.get("auto-submitted")),
           xAutoreply: headerText(parsed.headers.get("x-autoreply")),
           precedence: headerText(parsed.headers.get("precedence")),
           text: parsed.text ?? "",

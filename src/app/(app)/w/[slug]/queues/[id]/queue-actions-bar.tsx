@@ -223,8 +223,9 @@ export function QueueActionsBar({
           Pending recipients di-shuffle ulang setiap hari sebelum batch jalan,
           jadi tiap hari pick acak dari seluruh pool (atas, tengah, atau bawah
           list) — bukan urutan deterministik. Kalau lo punya queue di
-          workspace lain dengan akun beda, sistem otomatis skip kontak yang
-          udah disentuh akun lain dalam 3 hari terakhir.
+          workspace lain, kontak yang sudah dikirimi workspace mana pun dalam
+          45 hari terakhir otomatis ditunda, dan satu domain perusahaan
+          maksimal 2 email/hari dan 8 per 14 hari dari semua workspace.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button

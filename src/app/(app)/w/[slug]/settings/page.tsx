@@ -81,8 +81,8 @@ export default async function WorkspaceSettingsPage({
         <section>
           <SectionHeading
             icon={Mail}
-            title="Gmail Account"
-            description="1 workspace = 1 Gmail. Email dikirim atas nama akun ini, masuk Sent folder Gmail seperti biasa."
+            title="Email Account"
+            description="1 workspace = 1 akun email (Gmail, atau domain sendiri lewat SMTP). Email dikirim atas nama akun ini."
           />
           <GmailConnectionCard slug={slug} account={emailAccount} />
         </section>

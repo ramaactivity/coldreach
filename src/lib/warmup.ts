@@ -20,6 +20,14 @@ const STAGES: ReadonlyArray<{ throughDay: number; cap: number }> = [
   { throughDay: 30, cap: 80 },
 ];
 
+/** "20 → full (30)" — only the stages below the account's target exist. */
+export function warmupRampLabel(fullQuota: number): string {
+  return [
+    ...STAGES.map((s) => s.cap).filter((cap) => cap < fullQuota),
+    `full (${fullQuota})`,
+  ].join(" → ");
+}
+
 /**
  * Returns the effective per-day cap for an account given its warmup state.
  * Caller compares this against the workspace's daily_target to pick the

@@ -93,7 +93,10 @@ export default async function NewQueuePage({
       <Card className="p-6">
         <CreateQueueForm
           action={action}
-          templates={templates.map((t) => ({
+          // Follow-up templates belong in the Follow-up Sequence, not here.
+          templates={templates
+            .filter((t) => t.category !== "follow-up")
+            .map((t) => ({
             id: t.id,
             name: t.name,
             attachmentCount: t.attachments.length,

@@ -53,7 +53,7 @@ export default async function QueueDetailPage({
         .maybeSingle(),
       supabase
         .from("templates")
-        .select("id, name")
+        .select("id, name, category")
         .eq("workspace_id", workspace.id)
         .is("deleted_at", null)
         .order("name"),
@@ -333,7 +333,9 @@ export default async function QueueDetailPage({
         <TemplatePoolEditor
           slug={slug}
           queueId={queue.id}
-          templates={allTemplates}
+          templates={allTemplates.filter(
+            (t) => (t as { category?: string | null }).category !== "follow-up",
+          )}
           initialSelected={queueTemplateIds}
         />
       </div>

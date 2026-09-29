@@ -19,7 +19,7 @@ import { useConfirm } from "@/components/ui/dialog";
 import { disconnectGmail, toggleWarmupMode, toggleAutoRamp } from "./actions";
 import { QuotaForm } from "./quota-form";
 import { SmtpConnectForm } from "./smtp-connect-form";
-import { describeWarmupStage } from "@/lib/warmup";
+import { describeWarmupStage, warmupRampLabel } from "@/lib/warmup";
 import { RAMP_MAX, RAMP_STEP } from "@/lib/quota-ramp";
 
 type EmailAccount = {
@@ -253,9 +253,9 @@ export function GmailConnectionCard({
               )}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-muted">
-              Untuk akun Gmail baru atau yang lama gak dipakai. Cap pengiriman
-              naik bertahap: 20 → 40 → 60 → 80 → full ({account.daily_quota})
-              selama 30 hari biar reputasi domain stabil.
+              Untuk akun baru atau yang lama gak dipakai. Cap pengiriman naik
+              bertahap: {warmupRampLabel(account.daily_quota)} selama 30 hari
+              biar reputasi domain stabil.
             </p>
             {warmupStage && (
               <div className="mt-2 inline-flex items-center gap-2 rounded-md bg-success-soft px-2 py-1 text-[11px] text-success-text">

@@ -142,7 +142,7 @@ export async function runQueue(
       .maybeSingle(),
     admin
       .from("templates")
-      .select("id, subject_lines, subject_lines_en, body_plain, body_plain_en")
+      .select("id, category, subject_lines, subject_lines_en, body_plain, body_plain_en")
       .in("id", requestedTemplateIds),
     admin
       .from("template_attachments")
@@ -209,7 +209,10 @@ export async function runQueue(
 
   const templateRows = templateRes.data;
   const templateMap = new Map<string, EmailTemplate>();
-  for (const t of (templateRows ?? []) as EmailTemplate[]) {
+  for (const t of (templateRows ?? []) as Array<EmailTemplate & { category: string | null }>) {
+    // A follow-up ("Menyambung email saya sebelumnya…") must never go out as
+    // the first email — they belong in followup_steps, not the rotation.
+    if (t.category === "follow-up") continue;
     templateMap.set(t.id, t);
   }
   // Keep only ids that resolved, preserving the queue's order (stable
