@@ -407,6 +407,10 @@ function activityEmoji(type: string): string {
       return "💬";
     case "email_out_of_office":
       return "🌴";
+    case "queue_audience_graduated":
+      return "🎓";
+    case "queue_audience_reverted":
+      return "🛡";
     case "followup_sent":
       return "🔁";
     case "stage_changed":
@@ -424,6 +428,10 @@ function describeActivity(a: { activity_type: string; metadata: Record<string, u
       return "Email opened";
     case "email_replied":
       return `Reply from ${(a.metadata.contact_email as string) ?? "contact"}`;
+    case "queue_audience_graduated":
+      return `Queue lulus: sekarang kirim ke semua kontak (bounce ${(a.metadata.bounced as number) ?? 0}/${(a.metadata.sent as number) ?? 0} dalam 14 hari)`;
+    case "queue_audience_reverted":
+      return `Bounce naik (${(a.metadata.bounced as number) ?? 0}/${(a.metadata.sent as number) ?? 0} dalam 7 hari): queue kembali ke kontak terbukti`;
     case "email_out_of_office":
       return `${(a.metadata.contact_email as string) ?? "Contact"} sedang cuti, follow-up ditunda sampai lewat ${(a.metadata.return_date as string) ?? "tanggal kembali"}${a.metadata.date_found ? "" : " (perkiraan)"}`;
     case "followup_sent":

@@ -122,3 +122,109 @@ export async function runQuotaRamp(
 
   return { ramped, outcomes };
 }
+
+// ─── Audience graduation ────────────────────────────────────────────────────
+// A queue on the "deliverable" audience (proven addresses only — used while a
+// new sender domain builds reputation) moves to the full contact pool once its
+// account has earned it, and falls back if bounces spike afterwards.
+const GRADUATE_WINDOW_DAYS = 14;
+const GRADUATE_MIN_SENT = 150;
+const GRADUATE_MAX_BOUNCE = 0.02;
+const REVERT_WINDOW_DAYS = 7;
+const REVERT_MIN_SENT = 50;
+const REVERT_MAX_BOUNCE = 0.05;
+
+export type AudienceOutcome = {
+  queue_id: string;
+  action: "graduated" | "reverted";
+  sent: number;
+  bounced: number;
+};
+
+async function bounceStats(
+  admin: SupabaseClient,
+  workspaceId: string,
+  days: number,
+): Promise<{ sent: number; bounced: number }> {
+  const cutoff = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
+  const [{ count: sent }, { count: bounced }] = await Promise.all([
+    admin
+      .from("campaign_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .gte("sent_at", cutoff),
+    admin
+      .from("campaign_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspaceId)
+      .gte("bounced_at", cutoff),
+  ]);
+  return { sent: sent ?? 0, bounced: bounced ?? 0 };
+}
+
+export async function runAudienceGraduation(
+  admin: SupabaseClient,
+): Promise<AudienceOutcome[]> {
+  const { data: queues } = await admin
+    .from("send_queues")
+    .select("id, user_id, workspace_id, audience_filter")
+    .eq("is_active", true);
+  const outcomes: AudienceOutcome[] = [];
+
+  for (const q of queues ?? []) {
+    const audience = (q.audience_filter ?? {}) as Record<string, unknown>;
+    const onProven = audience.type === "deliverable";
+    const graduatedEarlier = audience.type === "all" && !!audience.graduated_from;
+    if (!onProven && !graduatedEarlier) continue;
+
+    const { data: account } = await admin
+      .from("email_accounts")
+      .select("daily_quota, warmup_mode, warmup_started_at, health_status")
+      .eq("workspace_id", q.workspace_id)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!account) continue;
+
+    let next: Record<string, unknown> | null = null;
+    let stats = { sent: 0, bounced: 0 };
+    if (onProven) {
+      const warmupDone =
+        effectiveWarmupQuota({
+          warmupMode: account.warmup_mode,
+          warmupStartedAt: account.warmup_started_at,
+          fallbackQuota: account.daily_quota,
+        }) >= account.daily_quota;
+      if (account.health_status !== "healthy" || !warmupDone) continue;
+      stats = await bounceStats(admin, q.workspace_id, GRADUATE_WINDOW_DAYS);
+      if (
+        stats.sent >= GRADUATE_MIN_SENT &&
+        stats.bounced / stats.sent < GRADUATE_MAX_BOUNCE
+      ) {
+        // Keep the old settings so a later revert restores them exactly.
+        next = { type: "all", graduated_from: audience, graduated_at: new Date().toISOString() };
+      }
+    } else {
+      stats = await bounceStats(admin, q.workspace_id, REVERT_WINDOW_DAYS);
+      if (
+        stats.sent >= REVERT_MIN_SENT &&
+        stats.bounced / stats.sent > REVERT_MAX_BOUNCE
+      ) {
+        next = audience.graduated_from as Record<string, unknown>;
+      }
+    }
+    if (!next) continue;
+
+    const action = onProven ? "graduated" : "reverted";
+    await admin.from("send_queues").update({ audience_filter: next }).eq("id", q.id);
+    await admin.from("activity_log").insert({
+      user_id: q.user_id,
+      workspace_id: q.workspace_id,
+      activity_type: `queue_audience_${action}`,
+      entity_type: "send_queue",
+      entity_id: q.id,
+      metadata: { sent: stats.sent, bounced: stats.bounced },
+    });
+    outcomes.push({ queue_id: q.id, action, ...stats });
+  }
+  return outcomes;
+}

@@ -270,7 +270,9 @@ export function QueueActionsBar({
         <p className="mt-1 text-xs leading-relaxed text-muted">
           {audienceType === "manual"
             ? "Queue ini pakai manual contact list — gak di-refill otomatis. Bikin queue baru kalau mau target audience lain."
-            : "Sebelum batch jalan, kalau pending recipients tipis (kurang dari 2 hari kapasitas), sistem otomatis tambah kontak baru dari pool yang match audience — tanpa duplikat dari queue ini. Lo gak perlu klik apa-apa."}
+            : audienceType === "deliverable"
+              ? "Audiens: hanya kontak terbukti menerima email (pernah membalas, atau terkirim tanpa bounce). Otomatis pindah ke semua kontak setelah warmup selesai dan bounce 14 hari di bawah 2% (min. 150 email); kembali ke kontak terbukti kalau bounce 7 hari naik di atas 5%. Dicek tiap malam kerja pukul 23.00 WIB."
+              : "Sebelum batch jalan, kalau pending recipients tipis (kurang dari 2 hari kapasitas), sistem otomatis tambah kontak baru dari pool yang match audience — tanpa duplikat dari queue ini. Lo gak perlu klik apa-apa."}
         </p>
         <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-muted">
           <ShieldCheck className="h-3 w-3" />

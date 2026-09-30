@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { runQuotaRamp } from "@/lib/quota-ramp";
+import { runAudienceGraduation, runQuotaRamp } from "@/lib/quota-ramp";
 
 // Beberapa count query per akun aktif (sedikit) — selesai dalam hitungan
 // detik; 30s ceiling longgar.
@@ -25,10 +25,14 @@ export async function GET(request: NextRequest) {
 
   const admin = createAdminClient();
   const result = await runQuotaRamp(admin);
+  // Same nightly health check decides whether a "proven contacts only" queue
+  // may move to the full pool (or must move back).
+  const audience = await runAudienceGraduation(admin);
 
   return NextResponse.json({
     ok: true,
     triggered_at: new Date().toISOString(),
     ...result,
+    audience,
   });
 }
