@@ -386,3 +386,49 @@ export async function unarchiveContact(id: string, slug: string) {
   revalidatePath(`/w/${slug}/contacts/${id}`);
   return { ok: true };
 }
+
+/**
+ * Record (or clear) a closed deal for this contact in this workspace. A value
+ * moves the lead to the workspace's win stage — the terminal stage that isn't
+ * "lost" (Won for Tiska, Booked for Tetra) — so pipeline and revenue agree.
+ */
+export async function setContactDeal(
+  contactId: string,
+  slug: string,
+  value: number | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const workspace = await getWorkspaceBySlug(slug);
+  if (!workspace) return { ok: false, error: "Workspace not found" };
+  if (value !== null && (!Number.isFinite(value) || value <= 0)) {
+    return { ok: false, error: "Nilai deal harus lebih dari 0" };
+  }
+
+  const winStage = (workspace.pipeline_stages ?? []).find(
+    (s) => s.is_terminal && s.id !== "lost",
+  );
+  const { error } = await supabase.from("contact_workspace_data").upsert(
+    {
+      contact_id: contactId,
+      workspace_id: workspace.id,
+      user_id: user.id,
+      deal_value: value,
+      deal_closed_at: value === null ? null : new Date().toISOString(),
+      ...(value !== null && winStage
+        ? { lead_stage_id: winStage.id, lead_stage_updated_at: new Date().toISOString() }
+        : {}),
+    },
+    { onConflict: "contact_id,workspace_id" },
+  );
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/w/${slug}/contacts/${contactId}`);
+  revalidatePath(`/w/${slug}/dashboard`);
+  revalidatePath(`/w/${slug}/pipeline`);
+  return { ok: true };
+}

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { pollRepliesForAccount } from "@/lib/reply-detector";
+import { markOwnerReplies, pollRepliesForAccount } from "@/lib/reply-detector";
 
 // Lower than the implicit 60s default so Provisioned Memory budget reflects
 // the real worst case. With CONCURRENCY=8 in reply-detector, 100 candidates
@@ -53,7 +53,12 @@ export async function GET(request: NextRequest) {
   // Accounts are independent (own mailbox, own Gmail quota) — parallel, so a
   // slow mailbox can't push the others past the function timeout.
   const results = await Promise.all(
-    (accounts ?? []).map((account) => pollRepliesForAccount(admin, account)),
+    (accounts ?? []).map(async (account) => {
+      const r = await pollRepliesForAccount(admin, account);
+      // Replies the team already answered from Gmail/webmail → handled.
+      const answered = await markOwnerReplies(admin, account).catch(() => 0);
+      return { ...r, answered };
+    }),
   );
 
   return NextResponse.json({
@@ -61,5 +66,6 @@ export async function GET(request: NextRequest) {
     triggered_at: new Date().toISOString(),
     accounts_checked: results.length,
     total_replies: results.reduce((sum, r) => sum + r.replies_found, 0),
+    answered_by_team: results.reduce((sum, r) => sum + r.answered, 0),
   });
 }

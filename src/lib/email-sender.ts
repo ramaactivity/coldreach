@@ -606,3 +606,48 @@ export async function sendEmail(
     return { ok: false, error: message };
   }
 }
+
+/**
+ * Plain-text internal notification (e.g. the daily reply digest) sent from a
+ * connected account to the owner. Not a cold email: no signature, tracking or
+ * unsubscribe. Sending to one's own mailbox has no reputation cost.
+ */
+export async function sendNotificationEmail(
+  supabase: SupabaseClient,
+  account: EmailAccount,
+  to: string,
+  subject: string,
+  text: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const fromHeader = account.display_name
+    ? `${encodeRFC2047(account.display_name)} <${account.email}>`
+    : account.email;
+  const mime = [
+    `From: ${fromHeader}`,
+    `To: ${to}`,
+    `Subject: ${encodeRFC2047(subject)}`,
+    `Message-ID: <${Date.now()}.${Math.random().toString(36).slice(2)}@${account.email.split("@")[1]}>`,
+    "MIME-Version: 1.0",
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: quoted-printable",
+    "",
+    quotedPrintable(text),
+  ].join("\r\n");
+  try {
+    if (account.provider === "smtp" && account.smtp_config) {
+      await sendRawViaSmtp(account.email, account.smtp_config, to, mime);
+      return { ok: true };
+    }
+    const oauth = new google.auth.OAuth2();
+    oauth.setCredentials({ access_token: await ensureFreshToken(supabase, account) });
+    await google.gmail({ version: "v1", auth: oauth }).users.messages.send({
+      userId: "me",
+      requestBody: {
+        raw: Buffer.from(mime, "utf8").toString("base64url"),
+      },
+    });
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "unknown" };
+  }
+}

@@ -90,31 +90,44 @@ export default async function QueueDetailPage({
   }));
   const primaryTemplateName = queueTemplates[0]?.name ?? null;
 
-  // Per-template A/B breakdown.
+  // Per-template A/B breakdown — templates currently in the rotation only.
+  const rotation = new Set(queueTemplates.map((t) => t.id));
   const breakdown = (
     (breakdownResult.data ?? []) as Array<{
       template_id: string;
       sent: number;
-      opened: number;
       replied: number;
+      hot: number;
+      bounced: number;
+      deals: number;
+      deal_value: number | string;
     }>
   )
+    .filter((r) => rotation.has(r.template_id))
     .map((r) => ({
       template_id: r.template_id,
       name: templateNameById.get(r.template_id) ?? "(template terhapus)",
       sent: r.sent,
-      open_rate: r.sent > 0 ? r.opened / r.sent : 0,
+      replied: r.replied,
+      hot: r.hot,
+      deals: r.deals,
+      deal_value: Number(r.deal_value) || 0,
       reply_rate: r.sent > 0 ? r.replied / r.sent : 0,
+      bounce_rate: r.sent > 0 ? r.bounced / r.sent : 0,
     }))
     .sort((a, b) => b.sent - a.sent);
-  // Highlight the winner (best reply rate) only when there's something to
-  // compare and at least one reply.
+  // Name a winner only once every template has enough sends to compare —
+  // at ~0.5% reply rates, fewer than ~100 sends each is noise.
+  const MIN_SENDS_FOR_WINNER = 100;
+  const enoughData =
+    breakdown.length > 1 && breakdown.every((r) => r.sent >= MIN_SENDS_FOR_WINNER);
   const bestReplyId =
-    breakdown.length > 1 && breakdown.some((r) => r.reply_rate > 0)
+    enoughData && breakdown.some((r) => r.replied > 0)
       ? breakdown.reduce((best, r) =>
           r.reply_rate > best.reply_rate ? r : best,
         ).template_id
       : null;
+  const pctRate = (x: number) => `${(x * 100).toFixed(1)}%`;
 
   // Resolve effective followup steps (prefer new array, fallback to legacy)
   let followupSteps: FollowupStep[] = Array.isArray(queue.followup_steps)
@@ -358,10 +371,16 @@ export default async function QueueDetailPage({
                     Terkirim
                   </th>
                   <th className="px-3 py-2.5 text-right font-semibold">
-                    Open rate
+                    Balasan
+                  </th>
+                  <th className="px-3 py-2.5 text-right font-semibold">
+                    Panas
+                  </th>
+                  <th className="px-3 py-2.5 text-right font-semibold">
+                    Bounce
                   </th>
                   <th className="px-5 py-2.5 text-right font-semibold">
-                    Reply rate
+                    Deal
                   </th>
                 </tr>
               </thead>
@@ -382,17 +401,29 @@ export default async function QueueDetailPage({
                     <td className="px-3 py-3 text-right tabular text-ink-secondary">
                       {r.sent.toLocaleString("id-ID")}
                     </td>
-                    <td className="px-3 py-3 text-right tabular text-ink-secondary">
-                      {Math.round(r.open_rate * 100)}%
-                    </td>
                     <td
-                      className={`px-5 py-3 text-right font-medium tabular ${
+                      className={`px-3 py-3 text-right font-medium tabular ${
                         r.template_id === bestReplyId
                           ? "text-success"
                           : "text-ink-secondary"
                       }`}
                     >
-                      {Math.round(r.reply_rate * 100)}%
+                      {r.replied} · {pctRate(r.reply_rate)}
+                    </td>
+                    <td className="px-3 py-3 text-right tabular text-ink-secondary">
+                      {r.hot}
+                    </td>
+                    <td
+                      className={`px-3 py-3 text-right tabular ${
+                        r.bounce_rate > 0.05 ? "text-danger-text" : "text-ink-secondary"
+                      }`}
+                    >
+                      {pctRate(r.bounce_rate)}
+                    </td>
+                    <td className="px-5 py-3 text-right tabular text-ink-secondary">
+                      {r.deals > 0
+                        ? `${r.deals} · Rp${r.deal_value.toLocaleString("id-ID")}`
+                        : "—"}
                     </td>
                   </tr>
                 ))}
@@ -401,7 +432,11 @@ export default async function QueueDetailPage({
           </div>
           <p className="px-5 py-2.5 text-[11px] text-faint">
             Atribusi per kiriman — angka mencerminkan template yang
-            benar-benar dipakai tiap email.
+            benar-benar dipakai tiap email. Panas = balasan tertarik atau
+            bertanya.{" "}
+            {enoughData
+              ? "Tiap template sudah ≥100 kiriman, jadi pemenangnya bisa dipercaya."
+              : `Pemenang ditandai setelah tiap template dapat ≥${MIN_SENDS_FOR_WINNER} kiriman.`}
           </p>
         </Card>
       )}

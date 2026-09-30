@@ -72,6 +72,16 @@ function formatUntil(iso: string): string {
   return `${day} hari lagi`;
 }
 
+
+// What the reply classifier said, as a glanceable badge.
+const CLASS_BADGE: Record<string, { label: string; className: string }> = {
+  interested: { label: "Tertarik", className: "bg-success-soft text-success-text" },
+  question: { label: "Bertanya", className: "bg-info-soft text-info-text" },
+  out_of_office: { label: "Cuti / OOO", className: "bg-surface-sunken text-muted" },
+  not_interested: { label: "Tidak tertarik", className: "bg-surface-sunken text-muted" },
+  unsubscribe_request: { label: "Minta berhenti", className: "bg-danger-soft text-danger-text" },
+};
+
 export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
   const [pending, startTransition] = useTransition();
   const [stageId, setStageId] = useState<string>(item.lead_stage_id ?? "");
@@ -159,6 +169,13 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
                 className="inline-flex items-center gap-1 rounded-full border-l-2 border-l-accent bg-surface-sunken px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted"
               >
                 {item.workspace_name}
+              </span>
+            )}
+            {item.reply_classification && CLASS_BADGE[item.reply_classification] && (
+              <span
+                className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide ${CLASS_BADGE[item.reply_classification].className}`}
+              >
+                {CLASS_BADGE[item.reply_classification].label}
               </span>
             )}
             {tab === "snoozed" && item.snoozed_until && (

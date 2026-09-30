@@ -614,3 +614,88 @@ async function advanceLeadStage(
       { onConflict: "contact_id,workspace_id" },
     );
 }
+
+const OWNER_REPLY_BATCH = 60;
+
+/**
+ * Close the loop on replies the team already answered outside ColdReach:
+ * a "replied" row whose thread has a message from our own account after the
+ * prospect's reply gets handled_at set, so the inbox and the daily digest
+ * only list replies that are genuinely still waiting.
+ */
+export async function markOwnerReplies(
+  admin: SupabaseClient,
+  account: EmailAccountRow,
+): Promise<number> {
+  if (!account.workspace_id) return 0;
+  const { data: rows } = await admin
+    .from("campaign_recipients")
+    .select("id, contact_email, gmail_thread_id, replied_at")
+    .eq("workspace_id", account.workspace_id)
+    .eq("status", "replied")
+    .is("handled_at", null)
+    .not("replied_at", "is", null)
+    .order("replied_at", { ascending: false })
+    .limit(OWNER_REPLY_BATCH);
+  const pending = (rows ?? []) as Array<{
+    id: string;
+    contact_email: string;
+    gmail_thread_id: string | null;
+    replied_at: string;
+  }>;
+  if (pending.length === 0) return 0;
+
+  const self = account.email.toLowerCase();
+  const answeredAt = new Map<string, number>();
+
+  if (account.provider === "smtp" && account.smtp_config) {
+    const oldest = Math.min(...pending.map((r) => Date.parse(r.replied_at)));
+    const days = Math.min(30, Math.ceil((Date.now() - oldest) / 864e5) + 1);
+    const sent = await fetchRecentInbox(account.email, account.smtp_config, days, 300, "sent");
+    for (const r of pending) {
+      const hit = sent.find(
+        (m) =>
+          m.to.includes(r.contact_email.toLowerCase()) &&
+          m.date.getTime() > Date.parse(r.replied_at),
+      );
+      if (hit) answeredAt.set(r.id, hit.date.getTime());
+    }
+  } else {
+    const oauth = new google.auth.OAuth2();
+    oauth.setCredentials({ access_token: await getFreshToken(admin, account) });
+    const gmail = google.gmail({ version: "v1", auth: oauth });
+    for (let i = 0; i < pending.length; i += CONCURRENCY) {
+      await Promise.all(
+        pending.slice(i, i + CONCURRENCY).map(async (r) => {
+          if (!r.gmail_thread_id) return;
+          try {
+            const t = await gmail.users.threads.get({
+              userId: "me",
+              id: r.gmail_thread_id,
+              format: "metadata",
+              metadataHeaders: ["From"],
+            });
+            const ours = (t.data.messages ?? []).find((m) => {
+              const from = extractFrom(
+                m.payload?.headers?.find((h) => h.name?.toLowerCase() === "from")?.value,
+              );
+              return from === self && Number(m.internalDate) > Date.parse(r.replied_at);
+            });
+            if (ours) answeredAt.set(r.id, Number(ours.internalDate));
+          } catch {
+            // Thread gone or not in this mailbox — leave it for manual handling.
+          }
+        }),
+      );
+    }
+  }
+
+  for (const [id, ms] of answeredAt) {
+    await admin
+      .from("campaign_recipients")
+      .update({ handled_at: new Date(ms).toISOString() })
+      .eq("id", id)
+      .is("handled_at", null);
+  }
+  return answeredAt.size;
+}

@@ -15,6 +15,8 @@ export type SmtpConfig = {
 export type InboxMessage = {
   uid: number;
   from: string;
+  /** Recipient addresses (lower-case). */
+  to: string[];
   subject: string;
   date: Date;
   inReplyTo: string | null;
@@ -93,18 +95,31 @@ export async function verifySmtpImap(
   }
 }
 
-/** Parsed INBOX messages received in the last `sinceDays` days, newest last. */
+/**
+ * Parsed messages from the last `sinceDays` days, newest last. Reads INBOX by
+ * default; `folder: "sent"` reads the Sent folder (special-use \Sent, found
+ * by flag because servers name it "Sent", "INBOX.Sent", …).
+ */
 export async function fetchRecentInbox(
   email: string,
   cfg: SmtpConfig,
   sinceDays: number,
   max = 300,
+  folder: "inbox" | "sent" = "inbox",
 ): Promise<InboxMessage[]> {
   const client = imapClient(email, cfg, decrypt(cfg.password_encrypted));
   await client.connect();
   const out: InboxMessage[] = [];
   try {
-    const lock = await client.getMailboxLock("INBOX");
+    let path = "INBOX";
+    if (folder === "sent") {
+      const boxes = await client.list();
+      const sent = boxes.find((b) => b.specialUse === "\\Sent") ??
+        boxes.find((b) => /(^|\.)sent( (items|messages))?$/i.test(b.path));
+      if (!sent) return out;
+      path = sent.path;
+    }
+    const lock = await client.getMailboxLock(path);
     try {
       const since = new Date(Date.now() - sinceDays * 24 * 3600 * 1000);
       const uids = (await client.search({ since }, { uid: true })) || [];
@@ -121,6 +136,8 @@ export async function fetchRecentInbox(
         out.push({
           uid: msg.uid,
           from: (parsed.from?.value[0]?.address ?? "").toLowerCase(),
+          to: (Array.isArray(parsed.to) ? parsed.to : parsed.to ? [parsed.to] : [])
+            .flatMap((a) => a.value.map((v) => (v.address ?? "").toLowerCase())),
           subject: parsed.subject ?? "",
           date: parsed.date ?? new Date(),
           inReplyTo: parsed.inReplyTo ?? null,

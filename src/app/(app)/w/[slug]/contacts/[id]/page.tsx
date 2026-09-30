@@ -26,6 +26,7 @@ import {
 } from "../actions";
 import { SendEmailPanel } from "./send-email-panel";
 import { NotesEditor } from "./notes-editor";
+import { DealPanel } from "./deal-panel";
 import { ActivityTimeline } from "./activity-timeline";
 import { AltEmailsPanel } from "./alt-emails-panel";
 import { Button } from "@/components/ui/button";
@@ -50,7 +51,7 @@ export default async function ContactDetailPage({
       supabase
         .from("contact_workspace_data")
         .select(
-          "lead_stage_id, workspace_notes, total_emails_sent, total_emails_opened, total_replies",
+          "lead_stage_id, workspace_notes, total_emails_sent, total_emails_opened, total_replies, deal_value, deal_closed_at",
         )
         .eq("contact_id", id)
         .eq("workspace_id", workspace.id)
@@ -266,6 +267,16 @@ export default async function ContactDetailPage({
             attachmentCount: t.attachments.length,
           }))}
           account={account}
+        />
+      </div>
+
+      {/* Deal (workspace-scoped) */}
+      <div className="mb-6">
+        <DealPanel
+          slug={slug}
+          contactId={contact.id}
+          initialValue={workspaceData?.deal_value ?? null}
+          closedAt={workspaceData?.deal_closed_at ?? null}
         />
       </div>
 

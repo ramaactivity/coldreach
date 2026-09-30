@@ -19,7 +19,10 @@ import {
   SkipForward,
   Archive,
   ShieldAlert,
+  Trophy,
+  Wallet,
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/server";
 import { getWorkspaceBySlug } from "@/lib/workspaces";
 import {
   getWorkspaceStats,
@@ -42,11 +45,30 @@ export default async function WorkspaceDashboardPage({
   const workspace = await getWorkspaceBySlug(slug);
   if (!workspace) notFound();
 
-  const [stats, replies, activity] = await Promise.all([
+  const supabase = await createClient();
+  const [stats, replies, activity, dealsRes, waitingRes] = await Promise.all([
     getWorkspaceStats(workspace.id),
     getRecentReplies(workspace.id, 8),
     getRecentActivity(workspace.id, 10),
+    supabase
+      .from("contact_workspace_data")
+      .select("deal_value, deal_closed_at")
+      .eq("workspace_id", workspace.id)
+      .not("deal_closed_at", "is", null),
+    supabase
+      .from("campaign_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", workspace.id)
+      .eq("status", "replied")
+      .is("handled_at", null),
   ]);
+  // Revenue view: deals recorded on contacts (Deal panel).
+  const deals = (dealsRes.data ?? []) as Array<{ deal_value: number | string | null; deal_closed_at: string }>;
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  const dealsThisMonth = deals.filter((d) => Date.parse(d.deal_closed_at) >= monthStart);
+  const sumDeals = (list: typeof deals) => list.reduce((n, d) => n + (Number(d.deal_value) || 0), 0);
+  const rupiah = (n: number) => `Rp${n.toLocaleString("id-ID")}`;
+  const waitingReplies = waitingRes.count ?? 0;
 
   const formatTime = (t: string) => t.slice(0, 5);
   const replyRate =
@@ -204,6 +226,37 @@ export default async function WorkspaceDashboardPage({
           icon={ShieldAlert}
           tone={stats.blocked_spam_7d > 0 ? "red" : "default"}
           hint="ditolak server (7d)"
+        />
+      </div>
+
+      {/* KPI grid - fourth row: outcomes */}
+      <div className="mt-3.5 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+        <Link href={`/w/${slug}/inbox`} className="block">
+          <StatCard
+            label="Balasan menunggu"
+            value={waitingReplies.toLocaleString("id-ID")}
+            icon={Inbox}
+            tone={waitingReplies > 0 ? "red" : "default"}
+            hint="belum dibalas / ditandai"
+          />
+        </Link>
+        <StatCard
+          label="Deal bulan ini"
+          value={dealsThisMonth.length.toLocaleString("id-ID")}
+          icon={Trophy}
+          hint="dicatat di halaman kontak"
+        />
+        <StatCard
+          label="Nilai bulan ini"
+          value={rupiah(sumDeals(dealsThisMonth))}
+          icon={Wallet}
+          hint="total nilai deal"
+        />
+        <StatCard
+          label="Nilai total"
+          value={rupiah(sumDeals(deals))}
+          icon={Wallet}
+          hint={`${deals.length} deal sejak awal`}
         />
       </div>
 

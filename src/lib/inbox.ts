@@ -19,7 +19,20 @@ export type InboxItem = {
   workspace_slug: string;
   workspace_color: string;
   lead_stage_id: string | null;
+  reply_classification: string | null;
 };
+
+// Pending tab order: hottest first, then newest. A reply that says
+// "interested" must never sit below an out-of-office.
+const HEAT: Record<string, number> = {
+  interested: 0,
+  question: 1,
+  other: 2,
+  out_of_office: 3,
+  not_interested: 4,
+  unsubscribe_request: 5,
+};
+const heat = (c: string | null) => HEAT[c ?? "other"] ?? 2;
 
 export type InboxCounts = {
   pending: number;
@@ -37,6 +50,7 @@ type RawRow = {
   handled_at: string | null;
   snoozed_until: string | null;
   workspace_id: string;
+  reply_classification: string | null;
   contact:
     | {
         first_name: string | null;
@@ -73,7 +87,7 @@ function fullName(c: { first_name: string | null; last_name: string | null } | n
 }
 
 const SELECT_COLS = `id, contact_id, contact_email, gmail_thread_id, sent_at, replied_at,
-   handled_at, snoozed_until, workspace_id,
+   handled_at, snoozed_until, workspace_id, reply_classification,
    contact:contacts(first_name, last_name, company, position),
    workspace:workspaces(name, slug, color_theme)`;
 
@@ -147,7 +161,7 @@ export async function getInboxReplies(
     stageMap.set(`${cwd.contact_id}:${cwd.workspace_id}`, cwd.lead_stage_id);
   }
 
-  return rows.map((r) => {
+  const items = rows.map((r) => {
     const c = unwrap(r.contact);
     const w = unwrap(r.workspace);
     return {
@@ -168,8 +182,17 @@ export async function getInboxReplies(
       workspace_color: w?.color_theme ?? "#71717a",
       lead_stage_id:
         stageMap.get(`${r.contact_id}:${r.workspace_id}`) ?? null,
+      reply_classification: r.reply_classification,
     };
   });
+  if (tab === "pending") {
+    items.sort(
+      (a, b) =>
+        heat(a.reply_classification) - heat(b.reply_classification) ||
+        Date.parse(b.replied_at) - Date.parse(a.replied_at),
+    );
+  }
+  return items;
 }
 
 /**
