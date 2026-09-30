@@ -39,6 +39,9 @@ export type SendQueue = {
 export type AudienceFilter =
   | { type: "all" }
   | { type: "tag"; tag: string }
+  // Only addresses already proven to accept mail (replied, or delivered 3+
+  // days ago without bouncing). Filled by refill_queue (migration 0038).
+  | { type: "deliverable"; prefer_replied_workspace_ids?: string[] }
   | { type: "manual"; contact_ids: string[] };
 
 export type FollowupStep = {

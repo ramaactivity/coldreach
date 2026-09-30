@@ -33,7 +33,7 @@ export function CreateQueueForm({
   };
 }) {
   const [state, formAction, pending] = useActionState(action, INITIAL_STATE);
-  const [audienceType, setAudienceType] = useState<"all" | "tag">("all");
+  const [audienceType, setAudienceType] = useState<"all" | "tag" | "deliverable">("all");
   const [selectedTag, setSelectedTag] = useState(tags[0] ?? "");
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>(
     templates[0] ? [templates[0].id] : [],
@@ -123,6 +123,15 @@ export function CreateQueueForm({
             description="Semua kontak yang status active akan di-target."
             radioName="audience_type"
             radioValue="all"
+          />
+          <AudienceCard
+            selected={audienceType === "deliverable"}
+            onClick={() => setAudienceType("deliverable")}
+            icon={Shield}
+            title="Kontak terbukti menerima email"
+            description="Hanya yang pernah membalas, atau pernah terkirim tanpa bounce. Paling aman untuk akun atau domain baru."
+            radioName="audience_type"
+            radioValue="deliverable"
           />
           {tags.length > 0 && (
             <AudienceCard

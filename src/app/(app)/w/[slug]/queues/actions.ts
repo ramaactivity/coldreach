@@ -18,7 +18,7 @@ const CreateQueueSchema = z.object({
   template_ids: z
     .array(z.string().uuid())
     .min(1, "Pilih minimal 1 template"),
-  audience_type: z.enum(["all", "tag"]),
+  audience_type: z.enum(["all", "tag", "deliverable"]),
   audience_tag: z.string().optional(),
   schedule_start_time: z.string().regex(/^\d{2}:\d{2}$/),
   schedule_end_time: z.string().regex(/^\d{2}:\d{2}$/),
@@ -95,7 +95,10 @@ export async function createQueue(
   const audienceFilter =
     data.audience_type === "tag"
       ? { type: "tag", tag: data.audience_tag ?? "" }
-      : { type: "all" };
+      : data.audience_type === "deliverable"
+        ? { type: "deliverable" }
+        : { type: "all" };
+  const deliverableOnly = data.audience_type === "deliverable";
 
   // Resolve audience to contact IDs.
   // archived_at filter excludes anything the bounce-detector or the user
@@ -114,16 +117,22 @@ export async function createQueue(
   if (data.pool_order === "warm_first") {
     contactQuery = contactQuery.order("engagement_score", { ascending: false });
   }
-  const { data: contactsRaw } = await contactQuery;
+  // "deliverable" is resolved in SQL by refill_queue after the queue exists —
+  // proving deliverability needs campaign_recipients history, and a JS load
+  // here would also hit PostgREST's 1000-row cap.
+  const { data: contactsRaw } = deliverableOnly
+    ? { data: [{ id: "" }] }
+    : await contactQuery;
   if (!contactsRaw || contactsRaw.length === 0) {
     return {
       error:
         "Tidak ada kontak yang match audience ini. Tambah kontak atau ganti filter dulu.",
     };
   }
-  let contacts: Array<{ id: string; engagement_score?: number }> = [
-    ...(contactsRaw as Array<{ id: string; engagement_score?: number }>),
-  ];
+  let contacts: Array<{ id: string; engagement_score?: number }> =
+    deliverableOnly
+      ? []
+      : [...(contactsRaw as Array<{ id: string; engagement_score?: number }>)];
 
   if (data.pool_order === "warm_first") {
     // Stable bucket-shuffle: keep engaged contacts at the top, but randomise
@@ -194,6 +203,18 @@ export async function createQueue(
         data.pool_order === "warm_first" ? (c.engagement_score ?? 0) : 0,
     }));
     await supabase.from("queue_recipients").insert(batch);
+  }
+  if (deliverableOnly) {
+    const { data: added } = await supabase.rpc("refill_queue", {
+      p_queue_id: queue.id,
+      p_max_add: data.daily_target * 7,
+    });
+    if (!added) {
+      return {
+        error:
+          "Queue dibuat, tapi belum ada kontak yang terbukti menerima email. Kirim dari queue lain dulu, lalu refill.",
+      };
+    }
   }
 
   revalidatePath(`/w/${slug}/queues`);

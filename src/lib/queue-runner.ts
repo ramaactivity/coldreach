@@ -153,11 +153,15 @@ export async function runQueue(
       .select("name, business_type, signature_data, color_theme")
       .eq("id", queue.workspace_id)
       .maybeSingle(),
+    // Sendable-now pending only: rows deferred by the cooldown/domain caps
+    // (scheduled_for_date in the future) mustn't hold off the refill, or a
+    // queue whose pool is all "cooling down" stalls while looking full.
     admin
       .from("queue_recipients")
       .select("id", { count: "exact", head: true })
       .eq("queue_id", queueId)
-      .eq("status", "pending"),
+      .eq("status", "pending")
+      .or(`scheduled_for_date.is.null,scheduled_for_date.lte.${wibDate(Date.now())}`),
     // Daily reshuffle. shuffle_key on queue_recipients is regenerated once
     // per WIB day so each day's batch picks a fresh random subset across the
     // whole pool (top / middle / bottom) instead of marching down the
