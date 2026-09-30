@@ -456,13 +456,17 @@ export async function runQueue(
 
   const domainSentToday = new Map<string, number>();
   const domainSentWindow = new Map<string, number>();
+  // Who at each company replied in the last 90 days (any workspace).
+  const domainRepliers = new Map<string, string[]>();
   for (const row of (todayRowsRes.data ?? []) as Array<{
     domain: string;
     today: number;
     recent: number;
+    repliers: string[] | null;
   }>) {
     domainSentToday.set(row.domain, row.today);
     domainSentWindow.set(row.domain, row.recent);
+    if (row.repliers?.length) domainRepliers.set(row.domain, row.repliers);
   }
   if (todayRowsRes.error) {
     // Without counts the caps can't be enforced — don't send blind.
@@ -573,6 +577,14 @@ export async function runQueue(
     // Per-company-domain daily cap. Leave PENDING (not 'skipped') so the
     // contact stays in the pool and becomes eligible again on a later day.
     const capDomain = corporateDomainOf(contact.email);
+    // A company that already replied is a conversation, not a cold list:
+    // hold its other people for 30 days (the repliers stay reachable).
+    const repliers = capDomain ? domainRepliers.get(capDomain) : undefined;
+    if (repliers && !repliers.includes(contact.email.toLowerCase())) {
+      await deferRecipient(recipient.id, Date.now() + 30 * DAY_MS);
+      result.skipped++;
+      continue;
+    }
     if (capDomain) {
       if ((domainSentWindow.get(capDomain) ?? 0) >= MAX_PER_COMPANY_DOMAIN_PER_WINDOW) {
         await deferRecipient(recipient.id, Date.now() + 3 * DAY_MS);

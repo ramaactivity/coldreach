@@ -112,9 +112,9 @@ export function Sidebar({
           label: "Inbox",
           icon: Inbox,
           children: [
-            { href: `/w/${slug}/inbox`, label: "Pending" },
-            { href: `/w/${slug}/inbox?tab=snoozed`, label: "Snoozed" },
-            { href: `/w/${slug}/inbox?tab=handled`, label: "Handled" },
+            { href: `/w/${slug}/inbox`, label: "Belum ditangani" },
+            { href: `/w/${slug}/inbox?tab=snoozed`, label: "Ditunda" },
+            { href: `/w/${slug}/inbox?tab=handled`, label: "Selesai" },
           ],
         },
         { href: `/w/${slug}/pipeline`, label: "Pipeline", icon: Kanban },
@@ -125,15 +125,16 @@ export function Sidebar({
       items: [
         {
           href: `/w/${slug}/contacts`,
-          label: "Contacts",
+          label: "Kontak",
           icon: Users,
           children: [
-            { href: `/w/${slug}/contacts`, label: "All Contacts" },
+            { href: `/w/${slug}/contacts`, label: "Semua kontak" },
             { href: `/w/${slug}/contacts/discover`, label: "Cari Lead (Apollo)" },
             { href: `/w/${slug}/contacts/scrape`, label: "Scrape Website" },
-            { href: `/w/${slug}/contacts/duplicates`, label: "Duplicates" },
+            { href: `/w/${slug}/contacts/companies`, label: "Perusahaan" },
+            { href: `/w/${slug}/contacts/duplicates`, label: "Duplikat" },
             { href: `/w/${slug}/contacts/tags`, label: "Tags" },
-            { href: `/w/${slug}/contacts/import`, label: "Import CSV" },
+            { href: `/w/${slug}/contacts/import`, label: "Impor CSV" },
           ],
         },
         { href: `/w/${slug}/templates`, label: "Templates", icon: FileText },
@@ -372,7 +373,7 @@ export function Sidebar({
           )}
         >
           <SettingsIcon className={navIconClass(sectionActive(settingsHref))} />
-          <span className={cn("truncate", collapsed && "md:hidden")}>Settings</span>
+          <span className={cn("truncate", collapsed && "md:hidden")}>Pengaturan</span>
         </Link>
       </div>
 
@@ -406,7 +407,7 @@ export function Sidebar({
             )}
           >
             <LogOut className="h-3.5 w-3.5 shrink-0" />
-            <span className={cn(collapsed && "md:hidden")}>Sign out</span>
+            <span className={cn(collapsed && "md:hidden")}>Keluar</span>
           </button>
         </form>
       </div>

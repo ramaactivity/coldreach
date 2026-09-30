@@ -153,12 +153,12 @@ export function QueueActionsBar({
         <div className="flex items-center gap-2">
           <Zap className="h-4 w-4 text-warning" />
           <h3 className="text-sm font-semibold text-ink">
-            Run Now (manual test)
+            Kirim sekarang (tes manual)
           </h3>
         </div>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          Untuk testing, kirim email langsung tanpa nunggu cron schedule.
-          Pakai delay 30-90 detik antar email kalau lu kirim batch &gt; 1.
+          Untuk tes: kirim langsung tanpa menunggu jadwal otomatis. Kalau
+          lebih dari 1 email, ada jeda 30–90 detik antar email.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Button
@@ -167,7 +167,7 @@ export function QueueActionsBar({
             disabled={!canSend || pending}
             loading={runningBatch === 1}
           >
-            Send 1 email
+            Kirim 1 email
           </Button>
           <Button
             size="sm"
@@ -176,7 +176,7 @@ export function QueueActionsBar({
             disabled={!canSend || pending}
             loading={runningBatch === 3}
           >
-            Send 3 emails
+            Kirim 3 email
           </Button>
           <Button
             size="sm"
@@ -185,7 +185,7 @@ export function QueueActionsBar({
             disabled={!canSend || pending}
             loading={runningBatch === 10}
           >
-            Send 10 emails
+            Kirim 10 email
           </Button>
         </div>
         {!canSend && (
@@ -216,16 +216,16 @@ export function QueueActionsBar({
         <div className="flex items-center gap-2">
           <Shuffle className="h-4 w-4 text-muted" />
           <h3 className="text-sm font-semibold text-ink">
-            Random pick & cross-account dedup
+            Urutan acak & anti-dobel antar akun
           </h3>
         </div>
         <p className="mt-1 text-xs leading-relaxed text-muted">
-          Pending recipients di-shuffle ulang setiap hari sebelum batch jalan,
-          jadi tiap hari pick acak dari seluruh pool (atas, tengah, atau bawah
-          list) — bukan urutan deterministik. Kalau lo punya queue di
-          workspace lain, kontak yang sudah dikirimi workspace mana pun dalam
-          45 hari terakhir otomatis ditunda, dan satu domain perusahaan
-          maksimal 2 email/hari dan 8 per 14 hari dari semua workspace.
+          Antrean diacak ulang setiap hari sebelum pengiriman, jadi kontak
+          dipilih acak dari seluruh daftar, bukan berurutan. Kontak yang
+          sudah dikirimi workspace mana pun dalam 45 hari terakhir otomatis
+          ditunda. Satu perusahaan maksimal 2 email/hari dan 8 per 14 hari
+          dari semua workspace, dan kalau seseorang di sana sudah membalas,
+          rekan-rekannya ditahan 30 hari.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <Button
@@ -240,11 +240,11 @@ export function QueueActionsBar({
             }
           >
             <Shuffle className="h-3.5 w-3.5" />
-            Reshuffle now
+            Acak ulang sekarang
           </Button>
           <span className="inline-flex items-center gap-1.5 text-[11px] text-muted">
             <ShieldCheck className="h-3 w-3" />
-            Last reshuffle: <strong className="font-medium text-ink-secondary">{timeAgo(lastShuffledAt)}</strong>
+            Terakhir diacak: <strong className="font-medium text-ink-secondary">{timeAgo(lastShuffledAt)}</strong>
             <span className="text-faint">·</span>
             <strong className="font-medium text-ink-secondary">{pendingCount.toLocaleString("id-ID")}</strong> pending
           </span>
@@ -261,22 +261,22 @@ export function QueueActionsBar({
         <div className="flex items-center gap-2">
           <RefreshCw className="h-4 w-4 text-success" />
           <h3 className="text-sm font-semibold text-ink">
-            Auto-refill
+            Isi otomatis
           </h3>
           <span className="inline-flex items-center rounded-full bg-success-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-success-text">
-            {audienceType === "manual" ? "Off (manual list)" : "On"}
+            {audienceType === "manual" ? "Mati (daftar manual)" : "Aktif"}
           </span>
         </div>
         <p className="mt-1 text-xs leading-relaxed text-muted">
           {audienceType === "manual"
-            ? "Queue ini pakai manual contact list — gak di-refill otomatis. Bikin queue baru kalau mau target audience lain."
+            ? "Queue ini memakai daftar kontak manual, jadi tidak diisi otomatis. Buat queue baru untuk menargetkan audiens lain."
             : audienceType === "deliverable"
               ? "Audiens: hanya kontak terbukti menerima email (pernah membalas, atau terkirim tanpa bounce). Otomatis pindah ke semua kontak setelah warmup selesai dan bounce 14 hari di bawah 2% (min. 150 email); kembali ke kontak terbukti kalau bounce 7 hari naik di atas 5%. Dicek tiap malam kerja pukul 23.00 WIB."
-              : "Sebelum batch jalan, kalau pending recipients tipis (kurang dari 2 hari kapasitas), sistem otomatis tambah kontak baru dari pool yang match audience — tanpa duplikat dari queue ini. Lo gak perlu klik apa-apa."}
+              : "Kalau antrean yang siap dikirim tinggal kurang dari 2 hari kapasitas, sistem otomatis menambah kontak baru yang cocok dengan audiens, tanpa duplikat. Tidak perlu diklik."}
         </p>
         <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] text-muted">
           <ShieldCheck className="h-3 w-3" />
-          Last refill: <strong className="font-medium text-ink-secondary">{timeAgo(lastRefilledAt)}</strong>
+          Terakhir diisi: <strong className="font-medium text-ink-secondary">{timeAgo(lastRefilledAt)}</strong>
         </div>
       </div>
 
@@ -290,11 +290,11 @@ export function QueueActionsBar({
         >
           {optimisticActive ? (
             <>
-              <Pause className="h-3.5 w-3.5" /> Pause Queue
+              <Pause className="h-3.5 w-3.5" /> Jeda queue
             </>
           ) : (
             <>
-              <Play className="h-3.5 w-3.5" /> Resume Queue
+              <Play className="h-3.5 w-3.5" /> Lanjutkan queue
             </>
           )}
         </Button>
@@ -304,7 +304,7 @@ export function QueueActionsBar({
           onClick={handleDelete}
           disabled={pending}
         >
-          <Trash2 className="h-3.5 w-3.5" /> Delete Queue
+          <Trash2 className="h-3.5 w-3.5" /> Hapus queue
         </Button>
       </div>
     </Card>

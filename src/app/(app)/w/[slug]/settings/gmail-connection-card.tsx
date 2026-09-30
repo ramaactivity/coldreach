@@ -69,12 +69,12 @@ export function GmailConnectionCard({
           </div>
           <div>
             <p className="text-base font-semibold text-ink">
-              Belum ada Gmail terhubung
+              Belum ada akun email terhubung
             </p>
             <p className="mt-1 text-sm leading-relaxed text-muted">
-              Connect Gmail account untuk workspace ini. Lu bisa pilih akun
-              mana saja di account picker Google — gak harus sama dengan akun
-              login.
+              Hubungkan akun Gmail untuk workspace ini (boleh akun Google mana
+              saja, tidak harus sama dengan akun login), atau akun email
+              domain sendiri lewat SMTP di bawah.
             </p>
           </div>
           <Link
@@ -82,7 +82,7 @@ export function GmailConnectionCard({
             className="inline-flex h-9 items-center gap-2 rounded-lg bg-action px-4 text-sm font-medium text-on-action transition-all hover:bg-action-hover active:scale-[0.99]"
           >
             <Plus className="h-4 w-4" />
-            Connect Gmail
+            Hubungkan Gmail
           </Link>
           <SmtpConnectForm slug={slug} />
         </div>
@@ -93,9 +93,9 @@ export function GmailConnectionCard({
   async function handleDisconnect() {
     if (!account) return;
     const ok = await confirm({
-      title: "Disconnect Gmail?",
-      description: `${account.email} akan terputus. Lu bisa connect lagi nanti.`,
-      confirmLabel: "Disconnect",
+      title: "Putuskan akun email?",
+      description: `${account.email} akan terputus. Kamu bisa menghubungkannya lagi nanti.`,
+      confirmLabel: "Putuskan",
       destructive: true,
     });
     if (!ok) return;
@@ -170,7 +170,7 @@ export function GmailConnectionCard({
                 <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
                 <p>
                   {account.health_notes ??
-                    "Token expired — akan auto-refresh saat dipakai. Kalau gagal, reconnect."}
+                    "Token kedaluwarsa — diperbarui otomatis saat dipakai. Kalau gagal, hubungkan ulang."}
                 </p>
               </div>
             )}
@@ -182,7 +182,7 @@ export function GmailConnectionCard({
           onClick={handleDisconnect}
           disabled={pending}
         >
-          Disconnect
+          Putuskan
         </Button>
       </div>
 
@@ -191,7 +191,7 @@ export function GmailConnectionCard({
         <div className="p-5">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted">
             <Activity className="h-3 w-3" />
-            <span>Today&apos;s quota</span>
+            <span>Kuota hari ini</span>
           </div>
           <div className="mt-2">
             <QuotaForm
@@ -218,7 +218,7 @@ export function GmailConnectionCard({
         <div className="p-5">
           <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted">
             <Clock className="h-3 w-3" />
-            <span>Last used</span>
+            <span>Terakhir dipakai</span>
           </div>
           <p className="mt-2 text-2xl font-semibold tracking-tight text-ink">
             {account.last_used_at
@@ -246,10 +246,10 @@ export function GmailConnectionCard({
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-muted" />
               <p className="text-sm font-semibold text-ink">
-                Warmup mode
+                Mode warmup
               </p>
               {account.warmup_mode && (
-                <Badge variant="success">Active</Badge>
+                <Badge variant="success">Aktif</Badge>
               )}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-muted">
@@ -275,7 +275,7 @@ export function GmailConnectionCard({
             onClick={handleToggleWarmup}
             disabled={pending}
           >
-            {account.warmup_mode ? "Stop Warmup" : "Start Warmup"}
+            {account.warmup_mode ? "Hentikan warmup" : "Mulai warmup"}
           </Button>
         </div>
       </div>
@@ -286,8 +286,8 @@ export function GmailConnectionCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <Gauge className="h-4 w-4 text-muted" />
-              <p className="text-sm font-semibold text-ink">Auto-ramp quota</p>
-              {account.auto_ramp_enabled && <Badge variant="success">Active</Badge>}
+              <p className="text-sm font-semibold text-ink">Kuota naik otomatis</p>
+              {account.auto_ramp_enabled && <Badge variant="success">Aktif</Badge>}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-muted">
               Target harian naik sendiri +{RAMP_STEP}/hari kerja sampai maksimal{" "}
@@ -308,7 +308,7 @@ export function GmailConnectionCard({
             onClick={handleToggleAutoRamp}
             disabled={pending}
           >
-            {account.auto_ramp_enabled ? "Stop Auto-ramp" : "Start Auto-ramp"}
+            {account.auto_ramp_enabled ? "Hentikan" : "Aktifkan"}
           </Button>
         </div>
       </div>

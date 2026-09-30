@@ -174,7 +174,7 @@ export async function runAudienceGraduation(
   for (const q of queues ?? []) {
     const audience = (q.audience_filter ?? {}) as Record<string, unknown>;
     const onProven = audience.type === "deliverable";
-    const graduatedEarlier = audience.type === "all" && !!audience.graduated_from;
+    const graduatedEarlier = audience.type !== "deliverable" && !!audience.graduated_from;
     if (!onProven && !graduatedEarlier) continue;
 
     const { data: account } = await admin
@@ -200,8 +200,10 @@ export async function runAudienceGraduation(
         stats.sent >= GRADUATE_MIN_SENT &&
         stats.bounced / stats.sent < GRADUATE_MAX_BOUNCE
       ) {
-        // Keep the old settings so a later revert restores them exactly.
-        next = { type: "all", graduated_from: audience, graduated_at: new Date().toISOString() };
+        // Keep the old settings so a later revert restores them exactly. A
+        // queue the bounce breaker demoted goes back to its original audience.
+        const original = (audience.tripped_from as Record<string, unknown> | undefined) ?? { type: "all" };
+        next = { ...original, graduated_from: audience, graduated_at: new Date().toISOString() };
       }
     } else {
       stats = await bounceStats(admin, q.workspace_id, REVERT_WINDOW_DAYS);
@@ -227,4 +229,51 @@ export async function runAudienceGraduation(
     outcomes.push({ queue_id: q.id, action, ...stats });
   }
   return outcomes;
+}
+
+// ─── Bounce breaker ─────────────────────────────────────────────────────────
+// Emergency brake, run after every bounce poll: a workspace whose sends today
+// bounce at ≥15% (min 20 sends) has its queues moved to the proven-contacts
+// audience at once instead of burning the domain for the rest of the day.
+// runAudienceGraduation restores the original audience once bounces recover.
+const BREAKER_MIN_SENT = 20;
+const BREAKER_RATE = 0.15;
+
+export async function runBounceBreaker(
+  admin: SupabaseClient,
+  todayStartIso: string,
+): Promise<Array<{ queue_id: string; sent: number; bounced: number }>> {
+  const { data: queues } = await admin
+    .from("send_queues")
+    .select("id, user_id, workspace_id, audience_filter")
+    .eq("is_active", true);
+  const tripped: Array<{ queue_id: string; sent: number; bounced: number }> = [];
+  for (const q of queues ?? []) {
+    const audience = (q.audience_filter ?? {}) as Record<string, unknown>;
+    if (audience.type === "deliverable" || audience.type === "manual") continue;
+    const [{ count: sent }, { count: bounced }] = await Promise.all([
+      admin.from("campaign_recipients").select("id", { count: "exact", head: true })
+        .eq("workspace_id", q.workspace_id).gte("sent_at", todayStartIso),
+      admin.from("campaign_recipients").select("id", { count: "exact", head: true })
+        .eq("workspace_id", q.workspace_id).gte("sent_at", todayStartIso).eq("status", "bounced"),
+    ]);
+    if ((sent ?? 0) < BREAKER_MIN_SENT || (bounced ?? 0) / (sent ?? 1) < BREAKER_RATE) continue;
+    const original = { ...audience };
+    delete original.graduated_from;
+    delete original.graduated_at;
+    await admin
+      .from("send_queues")
+      .update({ audience_filter: { type: "deliverable", tripped_from: original, tripped_at: new Date().toISOString() } })
+      .eq("id", q.id);
+    await admin.from("activity_log").insert({
+      user_id: q.user_id,
+      workspace_id: q.workspace_id,
+      activity_type: "queue_bounce_breaker",
+      entity_type: "send_queue",
+      entity_id: q.id,
+      metadata: { sent, bounced },
+    });
+    tripped.push({ queue_id: q.id, sent: sent ?? 0, bounced: bounced ?? 0 });
+  }
+  return tripped;
 }

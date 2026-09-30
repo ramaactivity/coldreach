@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { pollBouncesForAccount } from "@/lib/bounce-detector";
+import { runBounceBreaker } from "@/lib/quota-ramp";
+import { startOfTodayWibIso } from "@/lib/quota-reset";
 
 // Lowered from 60s default. With FETCH_CONCURRENCY=8 in bounce-detector,
 // pulling 50 message bodies in parallel finishes in seconds rather than ~35s.
@@ -59,9 +61,12 @@ export async function GET(request: NextRequest) {
     ),
   );
 
+  const breaker = await runBounceBreaker(admin, startOfTodayWibIso());
+
   return NextResponse.json({
     ok: true,
     triggered_at: new Date().toISOString(),
+    breaker,
     accounts_checked: results.length,
     total_bounces: results.reduce((sum, r) => sum + r.bounces_recorded, 0),
     results,

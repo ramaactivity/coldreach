@@ -24,12 +24,25 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import type { FollowupStep } from "@/lib/queue-helpers";
 
+const TABS = [
+  { value: "ringkasan", label: "Ringkasan" },
+  { value: "template", label: "Template" },
+  { value: "follow-up", label: "Follow-up" },
+  { value: "pengaturan", label: "Pengaturan" },
+] as const;
+
 export default async function QueueDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { slug, id } = await params;
+  const requestedTab = (await searchParams).tab;
+  // One long page buried the important parts — split into tabs (server-side
+  // via ?tab= so no client JS is needed).
+  const tab = TABS.some((t) => t.value === requestedTab) ? requestedTab! : "ringkasan";
 
   // Parallelize: workspace, queue, stats — all independent
   const [workspace, queue, stats] = await Promise.all([
@@ -157,7 +170,7 @@ export default async function QueueDetailPage({
         className="mb-4 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-ink"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        Back to queues
+        Kembali ke daftar queue
       </Link>
 
       {/* Test mode banner */}
@@ -201,10 +214,10 @@ export default async function QueueDetailPage({
             {queue.test_mode && (
               <Badge variant="info" className="font-semibold uppercase tracking-wide">
                 <Shield className="h-2.5 w-2.5" />
-                Test Mode
+                Mode Tes
               </Badge>
             )}
-            {!queue.is_active && <Badge variant="secondary">Paused</Badge>}
+            {!queue.is_active && <Badge variant="secondary">Dijeda</Badge>}
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted">
             {queueTemplates.length > 0 && (
@@ -242,19 +255,36 @@ export default async function QueueDetailPage({
         </div>
       </div>
 
+      {/* Tabs */}
+      <nav aria-label="Bagian queue" className="mb-4 inline-flex h-9 items-center gap-0.5 rounded-md bg-surface-sunken p-0.5">
+        {TABS.map((t) => (
+          <Link
+            key={t.value}
+            href={`/w/${slug}/queues/${id}?tab=${t.value}`}
+            aria-current={tab === t.value ? "page" : undefined}
+            className={`inline-flex h-8 items-center rounded-[6px] px-3 text-sm font-medium transition-colors ${
+              tab === t.value ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink"
+            }`}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+
+      {tab === "ringkasan" && (<>
       {/* Progress card */}
       <Card className="overflow-hidden p-0">
         <div className="border-b border-border p-5">
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-sm font-semibold text-ink">
-              Progress
+              Progres
             </p>
             <p className="text-xs text-muted">
               <span className="text-base font-semibold tabular text-ink">
                 {queue.total_sent.toLocaleString("id-ID")}
               </span>
               <span className="mx-1">/</span>
-              {queue.total_in_queue.toLocaleString("id-ID")} sent ({pct}%)
+              {queue.total_in_queue.toLocaleString("id-ID")} terkirim ({pct}%)
             </p>
           </div>
           <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-sunken">
@@ -269,11 +299,11 @@ export default async function QueueDetailPage({
           </div>
         </div>
         <div className="grid grid-cols-2 divide-border sm:grid-cols-4 sm:divide-x">
-          <MiniStat label="Pending" value={stats.pending} />
-          <MiniStat label="Sent" value={stats.sent} accent="emerald" />
-          <MiniStat label="Replied" value={stats.replied} accent="blue" />
+          <MiniStat label="Menunggu" value={stats.pending} />
+          <MiniStat label="Terkirim" value={stats.sent} accent="emerald" />
+          <MiniStat label="Membalas" value={stats.replied} accent="blue" />
           <MiniStat
-            label="Skipped/Bounced"
+            label="Dilewati/Bounce"
             value={stats.skipped + stats.bounced}
           />
         </div>
@@ -284,7 +314,7 @@ export default async function QueueDetailPage({
         <div className="flex items-center gap-2">
           <Mail className="h-4 w-4 text-muted" />
           <p className="text-sm font-semibold text-ink">
-            Today&apos;s Gmail quota
+            Kuota akun email hari ini
           </p>
         </div>
         {account ? (
@@ -293,7 +323,7 @@ export default async function QueueDetailPage({
               <strong>{account.email}</strong>
             </p>
             <p className="mt-1 text-xs text-muted tabular">
-              {account.emails_sent_today} / {account.daily_quota} sent today ·{" "}
+              {account.emails_sent_today} / {account.daily_quota} terkirim hari ini ·{" "}
               <span
                 className={
                   remainingQuota === 0
@@ -301,7 +331,7 @@ export default async function QueueDetailPage({
                     : ""
                 }
               >
-                {remainingQuota} remaining
+                sisa {remainingQuota}
               </span>
             </p>
             <Progress
@@ -341,6 +371,9 @@ export default async function QueueDetailPage({
         }
       />
 
+      </>)}
+
+      {tab === "template" && (<>
       {/* Template pool (rotation) */}
       <div className="mt-4">
         <TemplatePoolEditor
@@ -441,6 +474,9 @@ export default async function QueueDetailPage({
         </Card>
       )}
 
+      </>)}
+
+      {tab === "follow-up" && (<>
       {/* Follow-up sequence */}
       <div className="mt-4">
         <FollowupSequenceEditor
@@ -452,16 +488,19 @@ export default async function QueueDetailPage({
         />
       </div>
 
+      </>)}
+
+      {tab === "pengaturan" && (<>
       {/* Settings */}
       <Card className="mt-4 p-0">
         <div className="border-b border-border px-5 py-3">
           <h3 className="text-sm font-semibold text-ink">
-            Configuration
+            Konfigurasi
           </h3>
         </div>
         <dl className="grid grid-cols-1 divide-y divide-border sm:grid-cols-2 sm:divide-x sm:divide-y-0">
           <DetailRow
-            label="AI personalization"
+            label="Personalisasi AI"
             value={
               queue.use_ai_opener ? (
                 <Badge variant="info">On</Badge>
@@ -471,7 +510,7 @@ export default async function QueueDetailPage({
             }
           />
           <DetailRow
-            label="Follow-up steps"
+            label="Langkah follow-up"
             value={
               followupSteps.length > 0 ? (
                 <Badge variant="info">{followupSteps.length} step</Badge>
@@ -481,7 +520,7 @@ export default async function QueueDetailPage({
             }
           />
           <DetailRow
-            label="Created"
+            label="Dibuat"
             value={
               <span className="text-xs text-ink-secondary">
                 {new Date(queue.created_at).toLocaleString("id-ID", {
@@ -492,7 +531,7 @@ export default async function QueueDetailPage({
             }
           />
           <DetailRow
-            label="Last run"
+            label="Terakhir jalan"
             value={
               <span className="text-xs text-ink-secondary">
                 {queue.last_run_at
@@ -506,6 +545,7 @@ export default async function QueueDetailPage({
           />
         </dl>
       </Card>
+      </>)}
     </div>
   );
 }
