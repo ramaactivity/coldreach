@@ -132,9 +132,7 @@ Rama juga bisa menyetujui, mengubah, atau membatalkan draf sendiri di halaman **
 
 ## Status saat handoff
 
-- Kode sudah di-commit (`b2f26c5`, `8f00987`), dan migrasi database sudah aktif. **Kode baru aktif di production setelah Rama push `design-refresh` ke `main`.** Sebelum itu, endpoint `/api/mcp` di production mengembalikan 404 dan draf yang disetujui tidak boleh ada (kode lama akan mengirim template cadangan, bukan isi draf). Mulai pakai setelah `tools/list` di URL production mengembalikan 10 tool.
-- Uji 1, 2, 3, dan 5 lolos.
-- Uji 4 lolos sebagian: draf yang menunggu persetujuan tidak terkirim, dan setelah disetujui terkirim dengan subjek/isi custom tanpa AI opener. Header List-Unsubscribe di sisi penerima belum diverifikasi langsung.
-- Uji balasan (6) menunggu deploy dan balasan Rama ke email uji.
+- Sudah live di production sejak 1 Oktober 2026 (deploy `dpl_7XnjGs67vm7bF5uEXMeuGW2HJYgL`): `tools/list` di URL production mengembalikan 10 tool, tanpa token 401.
+- Ketujuh uji lolos, termasuk kirim nyata (isi custom, tanda tangan, footer berhenti berlangganan, tanpa AI opener) dan balasan (`balasan_daftar` mengembalikan `klasifikasi: "interested"`, `cuplikan: "Halo terimakasih lanjut"` dengan kutipan email lama terbuang).
 - Data uji di antrean Hermes Sales: `external_ref` `uji-hermes-001` (terkirim ke tetraphotobooth+hermes-uji1@gmail.com), `uji-hermes-003` dan `uji-hermes-004` (dibatalkan). Abaikan saat sinkron ke Tetra Ops.
 - Mode persetujuan saat ini: **manual**. Rama yang memindahkannya ke otomatis lewat halaman Draf Hermes kalau sudah percaya pada kualitas draf.
