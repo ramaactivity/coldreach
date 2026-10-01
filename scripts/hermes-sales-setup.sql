@@ -6,7 +6,8 @@
 -- 15 new emails/day), two follow-up templates, a fallback first-touch template
 -- (the runner requires one; Hermes rows always carry their own subject/body),
 -- and one manual-audience queue with follow-ups on day 4 and day 7.
--- The sender account is connected afterwards in Settings (SMTP/IMAP form).
+-- Sender: Tetraphoto's account (ramadan@tetraphoto.com) via
+-- sender_workspace_id — one mailbox, one shared quota counter.
 -- The app's workspace cache refreshes within 10 minutes (unstable_cache TTL).
 
 DO $$
@@ -39,6 +40,10 @@ BEGIN
     FROM public.workspaces WHERE slug = 'tetraphoto' AND user_id = uid
     RETURNING id INTO ws;
   END IF;
+
+  UPDATE public.workspaces
+     SET sender_workspace_id = (SELECT id FROM public.workspaces WHERE user_id = uid AND slug = 'tetraphoto')
+   WHERE id = ws AND sender_workspace_id IS NULL;
 
   SELECT id INTO fb FROM public.templates WHERE workspace_id = ws AND name = 'Hermes — cadangan' AND deleted_at IS NULL;
   IF fb IS NULL THEN

@@ -6,6 +6,7 @@ import { effectiveWarmupQuota, describeWarmupStage } from "@/lib/warmup";
 import { startOfTodayWibIso } from "@/lib/quota-reset";
 import { addDaysWIB, todayWIB } from "@/lib/holidays-id";
 import { wibDate } from "@/lib/ooo";
+import { senderScope } from "@/lib/sender-account";
 
 /**
  * MCP server for the Hermes sales agent: plain JSON-RPC over one stateless
@@ -329,10 +330,11 @@ async function sendDays(s: Scope, n: number): Promise<string[]> {
 }
 
 async function accountInfo(s: Scope) {
+  const { accountWorkspaceId } = await senderScope(s.admin, s.ws.id);
   const { data: acc } = await s.admin
     .from("email_accounts")
     .select("email, provider, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at, health_status")
-    .eq("workspace_id", s.ws.id)
+    .eq("workspace_id", accountWorkspaceId)
     .eq("is_active", true)
     .maybeSingle();
   if (!acc) return null;
@@ -344,6 +346,7 @@ async function accountInfo(s: Scope) {
   const fresh = acc.quota_reset_at && acc.quota_reset_at >= startOfTodayWibIso();
   return {
     acc,
+    shared: accountWorkspaceId !== s.ws.id,
     quota: effectiveWarmupQuota(opts),
     sentToday: fresh ? (acc.emails_sent_today as number) : 0,
     warmup: describeWarmupStage(opts),
@@ -767,6 +770,9 @@ const TOOLS: Tool[] = [
         akun_pengirim: info
           ? { email: info.acc.email, provider: info.acc.provider, kesehatan: info.acc.health_status }
           : null,
+        ...(info?.shared
+          ? { catatan_kuota: "Kuota akun dipakai bersama workspace pemilik akun; draf Hermes yang disetujui didahulukan." }
+          : {}),
         ...(info ? {} : { peringatan: "Belum ada akun pengirim terhubung; draf tidak akan terkirim." }),
         kuota_akun_hari_ini: info?.quota ?? 0,
         terpakai_akun_hari_ini: info?.sentToday ?? 0,
@@ -802,15 +808,19 @@ async function estimate(s: Scope) {
   const days = await sendDays(s, Math.ceil(left / perDay) + 1);
   if (left === 0 || days.length === 0) return { dijadwalkan: left };
   let i = 0;
-  if (days[0] === todayWIB()) left -= Math.max(0, perDay - newToday);
+  if (days[0] === todayWIB()) {
+    // Today's room is also bounded by the (possibly shared) account quota.
+    left -= Math.max(0, Math.min(perDay - newToday, info.quota - info.sentToday));
+  }
   while (left > 0 && i + 1 < days.length) {
     i++;
     left -= perDay;
   }
+  const todayFull = days[0] === todayWIB() && Math.min(perDay - newToday, info.quota - info.sentToday) <= 0;
   return {
     dijadwalkan: pending ?? 0,
     per_hari: perDay,
-    perkiraan_mulai: days[0],
+    perkiraan_mulai: todayFull ? (days[1] ?? days[0]) : days[0],
     perkiraan_selesai: days[i],
   };
 }

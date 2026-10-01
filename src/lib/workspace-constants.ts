@@ -50,6 +50,8 @@ export type Workspace = {
   approval_mode: "manual" | "auto" | null;
   /** Max NEW emails per WIB day for the whole workspace (NULL = no cap). */
   daily_new_cap: number | null;
+  /** Send from this workspace's connected account instead of its own. */
+  sender_workspace_id: string | null;
   /** Structured signature (logo, contacts, socials). NULL = no signature. */
   signature_data: SignatureData | null;
   /** @deprecated legacy column, no longer read or written. Kept until 0022 drops it. */

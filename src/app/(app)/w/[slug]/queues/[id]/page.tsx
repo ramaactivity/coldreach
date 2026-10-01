@@ -61,7 +61,8 @@ export default async function QueueDetailPage({
       supabase
         .from("email_accounts")
         .select("id, email, daily_quota, emails_sent_today, quota_reset_at")
-        .eq("workspace_id", workspace.id)
+        // A workspace may send from another workspace's account (Hermes Sales).
+        .eq("workspace_id", workspace.sender_workspace_id ?? workspace.id)
         .eq("is_active", true)
         .maybeSingle(),
       supabase

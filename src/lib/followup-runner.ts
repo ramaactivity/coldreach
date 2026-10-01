@@ -6,6 +6,7 @@ import type { FollowupStep } from "@/lib/queue-helpers";
 import { ensureDailyQuotaFresh, startOfTodayWibIso } from "@/lib/quota-reset";
 import type { SignatureData } from "@/lib/signature";
 import { followupDueAt } from "@/lib/ooo";
+import { senderScope } from "@/lib/sender-account";
 
 export type FollowupRunResult = {
   queue_id: string;
@@ -118,13 +119,15 @@ export async function runFollowupsForQueue(
   }
   if (steps.length === 0) return result;
 
-  // Connected Gmail account
+  // Connected account — possibly borrowed from another workspace, in which
+  // case the 50% follow-up share is counted across every workspace using it.
+  const sender = await senderScope(admin, queue.workspace_id);
   const { data: account } = await admin
     .from("email_accounts")
     .select(
       "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider, smtp_config, is_active, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at",
     )
-    .eq("workspace_id", queue.workspace_id)
+    .eq("workspace_id", sender.accountWorkspaceId)
     .eq("is_active", true)
     .maybeSingle();
   if (!account) {
@@ -147,7 +150,7 @@ export async function runFollowupsForQueue(
       null,
     fallbackQuota: account.daily_quota,
   });
-  // Follow-ups already sent today from this workspace (followup_history has
+  // Follow-ups already sent today from this account (followup_history has
   // no workspace column — go through the recipient row).
   const { count: followupsToday } = await admin
     .from("followup_history")
@@ -155,7 +158,7 @@ export async function runFollowupsForQueue(
       count: "exact",
       head: true,
     })
-    .eq("campaign_recipients.workspace_id", queue.workspace_id)
+    .in("campaign_recipients.workspace_id", sender.sharingIds)
     .gte("sent_at", startOfTodayWibIso());
   const remainingQuota = Math.min(
     effectiveDailyQuota - account.emails_sent_today,

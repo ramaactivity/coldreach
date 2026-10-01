@@ -10,6 +10,7 @@ import {
 import { isOutOfOffice, resolveReturnDate, wibDate } from "@/lib/ooo";
 import { fetchRecentInbox, type SmtpConfig } from "@/lib/imap-smtp";
 import { replySnippet } from "@/lib/reply-snippet";
+import { senderScope } from "@/lib/sender-account";
 
 const REPLY_LOOKBACK_DAYS = 30;
 const MAX_RECIPIENTS_PER_ACCOUNT_PER_RUN = 100;
@@ -208,9 +209,10 @@ export async function pollRepliesForAccount(
     Date.now() - REPLY_LOOKBACK_DAYS * 24 * 3600 * 1000,
   ).toISOString();
 
-  // Scope to this account's workspace (1 account = 1 workspace): otherwise
-  // every account polls the same newest-100 rows of the whole user, so a busy
-  // workspace crowds out the others and threads 404 on the wrong mailbox.
+  // Scope to the workspaces sending through this account (its own + any that
+  // borrow it, e.g. Hermes Sales): otherwise every account polls the same
+  // newest-100 rows of the whole user, so a busy workspace crowds out the
+  // others and threads 404 on the wrong mailbox.
   let candidateQuery = admin
     .from("campaign_recipients")
     .select(
@@ -218,7 +220,8 @@ export async function pollRepliesForAccount(
     )
     .eq("user_id", account.user_id);
   if (account.workspace_id) {
-    candidateQuery = candidateQuery.eq("workspace_id", account.workspace_id);
+    const { sharingIds } = await senderScope(admin, account.workspace_id);
+    candidateQuery = candidateQuery.in("workspace_id", sharingIds);
   }
   const { data: candidates } = await candidateQuery
     .in("status", ["sent", "opened"])
@@ -632,10 +635,11 @@ export async function markOwnerReplies(
   account: EmailAccountRow,
 ): Promise<number> {
   if (!account.workspace_id) return 0;
+  const { sharingIds } = await senderScope(admin, account.workspace_id);
   const { data: rows } = await admin
     .from("campaign_recipients")
     .select("id, contact_email, gmail_thread_id, replied_at")
-    .eq("workspace_id", account.workspace_id)
+    .in("workspace_id", sharingIds)
     .eq("status", "replied")
     .is("handled_at", null)
     .not("replied_at", "is", null)

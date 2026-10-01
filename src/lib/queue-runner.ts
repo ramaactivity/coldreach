@@ -12,6 +12,7 @@ import {
 import { ensureDailyQuotaFresh, startOfTodayWibIso } from "@/lib/quota-reset";
 import type { SignatureData } from "@/lib/signature";
 import { wibDate } from "@/lib/ooo";
+import { borrowerReserve, senderScope } from "@/lib/sender-account";
 
 export type RunQueueResult = {
   queue_id: string;
@@ -120,6 +121,10 @@ export async function runQueue(
     return result;
   }
 
+  // The account may belong to another workspace (Hermes Sales sends from
+  // Tetraphoto's mailbox) — one account row, one shared quota counter.
+  const sender = await senderScope(admin, queue.workspace_id);
+
   // Everything below is independent of everything else in this group, so it
   // goes out as ONE round of round trips instead of ten sequential ones. With
   // the DB in ap-southeast-1 the serial version burned ~10s of the tick's
@@ -137,7 +142,7 @@ export async function runQueue(
       .select(
         "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider, smtp_config, is_active, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at",
       )
-      .eq("workspace_id", queue.workspace_id)
+      .eq("workspace_id", sender.accountWorkspaceId)
       .eq("is_active", true)
       .maybeSingle(),
     admin
@@ -201,7 +206,13 @@ export async function runQueue(
       null,
     fallbackQuota: account.daily_quota,
   });
-  const remainingQuota = effectiveDailyQuota - account.emails_sent_today;
+  // On a shared account the owner's queue leaves room for the borrowers'
+  // approved drafts (personal, hand-approved emails go first).
+  const reserve =
+    sender.accountWorkspaceId === queue.workspace_id && sender.sharingIds.length > 1
+      ? await borrowerReserve(admin, sender.sharingIds.slice(1), wibTodayStart, wibDate(Date.now()))
+      : 0;
+  const remainingQuota = effectiveDailyQuota - account.emails_sent_today - reserve;
   if (remainingQuota <= 0) {
     result.errors.push(
       effectiveDailyQuota < account.daily_quota

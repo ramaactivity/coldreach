@@ -17,6 +17,10 @@
 --     'manual' = drafts wait for approval; 'auto' = drafts go straight to pending
 --   workspaces.daily_new_cap  max first-touch emails per WIB day for the
 --     whole workspace (NULL = no cap beyond quota/queue target)
+--   workspaces.sender_workspace_id  send from ANOTHER workspace's connected
+--     account (Hermes Sales borrows ramadan@tetraphoto.com from Tetraphoto).
+--     One account row = one quota counter shared by both workspaces; the
+--     borrower's approved drafts are served first (queue-runner reserve).
 --   campaign_recipients.reply_snippet  reply text, quotes stripped, ≤2000 chars
 --
 -- refill_queue: contacts Hermes created (source='hermes') never flow into an
@@ -36,7 +40,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_queue_recipients_external_ref
 
 ALTER TABLE public.workspaces
   ADD COLUMN IF NOT EXISTS approval_mode text,
-  ADD COLUMN IF NOT EXISTS daily_new_cap integer;
+  ADD COLUMN IF NOT EXISTS daily_new_cap integer,
+  ADD COLUMN IF NOT EXISTS sender_workspace_id uuid REFERENCES public.workspaces(id) ON DELETE SET NULL;
 
 DO $$ BEGIN
   ALTER TABLE public.workspaces
