@@ -9,6 +9,7 @@ import {
 } from "@/lib/reply-classifier";
 import { isOutOfOffice, resolveReturnDate, wibDate } from "@/lib/ooo";
 import { fetchRecentInbox, type SmtpConfig } from "@/lib/imap-smtp";
+import { replySnippet } from "@/lib/reply-snippet";
 
 const REPLY_LOOKBACK_DAYS = 30;
 const MAX_RECIPIENTS_PER_ACCOUNT_PER_RUN = 100;
@@ -353,7 +354,7 @@ export async function pollRepliesForAccount(
         return;
       }
 
-      await recordReply(admin, cand, repliedAt, classification);
+      await recordReply(admin, cand, repliedAt, classification, bodyText);
 
       // Hot leads float to the top of the Gmail inbox the team works from.
       if (classification === "interested" || classification === "question") {
@@ -379,14 +380,17 @@ async function recordReply(
   cand: RecipientRow,
   repliedAt: string,
   classification: ReplyClass | null,
+  bodyText: string,
 ): Promise<void> {
-  // Update campaign_recipient
+  // Update campaign_recipient. The snippet (quotes stripped) lets Hermes and
+  // the inbox read what was said without opening the mailbox.
   await admin
     .from("campaign_recipients")
     .update({
       status: "replied",
       replied_at: repliedAt,
       reply_classification: classification,
+      reply_snippet: replySnippet(bodyText) || null,
     })
     .eq("id", cand.id);
 
@@ -500,7 +504,7 @@ async function pollRepliesImap(
             result.ooo_found++;
           }
         } else {
-          await recordReply(admin, cand, reply.date.toISOString(), classification);
+          await recordReply(admin, cand, reply.date.toISOString(), classification, reply.text);
           result.replies_found++;
         }
       } else if (ooo) {

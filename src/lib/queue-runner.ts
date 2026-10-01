@@ -150,7 +150,7 @@ export async function runQueue(
       .in("template_id", requestedTemplateIds),
     admin
       .from("workspaces")
-      .select("name, business_type, signature_data, color_theme")
+      .select("name, business_type, signature_data, color_theme, daily_new_cap")
       .eq("id", queue.workspace_id)
       .maybeSingle(),
     // Sendable-now pending only: rows deferred by the cooldown/domain caps
@@ -309,7 +309,23 @@ export async function runQueue(
     }
   }
 
-  const limit = Math.min(batchSize, remainingQuota);
+  let limit = Math.min(batchSize, remainingQuota);
+  // Optional per-workspace cap on NEW emails per WIB day (Hermes Sales: 15).
+  // Follow-ups don't count here — they keep their own 50%-of-quota share.
+  const dailyNewCap = (workspaceRes.data as { daily_new_cap?: number | null } | null)
+    ?.daily_new_cap;
+  if (dailyNewCap != null) {
+    const { count: newToday } = await admin
+      .from("queue_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("workspace_id", queue.workspace_id)
+      .gte("sent_at", wibTodayStart);
+    limit = Math.min(limit, dailyNewCap - (newToday ?? 0));
+    if (limit <= 0) {
+      result.errors.push(`Workspace daily cap reached (${dailyNewCap}/day)`);
+      return result;
+    }
+  }
   // Oversample candidates: rows skipped by dedup or the per-domain cap must
   // not eat send slots — the loop below stops once `limit` actual
   // sends/failures have happened, not after `limit` rows examined.
@@ -320,7 +336,7 @@ export async function runQueue(
   const { data: recipients } = await admin
     .from("queue_recipients")
     .select(
-      `id, priority,
+      `id, priority, custom_subject, custom_body,
        contact:contacts!inner(
          id, email, first_name, last_name, company, position, status,
          archived_at, unsubscribe_token, language_pref,
@@ -476,10 +492,10 @@ export async function runQueue(
 
   // Park a pending row until `days` from now so it stops taking candidate
   // slots on every tick while it is capped/cooling down.
-  const deferRecipient = (id: string, untilMs: number) =>
+  const deferRecipient = (id: string, untilMs: number, reason: string) =>
     admin
       .from("queue_recipients")
-      .update({ scheduled_for_date: wibDate(untilMs) })
+      .update({ scheduled_for_date: wibDate(untilMs), status_reason: reason })
       .eq("id", id);
 
   // Local view of how many recipients are still pending, used only for the
@@ -499,6 +515,8 @@ export async function runQueue(
     }
     const recipient = recipients[i] as unknown as {
       id: string;
+      custom_subject: string | null;
+      custom_body: string | null;
       contact:
         | {
             id: string;
@@ -555,7 +573,7 @@ export async function runQueue(
     // forever) but deferred to the day the window ends.
     const lastTouch = lastTouchedMs.get(contact.email.toLowerCase());
     if (lastTouch !== undefined) {
-      await deferRecipient(recipient.id, lastTouch + DEDUP_COOLDOWN_DAYS * DAY_MS);
+      await deferRecipient(recipient.id, lastTouch + DEDUP_COOLDOWN_DAYS * DAY_MS, "cooldown 45 hari");
       result.skipped++;
       continue;
     }
@@ -581,18 +599,18 @@ export async function runQueue(
     // hold its other people for 30 days (the repliers stay reachable).
     const repliers = capDomain ? domainRepliers.get(capDomain) : undefined;
     if (repliers && !repliers.includes(contact.email.toLowerCase())) {
-      await deferRecipient(recipient.id, Date.now() + 30 * DAY_MS);
+      await deferRecipient(recipient.id, Date.now() + 30 * DAY_MS, "rekan sekantor sudah membalas");
       result.skipped++;
       continue;
     }
     if (capDomain) {
       if ((domainSentWindow.get(capDomain) ?? 0) >= MAX_PER_COMPANY_DOMAIN_PER_WINDOW) {
-        await deferRecipient(recipient.id, Date.now() + 3 * DAY_MS);
+        await deferRecipient(recipient.id, Date.now() + 3 * DAY_MS, "batas domain 8 per 14 hari");
         result.skipped++;
         continue;
       }
       if ((domainSentToday.get(capDomain) ?? 0) >= MAX_PER_COMPANY_DOMAIN_PER_DAY) {
-        await deferRecipient(recipient.id, Date.now() + DAY_MS);
+        await deferRecipient(recipient.id, Date.now() + DAY_MS, "batas domain 2 per hari");
         result.skipped++;
         continue;
       }
@@ -603,9 +621,15 @@ export async function runQueue(
     // English emails got ~20% fewer replies per send than Indonesian ones.
     const language = contact.language_pref === "en" ? "en" : "id";
 
+    // Per-recipient draft (Hermes): sent as written, no AI opener.
+    const custom =
+      recipient.custom_subject && recipient.custom_body
+        ? { subject: recipient.custom_subject, body: recipient.custom_body }
+        : null;
+
     // Resolve AI opener: cache → generate → fallback null
     let aiOpener: string | null = null;
-    if (queue.use_ai_opener && workspaceMeta) {
+    if (queue.use_ai_opener && workspaceMeta && !custom) {
       aiOpener = openerCache.get(contact.id) ?? null;
       if (!aiOpener) {
         aiOpener = await generateOpener(
@@ -696,10 +720,13 @@ export async function runQueue(
       : contact;
 
     // Balanced rotation: pick the least-used template for this send.
-    const chosenTemplateId = pickTemplateId();
-    const chosenTemplate = templateMap.get(chosenTemplateId)!;
-    const chosenAttachments =
-      attachmentsByTemplate.get(chosenTemplateId) ?? [];
+    const chosenTemplateId = custom ? null : pickTemplateId();
+    const chosenTemplate: EmailTemplate = custom
+      ? { id: recipient.id, subject_lines: [custom.subject], body_plain: custom.body }
+      : templateMap.get(chosenTemplateId!)!;
+    const chosenAttachments = chosenTemplateId
+      ? (attachmentsByTemplate.get(chosenTemplateId) ?? [])
+      : [];
 
     const sendResult = await sendEmail(admin, {
       account: account as EmailAccount,
@@ -740,10 +767,12 @@ export async function runQueue(
     // emails_sent_today is bumped atomically via RPC below, not tracked here.
     queuePending = Math.max(0, queuePending - 1);
     // Count this template's send so the next pick stays balanced.
-    templateUseCount.set(
-      chosenTemplateId,
-      (templateUseCount.get(chosenTemplateId) ?? 0) + 1,
-    );
+    if (chosenTemplateId) {
+      templateUseCount.set(
+        chosenTemplateId,
+        (templateUseCount.get(chosenTemplateId) ?? 0) + 1,
+      );
+    }
     const nowIso = new Date().toISOString();
 
     // All post-send DB writes are independent — fire in parallel to keep

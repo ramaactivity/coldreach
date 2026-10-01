@@ -45,6 +45,11 @@ export type Workspace = {
   schedule_start_time: string;
   schedule_end_time: string;
   daily_target: number;
+  /** External drafts (Hermes): NULL = workspace takes none; 'manual' = wait
+   *  for approval; 'auto' = straight to the send queue. */
+  approval_mode: "manual" | "auto" | null;
+  /** Max NEW emails per WIB day for the whole workspace (NULL = no cap). */
+  daily_new_cap: number | null;
   /** Structured signature (logo, contacts, socials). NULL = no signature. */
   signature_data: SignatureData | null;
   /** @deprecated legacy column, no longer read or written. Kept until 0022 drops it. */

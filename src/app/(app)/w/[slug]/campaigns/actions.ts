@@ -89,6 +89,9 @@ export async function createCampaign(
     .eq("status", "active");
   if (data.audience_type === "tag" && data.audience_tag) {
     contactQuery = contactQuery.contains("tags", [data.audience_tag]);
+  } else {
+    // Hermes-sourced contacts stay with the Hermes workspace (see refill_queue).
+    contactQuery = contactQuery.or("source.is.null,source.neq.hermes");
   }
   const { data: contacts } = await contactQuery;
   if (!contacts || contacts.length === 0) {

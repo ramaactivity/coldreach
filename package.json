@@ -8,7 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "check": "tsc --noEmit -p . && node scripts/check-ooo.mjs && node scripts/check-display.mjs"
+    "check": "tsc --noEmit -p . && node scripts/check-ooo.mjs && node scripts/check-display.mjs && node scripts/check-reply-snippet.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

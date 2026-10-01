@@ -10,6 +10,7 @@ import {
   FileText,
   Send,
   Rocket,
+  PenLine,
   Kanban,
   Settings as SettingsIcon,
   LogOut,
@@ -139,6 +140,9 @@ export function Sidebar({
         },
         { href: `/w/${slug}/templates`, label: "Templates", icon: FileText },
         { href: `/w/${slug}/queues`, label: "Queues", icon: Send },
+        ...(workspace.approval_mode
+          ? [{ href: `/w/${slug}/drafts`, label: "Draf Hermes", icon: PenLine }]
+          : []),
         { href: `/w/${slug}/campaigns`, label: "Campaigns", icon: Rocket },
       ],
     },

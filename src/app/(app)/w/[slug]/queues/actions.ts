@@ -111,6 +111,9 @@ export async function createQueue(
     .eq("status", "active");
   if (data.audience_type === "tag" && data.audience_tag) {
     contactQuery = contactQuery.contains("tags", [data.audience_tag]);
+  } else {
+    // Hermes-sourced contacts stay with the Hermes workspace (see refill_queue).
+    contactQuery = contactQuery.or("source.is.null,source.neq.hermes");
   }
   // Warm-first: order by engagement_score DESC at the DB layer so we don't
   // need to sort 14k rows in JS. Random mode just doesn't apply an ORDER BY.

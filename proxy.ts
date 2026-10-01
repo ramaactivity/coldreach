@@ -15,11 +15,12 @@ export const config = {
      *                      every Supabase auth check here is wasted CPU and
      *                      breaks the pixel (without this exclusion the pixel
      *                      route would 307 to /login on cold hits)
+     * - api/mcp        — Hermes agent, guarded by its own bearer token
      * - unsubscribe/*    — token-based public route, no session needed
      *
      * Auth public routes (/login, /auth/*) still pass through and are
      * handled inside updateSession.
      */
-    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/cron|api/track|unsubscribe|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|api/cron|api/track|api/mcp|unsubscribe|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
