@@ -75,8 +75,9 @@ Contoh alasan:
 
 Alasan "domain … hari ini/14 hari" hanya **menunda**; draf tetap diterima. Semua alasan lain membuat `draf_kirim` menolak email itu. Laporkan alasannya ke Rama apa adanya.
 
-**`draf_daftar({ status?: "menunggu_persetujuan" | "dijadwalkan" | "terkirim_hari_ini" })`**
+**`draf_daftar({ status?: "menunggu_persetujuan" | "dijadwalkan" | "terkirim_hari_ini", ids?: string[] })`**
 Tanpa `status`: ketiga kelompok sekaligus. Hasil per draf: `{ id, status, perusahaan, email, subjek, isi (200 karakter pertama), external_ref, tanggal_baru?, alasan?, terkirim? }`. Urutan: yang paling lama dibuat lebih dulu.
+Dengan `ids`: hanya draf itu (status apa pun), dengan `isi` **lengkap**. Pakai ini untuk "lihat N", karena draf bisa diubah Rama di Cold Reach.
 
 **`status_kiriman({ sejak?: "YYYY-MM-DD" })`** (default 30 hari terakhir)
 Hasil per penerima: `{ id, external_ref, email, perusahaan, status, terkirim?, follow_up?: [{ ke, tanggal }], dibalas?: { tanggal, klasifikasi }, bounce?, tanggal_baru?, alasan? }`.
@@ -128,7 +129,9 @@ Tandai balasan sudah ditangani setelah Rama menanggapinya. `id` diambil dari `ba
    Laporkan `perkiraan_mulai`/`perkiraan_selesai`.
 6. Sore atau besok pagi: `status_kiriman` → sinkron ke Tetra Ops. `balasan_daftar` → kirim ke Rama berisi cuplikan + saran balasan → setelah Rama menanggapi, `balasan_tandai`.
 
-Rama juga bisa menyetujui, mengubah, atau membatalkan draf sendiri di halaman **Draf Hermes** (`/w/hermes-sales/drafts`) di Cold Reach. Jadi selalu baca status terbaru dari tool, jangan dari ingatanmu.
+Rama juga bisa menyetujui, mengubah, atau membatalkan draf sendiri di halaman **Draf Hermes** (`/w/hermes-sales/drafts`) di Cold Reach. Halaman itu menampilkan draf yang menunggu persetujuan dan draf yang dijadwalkan tapi belum terkirim. Jadi selalu baca status terbaru dari tool, jangan dari ingatanmu.
+
+**Memetakan nomor laporan ke draf:** cocokkan dengan `perusahaan`/`email` (atau `id`/`external_ref` yang kamu simpan saat laporan), **jangan dengan posisi** di hasil `draf_daftar`. Runner mengirim setiap 15 menit, jadi daftar bisa bergeser antara laporan dan balasan Rama.
 
 ## Status saat handoff
 

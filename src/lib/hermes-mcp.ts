@@ -518,13 +518,20 @@ const TOOLS: Tool[] = [
   }),
   tool({
     name: "draf_daftar",
-    description: "Daftar draf Hermes: menunggu persetujuan, dijadwalkan (termasuk tertunda), dan terkirim hari ini.",
+    description:
+      "Daftar draf Hermes: menunggu persetujuan, dijadwalkan (termasuk tertunda), dan terkirim hari ini. Isi dipotong 200 karakter; isi `ids` untuk subjek + isi lengkap draf tertentu (status apa pun).",
     schema: z.object({
       status: z.enum(["menunggu_persetujuan", "dijadwalkan", "terkirim_hari_ini"]).optional(),
+      ids: IdsSchema.min(1).optional().describe("Ambil draf ini saja, dengan isi lengkap."),
     }),
     readOnly: true,
-    run: async ({ status }, s) => {
+    run: async ({ status, ids }, s) => {
       let q = s.admin.from("queue_recipients").select(DRAFT_COLS).eq("queue_id", s.queue.id);
+      if (ids) {
+        const { data, error } = await q.in("id", ids);
+        if (error) throw new ToolError(error.message);
+        return ((data ?? []) as DraftRow[]).map((r) => draftOut(r, true));
+      }
       if (status === "menunggu_persetujuan") q = q.eq("status", "awaiting_approval");
       else if (status === "dijadwalkan") q = q.eq("status", "pending");
       else if (status === "terkirim_hari_ini") q = q.gte("sent_at", startOfTodayWibIso());

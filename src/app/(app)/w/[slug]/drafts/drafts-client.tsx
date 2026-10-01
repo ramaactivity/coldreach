@@ -16,6 +16,10 @@ import {
 
 export type Draft = {
   id: string;
+  /** Approved/auto: already in the send queue, only edit/cancel apply. */
+  scheduled: boolean;
+  /** Deferred by cooldown/domain caps until this WIB date. */
+  scheduledFor: string | null;
   subject: string;
   body: string;
   createdAt: string;
@@ -104,23 +108,30 @@ export function DraftSettings({
 
 export function DraftList({ slug, drafts }: { slug: string; drafts: Draft[] }) {
   const [pending, run] = useAction();
+  const scheduled = drafts[0]?.scheduled;
   return (
-    <div className="space-y-3">
+    <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-[13px] text-muted">{drafts.length} draf menunggu persetujuan</p>
-        <Button
-          size="sm"
-          loading={pending}
-          onClick={() => run(() => approveDrafts(slug, null), (r) => `${r.count ?? 0} draf disetujui`)}
-        >
-          <Check className="h-4 w-4" />
-          Setujui semua
-        </Button>
+        <h2 className="text-[13px] font-medium text-muted">
+          {scheduled
+            ? `Dijadwalkan, belum terkirim (${drafts.length})`
+            : `Menunggu persetujuan (${drafts.length})`}
+        </h2>
+        {!scheduled && (
+          <Button
+            size="sm"
+            loading={pending}
+            onClick={() => run(() => approveDrafts(slug, null), (r) => `${r.count ?? 0} draf disetujui`)}
+          >
+            <Check className="h-4 w-4" />
+            Setujui semua
+          </Button>
+        )}
       </div>
       {drafts.map((d) => (
         <DraftCard key={d.id} slug={slug} draft={d} />
       ))}
-    </div>
+    </section>
   );
 }
 
@@ -142,17 +153,26 @@ function DraftCard({ slug, draft }: { slug: string; draft: Draft }) {
             {draft.person && ` · ${draft.person}`}
             {draft.position && ` (${draft.position})`}
           </p>
+          {draft.scheduled && (
+            <p className="mt-1 text-[12px] text-muted">
+              {draft.scheduledFor
+                ? `Ditunda sampai ${draft.scheduledFor} (cooldown/batas domain)`
+                : "Terkirim otomatis di jendela kirim berikutnya"}
+            </p>
+          )}
         </div>
         {!editing && (
           <div className="flex shrink-0 gap-2">
-            <Button
-              size="sm"
-              loading={pending}
-              onClick={() => run(() => approveDrafts(slug, [draft.id]), () => "Draf disetujui")}
-            >
-              <Check className="h-4 w-4" />
-              Setujui
-            </Button>
+            {!draft.scheduled && (
+              <Button
+                size="sm"
+                loading={pending}
+                onClick={() => run(() => approveDrafts(slug, [draft.id]), () => "Draf disetujui")}
+              >
+                <Check className="h-4 w-4" />
+                Setujui
+              </Button>
+            )}
             <Button size="sm" variant="secondary" disabled={pending} onClick={() => setEditing(true)}>
               <Pencil className="h-4 w-4" />
               Ubah
