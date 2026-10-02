@@ -127,6 +127,9 @@ const INTL_WEBMAIL_DOMAINS = new Set([
   "mail.com",
 ]);
 
+/** Every consumer webmail domain (Indonesian + international). */
+export const WEBMAIL_DOMAINS: string[] = [...ID_FREE_DOMAINS, ...INTL_WEBMAIL_DOMAINS];
+
 /**
  * Company-domain extractor for the per-domain daily send cap. Consumer
  * webmail (gmail/yahoo/outlook/...) returns null — individual mailboxes

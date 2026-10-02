@@ -2,7 +2,7 @@ import { resolveMx } from "node:dns/promises";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { corporateDomainOf } from "@/lib/lang-detect";
+import { corporateDomainOf, WEBMAIL_DOMAINS } from "@/lib/lang-detect";
 import { effectiveWarmupQuota, describeWarmupStage } from "@/lib/warmup";
 import { startOfTodayWibIso } from "@/lib/quota-reset";
 import { addDaysWIB, todayWIB } from "@/lib/holidays-id";
@@ -547,6 +547,60 @@ const TOOLS: Tool[] = [
         ...(r.alasan ? { alasan: r.alasan } : {}),
         ...(r.terakhir_dihubungi ? { terakhir_dihubungi: r.terakhir_dihubungi } : {}),
       })),
+  }),
+  tool({
+    name: "kontak_kandidat",
+    description:
+      "Ambil kontak korporat dari database Cold Reach yang belum pernah dihubungi workspace Tetra mana pun (tidak unsubscribe/bounce/cooldown), satu orang per perusahaan, prioritas jabatan GA → marketing → HR. Kontak yang dikembalikan direservasi 14 hari untuk Hermes.",
+    schema: z.object({
+      maks: z.number().int().min(1).max(50).optional().describe("Jumlah kandidat (default 10)."),
+      jabatan: z
+        .array(z.enum(["ga", "marketing", "hr"]))
+        .min(1)
+        .optional()
+        .describe("Batasi ke kelompok jabatan ini. Tanpa ini: semua, jabatan lain di urutan terakhir."),
+    }),
+    readOnly: false,
+    run: async ({ maks = 10, jabatan }, s) => {
+      // "Tetra" = every photobooth-business workspace (Tetra Photobooth, Tetra
+      // Visual, Tetraphoto, Hermes Sales); Tiska contacts are fair game.
+      const { data: tetra } = await s.admin
+        .from("workspaces")
+        .select("id")
+        .eq("user_id", s.userId)
+        .eq("business_type", "photography");
+      const { data, error } = await s.admin.rpc("hermes_candidates", {
+        p_user_id: s.userId,
+        p_workspace_ids: (tetra ?? []).map((w) => w.id),
+        p_webmail: WEBMAIL_DOMAINS,
+        p_limit: maks,
+        p_roles: jabatan ?? null,
+        p_reserve_days: 14,
+      });
+      if (error) throw new ToolError(error.message);
+      type Row = {
+        id: string;
+        email: string;
+        first_name: string | null;
+        last_name: string | null;
+        position: string | null;
+        company: string | null;
+        phone: string | null;
+        domain: string;
+        role: string;
+        reserved_until: string;
+      };
+      return ((data ?? []) as Row[]).map((r) => ({
+        email: r.email.trim().toLowerCase(),
+        nama: [r.first_name, r.last_name].filter(Boolean).join(" ") || null,
+        jabatan: r.position,
+        kelompok_jabatan: r.role,
+        perusahaan: r.company,
+        domain: r.domain,
+        wa: r.phone,
+        reservasi_sampai: day(r.reserved_until),
+      }));
+    },
   }),
   tool({
     name: "draf_kirim",

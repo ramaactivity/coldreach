@@ -100,6 +100,15 @@ Akun pengirim, `kuota_akun_hari_ini`, `terpakai_akun_hari_ini`, `warmup: { hari_
 
 ### Tulis (`readOnlyHint: false`)
 
+**`kontak_kandidat({ maks?: 1..50 (default 10), jabatan?: ("ga" | "marketing" | "hr")[] })`**
+Kontak korporat dari database Cold Reach yang belum pernah dihubungi workspace Tetra mana pun (Tetra Photobooth, Tetra Visual, Tetraphoto, Hermes Sales):
+- tidak unsubscribe/bounce, tidak dalam cooldown 45 hari, tidak sedang di antrean mana pun;
+- satu orang per domain;
+- domain dilewati kalau ada kontak lain di sana yang sedang direservasi, atau workspace Tetra mengirim ke domain itu dalam 30 hari terakhir.
+
+Urutan: `ga` (GA, umum, office, facility, procurement, purchasing) → `marketing` (marketing, event, brand, communication, PR, social media) → `hr` → jabatan lain.
+Hasil: `[{ email, nama, jabatan, kelompok_jabatan, perusahaan, domain, wa, reservasi_sampai }]`. Kontak yang dikembalikan direservasi 14 hari: tidak dikembalikan lagi dan tidak diambil antrean evergreen workspace lain. Lanjutkan dengan `kontak_cek` (cek MX dll.) → `draf_kirim` seperti biasa.
+
 **`draf_kirim({ items: [1..25] })`**
 Item: `{ email, nama_perusahaan, website?, telepon?, nama_pic?, jabatan_pic?, subjek (≤200), isi (20..5000), external_ref, prioritas?, segmen?, kampanye? }`.
 - `prioritas`: `"tinggi" | "normal" | "rendah"` (default `normal`). Tinggi dikirim lebih dulu di antrean, dalam kuota dan pengaman yang sama.
