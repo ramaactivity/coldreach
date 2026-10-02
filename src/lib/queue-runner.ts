@@ -140,9 +140,14 @@ export async function runQueue(
     admin
       .from("email_accounts")
       .select(
-        "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider, smtp_config, is_active, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at",
+        "id, workspace_id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider, smtp_config, is_active, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at",
       )
-      .eq("workspace_id", sender.accountWorkspaceId)
+      // A queue may be pinned to one mailbox (Hermes Sales pool); otherwise
+      // it sends from its workspace's (or sender workspace's) account.
+      .eq(
+        queue.email_account_id ? "id" : "workspace_id",
+        queue.email_account_id ?? sender.accountWorkspaceId,
+      )
       .eq("is_active", true)
       .maybeSingle(),
     admin
@@ -208,9 +213,16 @@ export async function runQueue(
   });
   // On a shared account the owner's queue leaves room for the borrowers'
   // approved drafts (personal, hand-approved emails go first).
+  const ownsAccount = account.workspace_id === queue.workspace_id;
+  // Borrowers exist only when this workspace is the lender (sharingIds is
+  // relative to sender.accountWorkspaceId, the workspace's default sender).
+  const borrowerIds =
+    ownsAccount && sender.accountWorkspaceId === queue.workspace_id
+      ? sender.sharingIds.slice(1)
+      : [];
   const reserve =
-    sender.accountWorkspaceId === queue.workspace_id && sender.sharingIds.length > 1
-      ? await borrowerReserve(admin, sender.sharingIds.slice(1), wibTodayStart, wibDate(Date.now()), effectiveDailyQuota)
+    borrowerIds.length > 0
+      ? await borrowerReserve(admin, account.id, borrowerIds, wibTodayStart, wibDate(Date.now()), effectiveDailyQuota)
       : 0;
   const remainingQuota = effectiveDailyQuota - account.emails_sent_today - reserve;
   if (remainingQuota <= 0) {
@@ -325,13 +337,10 @@ export async function runQueue(
   // A workspace borrowing another's account is also held to its share of
   // that account's quota, so the owner's queue keeps running.
   // Follow-ups don't count here — they keep their own 50%-of-quota share.
-  const ownCap = (workspaceRes.data as { daily_new_cap?: number | null } | null)
+  const dailyNewCap = (workspaceRes.data as { daily_new_cap?: number | null } | null)
     ?.daily_new_cap;
-  const dailyNewCap =
-    sender.accountWorkspaceId !== queue.workspace_id
-      ? borrowerAllowance(ownCap, effectiveDailyQuota)
-      : ownCap;
   if (dailyNewCap != null) {
+    // Workspace-wide (all of its queues / mailboxes).
     const { count: newToday } = await admin
       .from("queue_recipients")
       .select("id", { count: "exact", head: true })
@@ -340,6 +349,20 @@ export async function runQueue(
     limit = Math.min(limit, dailyNewCap - (newToday ?? 0));
     if (limit <= 0) {
       result.errors.push(`Workspace daily cap reached (${dailyNewCap}/day)`);
+      return result;
+    }
+  }
+  if (!ownsAccount) {
+    // Borrowed mailbox: this queue gets at most its share of that account.
+    const share = borrowerAllowance(null, effectiveDailyQuota);
+    const { count: queueToday } = await admin
+      .from("queue_recipients")
+      .select("id", { count: "exact", head: true })
+      .eq("queue_id", queueId)
+      .gte("sent_at", wibTodayStart);
+    limit = Math.min(limit, share - (queueToday ?? 0));
+    if (limit <= 0) {
+      result.errors.push(`Share of shared account reached (${share}/day)`);
       return result;
     }
   }
@@ -802,6 +825,7 @@ export async function runQueue(
             .update({
               status: "sent",
               sent_at: nowIso,
+              email_account_id: account.id,
               gmail_message_id: sendResult.gmail_message_id,
               gmail_thread_id: sendResult.gmail_thread_id,
               gmail_subject_used: sendResult.subject_used,

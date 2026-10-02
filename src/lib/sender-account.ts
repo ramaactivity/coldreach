@@ -43,11 +43,13 @@ export function borrowerAllowance(cap: number | null | undefined, quota: number)
 
 /**
  * Quota the account owner must leave for borrowing workspaces today: their
- * approved, sendable drafts up to each one's daily_new_cap. Zero when they
- * have nothing waiting, so the owner's queue can use the whole quota.
+ * approved, sendable drafts in queues that send through this account, up to
+ * each one's allowance. Zero when they have nothing waiting, so the owner's
+ * queue can use the whole quota.
  */
 export async function borrowerReserve(
   admin: SupabaseClient,
+  accountId: string,
   borrowerIds: string[],
   dayStartIso: string,
   todayWib: string,
@@ -55,17 +57,28 @@ export async function borrowerReserve(
 ): Promise<number> {
   const per = await Promise.all(
     borrowerIds.map(async (id) => {
-      const [{ data: ws }, { count: sent }, { count: pending }] = await Promise.all([
+      // A borrower's queue pinned to another mailbox (pool) doesn't use ours.
+      const [{ data: ws }, { data: queues }] = await Promise.all([
         admin.from("workspaces").select("daily_new_cap").eq("id", id).maybeSingle(),
+        admin
+          .from("send_queues")
+          .select("id")
+          .eq("workspace_id", id)
+          .eq("is_active", true)
+          .or(`email_account_id.is.null,email_account_id.eq.${accountId}`),
+      ]);
+      const queueIds = (queues ?? []).map((q) => q.id as string);
+      if (queueIds.length === 0) return 0;
+      const [{ count: sent }, { count: pending }] = await Promise.all([
         admin
           .from("queue_recipients")
           .select("id", { count: "exact", head: true })
-          .eq("workspace_id", id)
+          .in("queue_id", queueIds)
           .gte("sent_at", dayStartIso),
         admin
           .from("queue_recipients")
           .select("id", { count: "exact", head: true })
-          .eq("workspace_id", id)
+          .in("queue_id", queueIds)
           .eq("status", "pending")
           .or(`scheduled_for_date.is.null,scheduled_for_date.lte.${todayWib}`),
       ]);

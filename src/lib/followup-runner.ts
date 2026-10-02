@@ -127,7 +127,11 @@ export async function runFollowupsForQueue(
     .select(
       "id, email, display_name, access_token_encrypted, refresh_token_encrypted, token_expires_at, provider, smtp_config, is_active, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at",
     )
-    .eq("workspace_id", sender.accountWorkspaceId)
+    // Same mailbox as the queue's first touches (a queue may be pinned to one).
+    .eq(
+      queue.email_account_id ? "id" : "workspace_id",
+      queue.email_account_id ?? sender.accountWorkspaceId,
+    )
     .eq("is_active", true)
     .maybeSingle();
   if (!account) {
@@ -158,7 +162,7 @@ export async function runFollowupsForQueue(
       count: "exact",
       head: true,
     })
-    .in("campaign_recipients.workspace_id", sender.sharingIds)
+    .eq("campaign_recipients.email_account_id", account.id)
     .gte("sent_at", startOfTodayWibIso());
   const remainingQuota = Math.min(
     effectiveDailyQuota - account.emails_sent_today,
@@ -478,6 +482,7 @@ export async function runFollowupsForQueue(
         user_id: queue.user_id,
         workspace_id: queue.workspace_id,
         contact_email: c.contact.email,
+        email_account_id: account.id,
         status: "sending",
         gmail_thread_id: c.cr.gmail_thread_id,
       })

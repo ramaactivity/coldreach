@@ -92,11 +92,19 @@ Hasil: `{ id, perusahaan, email, klasifikasi, cuplikan, waktu, link_thread, exte
 
 **`kuota({})`**
 Akun pengirim, `kuota_akun_hari_ini`, `terpakai_akun_hari_ini`, `warmup: { hari_ke, batas }`, `batas_email_baru_per_hari`, `email_baru_terkirim_hari_ini`, `mode_persetujuan`, `antrean: { menunggu_persetujuan, dijadwalkan }`, dan `jendela_kirim_berikutnya`. Pakai ini untuk memutuskan berapa banyak draf yang layak dibuat hari ini; draf berlebih hanya akan menumpuk.
+- `batas_email_baru_per_hari` adalah batas **efektif**: jumlah jatah semua mailbox Hermes (mailbox yang dipakai bersama TETRA memberi maksimal separuh kuotanya), dibatasi `batas_workspace`.
+- `batas_workspace`: batas yang diatur Rama (default 15).
+- `akun_pool`: `[{ email, dipakai_bersama, kuota_hari_ini, terpakai_hari_ini, jatah_hermes, warmup }]`, satu per mailbox.
+- `antrean_per_prioritas: { tinggi, normal, rendah }`: draf yang menunggu persetujuan + dijadwalkan.
+- `perkiraan_hari_antrean`: hari kerja yang dibutuhkan untuk menghabiskan draf `dijadwalkan` dengan batas efektif hari ini.
 
 ### Tulis (`readOnlyHint: false`)
 
 **`draf_kirim({ items: [1..25] })`**
-Item: `{ email, nama_perusahaan, website?, telepon?, nama_pic?, jabatan_pic?, subjek (≤200), isi (20..5000), external_ref }`.
+Item: `{ email, nama_perusahaan, website?, telepon?, nama_pic?, jabatan_pic?, subjek (≤200), isi (20..5000), external_ref, prioritas?, segmen?, kampanye? }`.
+- `prioritas`: `"tinggi" | "normal" | "rendah"` (default `normal`). Tinggi dikirim lebih dulu di antrean, dalam kuota dan pengaman yang sama.
+- `segmen`: `"corporate" | "venue" | "eo_wo" | "kampus" | "instansi"`. `kampanye`: teks bebas ≤100 karakter. Keduanya dikembalikan di `draf_daftar`, `status_kiriman`, dan `balasan_daftar` untuk analisis.
+- Email ke domain perusahaan tanpa MX ditolak: `domain tidak menerima email (<domain> tidak punya MX)`.
 - Kontak digabung dengan database Cold Reach berdasarkan email. Kontak lama tidak dibuat ulang dan data yang sudah terisi tidak ditimpa; hanya kolom kosong yang diisi.
 - **Idempoten per `external_ref`**: kalau dipanggil ulang, hasilnya baris yang sama dengan `alasan: "sudah pernah dikirim (idempoten)"`. Aman untuk retry.
 - Hasil: `{ mode_persetujuan, hasil: [{ email, external_ref, id, status: "menunggu_persetujuan" | "dijadwalkan" | "ditolak", alasan?, catatan? }] }`.

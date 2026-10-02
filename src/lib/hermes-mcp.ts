@@ -1,3 +1,4 @@
+import { resolveMx } from "node:dns/promises";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -38,13 +39,20 @@ type Scope = {
     approval_mode: "manual" | "auto" | null;
     daily_new_cap: number | null;
   };
-  queue: {
-    id: string;
-    daily_target: number;
-    schedule_days: number[];
-    schedule_start_time: string;
-    schedule_end_time: string;
-  };
+  /** Primary (oldest) queue: its schedule is the workspace's send window. */
+  queue: QueueRow;
+  /** Every active queue of the workspace — one per mailbox when pooled. */
+  queues: QueueRow[];
+};
+
+type QueueRow = {
+  id: string;
+  daily_target: number;
+  schedule_days: number[];
+  schedule_start_time: string;
+  schedule_end_time: string;
+  /** Pinned mailbox; null = the workspace's default sender account. */
+  email_account_id: string | null;
 };
 
 class ToolError extends Error {}
@@ -62,16 +70,16 @@ async function resolveScope(): Promise<Scope> {
     .eq("is_archived", false)
     .maybeSingle();
   if (!ws) throw new ToolError(`Workspace "${slug}" tidak ditemukan di Cold Reach.`);
-  const { data: queue } = await admin
+  const { data: queues } = await admin
     .from("send_queues")
-    .select("id, daily_target, schedule_days, schedule_start_time, schedule_end_time")
+    .select("id, daily_target, schedule_days, schedule_start_time, schedule_end_time, email_account_id")
     .eq("workspace_id", ws.id)
     .eq("is_one_shot", false)
-    .order("created_at")
-    .limit(1)
-    .maybeSingle();
-  if (!queue) throw new ToolError(`Workspace "${slug}" belum punya antrean kirim.`);
-  return { admin, userId, ws: ws as Scope["ws"], queue: queue as Scope["queue"] };
+    .eq("is_active", true)
+    .order("created_at");
+  if (!queues?.length) throw new ToolError(`Workspace "${slug}" belum punya antrean kirim yang aktif.`);
+  const rows = queues as QueueRow[];
+  return { admin, userId, ws: ws as Scope["ws"], queue: rows[0], queues: rows };
 }
 
 const norm = (e: string) => e.trim().toLowerCase();
@@ -128,6 +136,30 @@ async function findContacts(s: Scope, emails: string[]): Promise<Map<string, Con
   return out;
 }
 
+/**
+ * Domains that cannot receive mail: no MX record (or RFC 7505 null MX).
+ * DNS lookups only — never an SMTP probe (that would hurt our reputation).
+ * Timeouts / SERVFAIL count as unknown, not dead.
+ */
+async function deadMxDomains(domains: string[]): Promise<Set<string>> {
+  const dead = new Set<string>();
+  await Promise.all(
+    domains.map(async (d) => {
+      try {
+        const mx = await Promise.race([
+          resolveMx(d),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 4000)),
+        ]);
+        if (mx.every((r) => !r.exchange || r.exchange === ".")) dead.add(d);
+      } catch (e) {
+        const code = (e as { code?: string }).code;
+        if (code === "ENOTFOUND" || code === "ENODATA") dead.add(d);
+      }
+    }),
+  );
+  return dead;
+}
+
 type Check = {
   email: string;
   bisa_dikirim: boolean;
@@ -150,7 +182,7 @@ async function checkEmails(s: Scope, rawEmails: string[]): Promise<Check[]> {
     new Set(valid.map((e) => corporateDomainOf(e)).filter((d): d is string => !!d)),
   );
 
-  const [crRes, qrRes, domRes] = await Promise.all([
+  const [crRes, qrRes, domRes, deadMx] = await Promise.all([
     valid.length
       ? s.admin
           .from("campaign_recipients")
@@ -172,6 +204,8 @@ async function checkEmails(s: Scope, rawEmails: string[]): Promise<Check[]> {
           p_window_start: new Date(now - DOMAIN_WINDOW_DAYS * DAY_MS).toISOString(),
         })
       : Promise.resolve({ data: [] }),
+    // Webmail (gmail/yahoo/…) always has MX — only company domains are looked up.
+    deadMxDomains(domains),
   ]);
 
   type Cr = {
@@ -199,6 +233,8 @@ async function checkEmails(s: Scope, rawEmails: string[]): Promise<Check[]> {
     const c = contacts.get(email);
     const wsName = (id: string | null) => (id && names.get(id)) || "lain";
 
+    const d0 = corporateDomainOf(email);
+    if (d0 && deadMx.has(d0)) hard.push(`domain tidak menerima email (${d0} tidak punya MX)`);
     if (c && c.status !== "active") hard.push(`status kontak: ${c.status}`);
     else if (c?.archived_at) hard.push(`kontak diarsipkan (${c.archive_reason ?? "manual"})`);
 
@@ -329,33 +365,78 @@ async function sendDays(s: Scope, n: number): Promise<string[]> {
   return out;
 }
 
-async function accountInfo(s: Scope) {
+type PoolAccount = {
+  id: string;
+  email: string;
+  provider: string | null;
+  health_status: string | null;
+  /** Belongs to another workspace (TETRA's ramadan@): Hermes gets a share. */
+  shared: boolean;
+  quota: number;
+  sentToday: number;
+  /** NEW emails Hermes may send through this mailbox today. */
+  allowance: number;
+  warmup: ReturnType<typeof describeWarmupStage>;
+};
+
+/**
+ * Every mailbox Hermes Sales sends through (one per queue; unpinned queues use
+ * the default sender) and the effective daily limit across them — the same
+ * numbers queue-runner enforces.
+ */
+async function poolInfo(s: Scope): Promise<{ accounts: PoolAccount[]; newCap: number | null }> {
   const { accountWorkspaceId } = await senderScope(s.admin, s.ws.id);
-  const { data: acc } = await s.admin
-    .from("email_accounts")
-    .select("email, provider, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at, health_status")
-    .eq("workspace_id", accountWorkspaceId)
-    .eq("is_active", true)
-    .maybeSingle();
-  if (!acc) return null;
-  const opts = {
-    warmupMode: !!acc.warmup_mode,
-    warmupStartedAt: acc.warmup_started_at as string | null,
-    fallbackQuota: acc.daily_quota as number,
-  };
-  const fresh = acc.quota_reset_at && acc.quota_reset_at >= startOfTodayWibIso();
-  const shared = accountWorkspaceId !== s.ws.id;
-  const quota = effectiveWarmupQuota(opts);
+  const cols =
+    "id, workspace_id, email, provider, daily_quota, emails_sent_today, quota_reset_at, warmup_mode, warmup_started_at, health_status";
+  const pinned = s.queues.map((q) => q.email_account_id).filter((x): x is string => !!x);
+  const [{ data: def }, { data: pin }] = await Promise.all([
+    s.queues.some((q) => !q.email_account_id)
+      ? s.admin.from("email_accounts").select(cols).eq("workspace_id", accountWorkspaceId).eq("is_active", true)
+      : Promise.resolve({ data: [] }),
+    pinned.length
+      ? s.admin.from("email_accounts").select(cols).in("id", pinned).eq("is_active", true)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const dayStart = startOfTodayWibIso();
+  const seen = new Set<string>();
+  const accounts: PoolAccount[] = [];
+  for (const a of [...(def ?? []), ...(pin ?? [])]) {
+    if (seen.has(a.id as string)) continue;
+    seen.add(a.id as string);
+    const opts = {
+      warmupMode: !!a.warmup_mode,
+      warmupStartedAt: a.warmup_started_at as string | null,
+      fallbackQuota: a.daily_quota as number,
+    };
+    const quota = effectiveWarmupQuota(opts);
+    const shared = a.workspace_id !== s.ws.id;
+    accounts.push({
+      id: a.id as string,
+      email: a.email as string,
+      provider: a.provider as string | null,
+      health_status: a.health_status as string | null,
+      shared,
+      quota,
+      sentToday: a.quota_reset_at && a.quota_reset_at >= dayStart ? (a.emails_sent_today as number) : 0,
+      allowance: shared ? borrowerAllowance(null, quota) : quota,
+      warmup: describeWarmupStage(opts),
+    });
+  }
+  const total = accounts.reduce((n, a) => n + a.allowance, 0);
   return {
-    acc,
-    shared,
-    quota,
-    /** What queue-runner actually lets this workspace send as NEW emails today. */
-    newCap: shared ? borrowerAllowance(s.ws.daily_new_cap, quota) : s.ws.daily_new_cap,
-    sentToday: fresh ? (acc.emails_sent_today as number) : 0,
-    warmup: describeWarmupStage(opts),
+    accounts,
+    newCap: accounts.length ? Math.min(s.ws.daily_new_cap ?? Infinity, total) : null,
   };
 }
+
+/** Recompute cached counters on every queue of the workspace. */
+async function syncCounters(s: Scope) {
+  await Promise.all(s.queues.map((q) => s.admin.rpc("sync_queue_counters", { p_queue_id: q.id })));
+}
+
+const PRIORITY = { tinggi: 1, normal: 0, rendah: -1 } as const;
+const priorityOut = (n: number | null | undefined) =>
+  (n ?? 0) > 0 ? "tinggi" : (n ?? 0) < 0 ? "rendah" : "normal";
 
 async function newSentToday(s: Scope): Promise<number> {
   const { count } = await s.admin
@@ -386,6 +467,12 @@ const DraftItemSchema = z.object({
       "Isi email polos, diakhiri 'Salam,'. Tanda tangan (Rama — Tetra Photobooth, tetraphoto.com) dan link berhenti berlangganan ditambahkan otomatis.",
     ),
   external_ref: z.string().min(1).describe("ID prospek di Tetra Ops; kunci idempotensi."),
+  prioritas: z
+    .enum(["tinggi", "normal", "rendah"])
+    .optional()
+    .describe("Urutan kirim di antrean (default normal). Tinggi dikirim lebih dulu, dalam kuota & pengaman yang sama."),
+  segmen: z.enum(["corporate", "venue", "eo_wo", "kampus", "instansi"]).optional(),
+  kampanye: z.string().max(100).optional().describe('Label bebas untuk analisis, mis. "year-end 2026".'),
 });
 type DraftItem = z.infer<typeof DraftItemSchema>;
 
@@ -406,7 +493,7 @@ const tool = <S extends z.ZodObject>(t: {
 }): Tool => t as unknown as Tool;
 
 const DRAFT_COLS =
-  "id, status, status_reason, scheduled_for_date, custom_subject, custom_body, external_ref, sent_at, created_at, contact:contacts!inner(email, company)";
+  "id, status, status_reason, scheduled_for_date, custom_subject, custom_body, external_ref, priority, segment, campaign, sent_at, created_at, contact:contacts!inner(email, company)";
 
 type DraftRow = {
   id: string;
@@ -416,6 +503,9 @@ type DraftRow = {
   custom_subject: string | null;
   custom_body: string | null;
   external_ref: string | null;
+  priority: number | null;
+  segment: string | null;
+  campaign: string | null;
   sent_at: string | null;
   created_at: string;
   contact: { email: string; company: string | null } | Array<{ email: string; company: string | null }>;
@@ -432,6 +522,9 @@ function draftOut(r: DraftRow, fullBody = false) {
     subjek: r.custom_subject,
     isi: fullBody ? r.custom_body : (r.custom_body ?? "").slice(0, 200),
     external_ref: r.external_ref,
+    prioritas: priorityOut(r.priority),
+    segmen: r.segment,
+    kampanye: r.campaign,
     ...(deferred ? { tanggal_baru: r.scheduled_for_date } : {}),
     ...(r.status_reason ? { alasan: r.status_reason } : {}),
     ...(r.sent_at ? { terkirim: r.sent_at } : {}),
@@ -444,7 +537,7 @@ const TOOLS: Tool[] = [
   tool({
     name: "kontak_cek",
     description:
-      "Cek apakah email boleh dihubungi sebelum menulis draf: alasan penolakan (unsubscribe, bounce, cooldown, sudah di antrean lain, pernah membalas, batas domain) dan kapan terakhir dihubungi.",
+      "Cek apakah email boleh dihubungi sebelum menulis draf: alasan penolakan (unsubscribe, bounce, cooldown, sudah di antrean lain, pernah membalas, domain tanpa MX, batas domain) dan kapan terakhir dihubungi.",
     schema: z.object({ emails: z.array(z.string()).min(1).max(50) }),
     readOnly: true,
     run: async ({ emails }, s) =>
@@ -465,11 +558,26 @@ const TOOLS: Tool[] = [
       const { data: existingRefs } = await s.admin
         .from("queue_recipients")
         .select("id, status, external_ref")
-        .eq("queue_id", s.queue.id)
+        .eq("workspace_id", s.ws.id)
         .in("external_ref", items.map((i) => i.external_ref));
       const byRef = new Map((existingRefs ?? []).map((r) => [r.external_ref as string, r]));
       const checks = new Map((await checkEmails(s, items.map((i) => i.email))).map((c) => [c.email, c]));
       const initial = s.ws.approval_mode === "auto" ? "pending" : "awaiting_approval";
+      // Pool: each new draft goes to the queue (mailbox) with the shortest
+      // backlog relative to its daily target.
+      const { data: open } = await s.admin
+        .from("queue_recipients")
+        .select("queue_id")
+        .eq("workspace_id", s.ws.id)
+        .in("status", ["pending", "awaiting_approval"]);
+      const backlog = new Map(s.queues.map((q) => [q.id, 0]));
+      for (const r of open ?? []) backlog.set(r.queue_id as string, (backlog.get(r.queue_id as string) ?? 0) + 1);
+      const pickQueue = () =>
+        s.queues.reduce((best, q) =>
+          backlog.get(q.id)! / Math.max(1, q.daily_target) < backlog.get(best.id)! / Math.max(1, best.daily_target)
+            ? q
+            : best,
+        );
       const out = [];
       for (const item of items) {
         const base = { email: norm(item.email), external_ref: item.external_ref };
@@ -485,15 +593,18 @@ const TOOLS: Tool[] = [
         }
         try {
           const contactId = await upsertContact(s, item, chk.contact);
+          const target = pickQueue();
           const { data, error } = await s.admin
             .from("queue_recipients")
             .insert({
-              queue_id: s.queue.id,
+              queue_id: target.id,
               contact_id: contactId,
               user_id: s.userId,
               workspace_id: s.ws.id,
               status: initial,
-              priority: 0,
+              priority: PRIORITY[item.prioritas ?? "normal"],
+              segment: item.segmen ?? null,
+              campaign: item.kampanye?.trim() || null,
               shuffle_key: Math.floor(Math.random() * 1e9),
               custom_subject: item.subjek.trim(),
               custom_body: item.isi.trim(),
@@ -506,6 +617,7 @@ const TOOLS: Tool[] = [
             out.push({ ...base, id: null, status: "ditolak", alasan: dup ? "kontak ini sudah ada di antrean Hermes" : error.message });
             continue;
           }
+          backlog.set(target.id, backlog.get(target.id)! + 1);
           out.push({
             ...base,
             id: data.id,
@@ -516,7 +628,7 @@ const TOOLS: Tool[] = [
           out.push({ ...base, id: null, status: "ditolak", alasan: e instanceof Error ? e.message : String(e) });
         }
       }
-      await s.admin.rpc("sync_queue_counters", { p_queue_id: s.queue.id });
+      await syncCounters(s);
       return { mode_persetujuan: s.ws.approval_mode ?? "manual", hasil: out };
     },
   }),
@@ -530,7 +642,7 @@ const TOOLS: Tool[] = [
     }),
     readOnly: true,
     run: async ({ status, ids }, s) => {
-      let q = s.admin.from("queue_recipients").select(DRAFT_COLS).eq("queue_id", s.queue.id);
+      let q = s.admin.from("queue_recipients").select(DRAFT_COLS).eq("workspace_id", s.ws.id);
       if (ids) {
         const { data, error } = await q.in("id", ids);
         if (error) throw new ToolError(error.message);
@@ -556,12 +668,12 @@ const TOOLS: Tool[] = [
       let q = s.admin
         .from("queue_recipients")
         .update({ status: "pending", status_reason: null })
-        .eq("queue_id", s.queue.id)
+        .eq("workspace_id", s.ws.id)
         .eq("status", "awaiting_approval");
       if (!semua) q = q.in("id", ids!);
       const { data, error } = await q.select("id");
       if (error) throw new ToolError(error.message);
-      await s.admin.rpc("sync_queue_counters", { p_queue_id: s.queue.id });
+      await syncCounters(s);
       return { disetujui: data?.length ?? 0, ...(await estimate(s)) };
     },
   }),
@@ -582,7 +694,7 @@ const TOOLS: Tool[] = [
           ...(subjek ? { custom_subject: subjek.trim() } : {}),
           ...(isi ? { custom_body: isi.trim() } : {}),
         })
-        .eq("queue_id", s.queue.id)
+        .eq("workspace_id", s.ws.id)
         .eq("id", id)
         .in("status", ["awaiting_approval", "pending"])
         .select(DRAFT_COLS);
@@ -600,12 +712,12 @@ const TOOLS: Tool[] = [
       const { data, error } = await s.admin
         .from("queue_recipients")
         .update({ status: "skipped", status_reason: alasan?.trim() || "dibatalkan" })
-        .eq("queue_id", s.queue.id)
+        .eq("workspace_id", s.ws.id)
         .in("id", ids)
         .in("status", ["awaiting_approval", "pending"])
         .select("id");
       if (error) throw new ToolError(error.message);
-      await s.admin.rpc("sync_queue_counters", { p_queue_id: s.queue.id });
+      await syncCounters(s);
       return { dibatalkan: data?.length ?? 0 };
     },
   }),
@@ -620,9 +732,9 @@ const TOOLS: Tool[] = [
       const { data, error } = await s.admin
         .from("queue_recipients")
         .select(
-          "id, contact_id, status, status_reason, scheduled_for_date, external_ref, sent_at, campaign_recipient_id, contact:contacts!inner(email, company, status)",
+          "id, contact_id, status, status_reason, scheduled_for_date, external_ref, priority, segment, campaign, sent_at, campaign_recipient_id, contact:contacts!inner(email, company, status)",
         )
-        .eq("queue_id", s.queue.id)
+        .eq("workspace_id", s.ws.id)
         .gte("created_at", `${from}T00:00:00+07:00`)
         .order("created_at")
         .limit(500);
@@ -634,6 +746,9 @@ const TOOLS: Tool[] = [
         status_reason: string | null;
         scheduled_for_date: string | null;
         external_ref: string | null;
+        priority: number | null;
+        segment: string | null;
+        campaign: string | null;
         sent_at: string | null;
         campaign_recipient_id: string | null;
         contact: { email: string; company: string | null; status: string } | Array<{ email: string; company: string | null; status: string }>;
@@ -676,6 +791,9 @@ const TOOLS: Tool[] = [
           email: c?.email ?? null,
           perusahaan: c?.company ?? null,
           status,
+          prioritas: priorityOut(r.priority),
+          segmen: r.segment,
+          kampanye: r.campaign,
           ...(r.sent_at ? { terkirim: day(r.sent_at) } : {}),
           ...(r.campaign_recipient_id
             ? {
@@ -701,13 +819,13 @@ const TOOLS: Tool[] = [
     run: async ({ belum_ditangani = true }, s) => {
       let q = s.admin
         .from("campaign_recipients")
-        .select("id, contact_id, contact_email, replied_at, reply_classification, reply_snippet, gmail_thread_id, handled_at, contact:contacts!inner(company)")
+        .select("id, contact_id, contact_email, replied_at, reply_classification, reply_snippet, gmail_thread_id, handled_at, email_account_id, contact:contacts!inner(company)")
         .eq("workspace_id", s.ws.id)
         .eq("status", "replied");
       if (belum_ditangani) q = q.is("handled_at", null);
-      const [{ data, error }, info] = await Promise.all([
+      const [{ data, error }, pool] = await Promise.all([
         q.order("replied_at", { ascending: false }).limit(100),
-        accountInfo(s),
+        poolInfo(s),
       ]);
       if (error) throw new ToolError(error.message);
       type Row = {
@@ -719,18 +837,25 @@ const TOOLS: Tool[] = [
         reply_snippet: string | null;
         gmail_thread_id: string | null;
         handled_at: string | null;
+        email_account_id: string | null;
         contact: { company: string | null } | Array<{ company: string | null }>;
       };
       const rows = (data ?? []) as Row[];
       const { data: refs } = rows.length
         ? await s.admin
             .from("queue_recipients")
-            .select("contact_id, external_ref")
-            .eq("queue_id", s.queue.id)
+            .select("contact_id, external_ref, segment, campaign")
+            .eq("workspace_id", s.ws.id)
             .in("contact_id", rows.map((r) => r.contact_id))
         : { data: [] };
-      const refBy = new Map((refs ?? []).map((r) => [r.contact_id as string, r.external_ref as string | null]));
-      const gmail = info?.acc.provider !== "smtp";
+      const refBy = new Map(
+        (refs ?? []).map((r) => [
+          r.contact_id as string,
+          r as { external_ref: string | null; segment: string | null; campaign: string | null },
+        ]),
+      );
+      // Thread links exist only for Gmail mailboxes.
+      const gmailIds = new Set(pool.accounts.filter((a) => a.provider !== "smtp").map((a) => a.id));
       return rows.map((r) => ({
         id: r.id,
         perusahaan: one(r.contact)?.company ?? null,
@@ -739,8 +864,12 @@ const TOOLS: Tool[] = [
         cuplikan: r.reply_snippet,
         waktu: r.replied_at,
         link_thread:
-          gmail && r.gmail_thread_id ? `https://mail.google.com/mail/u/0/#inbox/${r.gmail_thread_id}` : null,
-        external_ref: refBy.get(r.contact_id) ?? null,
+          r.email_account_id && gmailIds.has(r.email_account_id) && r.gmail_thread_id
+            ? `https://mail.google.com/mail/u/0/#inbox/${r.gmail_thread_id}`
+            : null,
+        external_ref: refBy.get(r.contact_id)?.external_ref ?? null,
+        segmen: refBy.get(r.contact_id)?.segment ?? null,
+        kampanye: refBy.get(r.contact_id)?.campaign ?? null,
         ditangani: !!r.handled_at,
       }));
     },
@@ -766,41 +895,63 @@ const TOOLS: Tool[] = [
   tool({
     name: "kuota",
     description:
-      "Kapasitas kirim: akun pengirim, kuota hari ini dan terpakai, tahap warmup, batas email baru workspace, mode persetujuan, panjang antrean, jendela kirim berikutnya.",
+      "Kapasitas kirim: akun pengirim (dan pool mailbox), kuota hari ini dan terpakai, tahap warmup, batas email baru efektif dan batas workspace, mode persetujuan, panjang antrean per prioritas, perkiraan hari antrean, jendela kirim berikutnya.",
     schema: z.object({}),
     readOnly: true,
     run: async (_args, s) => {
-      const [info, newToday, counts, days] = await Promise.all([
-        accountInfo(s),
+      const [pool, newToday, counts, days] = await Promise.all([
+        poolInfo(s),
         newSentToday(s),
-        s.admin.from("queue_recipients").select("status").eq("queue_id", s.queue.id).in("status", ["awaiting_approval", "pending"]),
+        s.admin
+          .from("queue_recipients")
+          .select("status, priority")
+          .eq("workspace_id", s.ws.id)
+          .in("status", ["awaiting_approval", "pending"]),
         sendDays(s, 1),
       ]);
-      const rows = (counts.data ?? []) as Array<{ status: string }>;
+      const rows = (counts.data ?? []) as Array<{ status: string; priority: number | null }>;
+      const scheduled = rows.filter((r) => r.status === "pending").length;
+      const primary = pool.accounts[0];
       return {
-        akun_pengirim: info
-          ? { email: info.acc.email, provider: info.acc.provider, kesehatan: info.acc.health_status }
+        akun_pengirim: primary
+          ? { email: primary.email, provider: primary.provider, kesehatan: primary.health_status }
           : null,
-        ...(info?.shared
+        // Every mailbox in the pool with its share for Hermes today.
+        akun_pool: pool.accounts.map((a) => ({
+          email: a.email,
+          dipakai_bersama: a.shared,
+          kuota_hari_ini: a.quota,
+          terpakai_hari_ini: a.sentToday,
+          jatah_hermes: a.allowance,
+          warmup: a.warmup ? { hari_ke: a.warmup.day, batas: a.warmup.cap } : null,
+        })),
+        ...(pool.accounts.some((a) => a.shared)
           ? {
               catatan_kuota:
-                "Kuota akun dipakai bersama antrean TETRA. Hermes maksimal separuh kuota akun (dan tidak lebih dari batas workspace); draf Hermes yang disetujui didahulukan dalam jatah itu.",
+                "Mailbox yang dipakai bersama antrean TETRA: Hermes maksimal separuh kuotanya; draf Hermes yang disetujui didahulukan dalam jatah itu. Total dibatasi batas_workspace.",
             }
           : {}),
-        ...(info ? {} : { peringatan: "Belum ada akun pengirim terhubung; draf tidak akan terkirim." }),
-        kuota_akun_hari_ini: info?.quota ?? 0,
-        terpakai_akun_hari_ini: info?.sentToday ?? 0,
-        warmup: info?.warmup ? { hari_ke: info.warmup.day, batas: info.warmup.cap } : null,
-        // Effective limit (workspace cap ∩ half of the shared quota) — the
-        // number Bruno plans its daily drafts against.
-        batas_email_baru_per_hari: info ? info.newCap : s.ws.daily_new_cap,
+        ...(primary ? {} : { peringatan: "Belum ada akun pengirim terhubung; draf tidak akan terkirim." }),
+        kuota_akun_hari_ini: primary?.quota ?? 0,
+        terpakai_akun_hari_ini: primary?.sentToday ?? 0,
+        warmup: primary?.warmup ? { hari_ke: primary.warmup.day, batas: primary.warmup.cap } : null,
+        // Effective limit across the pool (∩ workspace cap) — the number
+        // Bruno plans its daily drafts against.
+        batas_email_baru_per_hari: pool.newCap ?? s.ws.daily_new_cap,
         batas_workspace: s.ws.daily_new_cap,
         email_baru_terkirim_hari_ini: newToday,
         mode_persetujuan: s.ws.approval_mode ?? "manual",
         antrean: {
           menunggu_persetujuan: rows.filter((r) => r.status === "awaiting_approval").length,
-          dijadwalkan: rows.filter((r) => r.status === "pending").length,
+          dijadwalkan: scheduled,
         },
+        antrean_per_prioritas: {
+          tinggi: rows.filter((r) => priorityOut(r.priority) === "tinggi").length,
+          normal: rows.filter((r) => priorityOut(r.priority) === "normal").length,
+          rendah: rows.filter((r) => priorityOut(r.priority) === "rendah").length,
+        },
+        // Working days the scheduled backlog needs at today's effective limit.
+        perkiraan_hari_antrean: pool.newCap ? Math.ceil(scheduled / pool.newCap) : null,
         jendela_kirim_berikutnya: days[0]
           ? `${days[0]} ${s.queue.schedule_start_time.slice(0, 5)}–${s.queue.schedule_end_time.slice(0, 5)} WIB`
           : null,
@@ -811,29 +962,31 @@ const TOOLS: Tool[] = [
 
 /** Rough send-date estimate for everything currently pending. */
 async function estimate(s: Scope) {
-  const [info, newToday, { count: pending }] = await Promise.all([
-    accountInfo(s),
+  const [pool, newToday, { count: pending }] = await Promise.all([
+    poolInfo(s),
     newSentToday(s),
-    s.admin.from("queue_recipients").select("id", { count: "exact", head: true }).eq("queue_id", s.queue.id).eq("status", "pending"),
+    s.admin.from("queue_recipients").select("id", { count: "exact", head: true }).eq("workspace_id", s.ws.id).eq("status", "pending"),
   ]);
-  if (!info) {
+  if (!pool.newCap) {
     return { peringatan: "Belum ada akun pengirim terhubung; draf tidak akan terkirim sampai akun disambungkan." };
   }
   // ponytail: assumes follow-ups never crowd out first touches (they're capped at 50%).
-  const perDay = Math.max(1, Math.min(info.newCap ?? Infinity, s.queue.daily_target, info.quota));
+  const perDay = Math.max(1, pool.newCap);
+  // Today's room is also bounded by what the mailboxes have left.
+  const todayRoom = Math.min(
+    perDay - newToday,
+    pool.accounts.reduce((n, a) => n + Math.max(0, a.quota - a.sentToday), 0),
+  );
   let left = pending ?? 0;
   const days = await sendDays(s, Math.ceil(left / perDay) + 1);
   if (left === 0 || days.length === 0) return { dijadwalkan: left };
   let i = 0;
-  if (days[0] === todayWIB()) {
-    // Today's room is also bounded by the (possibly shared) account quota.
-    left -= Math.max(0, Math.min(perDay - newToday, info.quota - info.sentToday));
-  }
+  if (days[0] === todayWIB()) left -= Math.max(0, todayRoom);
   while (left > 0 && i + 1 < days.length) {
     i++;
     left -= perDay;
   }
-  const todayFull = days[0] === todayWIB() && Math.min(perDay - newToday, info.quota - info.sentToday) <= 0;
+  const todayFull = days[0] === todayWIB() && todayRoom <= 0;
   return {
     dijadwalkan: pending ?? 0,
     per_hari: perDay,

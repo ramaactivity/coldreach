@@ -220,8 +220,7 @@ export async function pollRepliesForAccount(
     )
     .eq("user_id", account.user_id);
   if (account.workspace_id) {
-    const { sharingIds } = await senderScope(admin, account.workspace_id);
-    candidateQuery = candidateQuery.in("workspace_id", sharingIds);
+    candidateQuery = candidateQuery.or(await ownRowsFilter(admin, account));
   }
   const { data: candidates } = await candidateQuery
     .in("status", ["sent", "opened"])
@@ -376,6 +375,19 @@ export async function pollRepliesForAccount(
       result.errors.push(`Thread ${cand.gmail_thread_id}: ${msg}`);
     }
   }
+}
+
+/**
+ * PostgREST filter for rows this mailbox sent: tagged with its id, or (rows
+ * written before email_account_id existed) untagged rows of the workspaces
+ * that send through it. A pooled workspace's other mailbox never matches.
+ */
+async function ownRowsFilter(
+  admin: SupabaseClient,
+  account: { id: string; workspace_id: string | null },
+): Promise<string> {
+  const { sharingIds } = await senderScope(admin, account.workspace_id!);
+  return `email_account_id.eq.${account.id},and(email_account_id.is.null,workspace_id.in.(${sharingIds.join(",")}))`;
 }
 
 async function recordReply(
@@ -635,11 +647,10 @@ export async function markOwnerReplies(
   account: EmailAccountRow,
 ): Promise<number> {
   if (!account.workspace_id) return 0;
-  const { sharingIds } = await senderScope(admin, account.workspace_id);
   const { data: rows } = await admin
     .from("campaign_recipients")
     .select("id, contact_email, gmail_thread_id, replied_at")
-    .in("workspace_id", sharingIds)
+    .or(await ownRowsFilter(admin, account))
     .eq("status", "replied")
     .is("handled_at", null)
     .not("replied_at", "is", null)
