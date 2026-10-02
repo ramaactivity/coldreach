@@ -11,6 +11,7 @@ import {
   Send,
   Rocket,
   PenLine,
+  MailCheck,
   Kanban,
   Settings as SettingsIcon,
   LogOut,
@@ -140,6 +141,7 @@ export function Sidebar({
         },
         { href: `/w/${slug}/templates`, label: "Templates", icon: FileText },
         { href: `/w/${slug}/queues`, label: "Queues", icon: Send },
+        { href: `/w/${slug}/sent`, label: "Terkirim", icon: MailCheck },
         ...(workspace.approval_mode
           ? [{ href: `/w/${slug}/drafts`, label: "Draf Hermes", icon: PenLine }]
           : []),

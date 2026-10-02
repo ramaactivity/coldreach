@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PenLine } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -6,7 +7,6 @@ import { todayWIB } from "@/lib/holidays-id";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DraftList, DraftSettings, type Draft } from "./drafts-client";
-import { SentList } from "./sent-list";
 
 export default async function DraftsPage({
   params,
@@ -77,7 +77,13 @@ export default async function DraftsPage({
             {scheduled.length > 0 && <DraftList slug={slug} drafts={scheduled} />}
           </>
         )}
-        <SentList workspaceId={workspace.id} />
+        <p className="text-[13px] text-muted">
+          Email yang sudah terkirim ada di{" "}
+          <Link href={`/w/${slug}/sent`} className="font-medium text-ink underline">
+            Terkirim
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );
