@@ -12,6 +12,7 @@ import {
   Rocket,
   PenLine,
   MailCheck,
+  HeartPulse,
   Kanban,
   Settings as SettingsIcon,
   LogOut,
@@ -120,6 +121,7 @@ export function Sidebar({
           ],
         },
         { href: `/w/${slug}/pipeline`, label: "Pipeline", icon: Kanban },
+        { href: "/health", label: "Kesehatan kirim", icon: HeartPulse },
       ],
     },
     {

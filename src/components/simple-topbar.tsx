@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Inbox, LogOut, CalendarOff } from "lucide-react";
+import { Inbox, LogOut, CalendarOff, HeartPulse } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui";
 
 export function SimpleTopbar({ email }: { email: string }) {
@@ -14,6 +14,10 @@ export function SimpleTopbar({ email }: { email: string }) {
         ColdReach
       </Link>
       <div className="flex items-center gap-2">
+        <ButtonLink href="/health" prefetch variant="secondary" size="sm">
+          <HeartPulse className="h-3.5 w-3.5" />
+          <span>Kesehatan</span>
+        </ButtonLink>
         <ButtonLink href="/holidays" prefetch variant="secondary" size="sm">
           <CalendarOff className="h-3.5 w-3.5" />
           <span>Libur</span>
