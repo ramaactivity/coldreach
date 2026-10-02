@@ -29,6 +29,19 @@ export async function senderScope(
 }
 
 /**
+ * Max share of a shared account's daily quota a borrowing workspace may use
+ * for NEW emails, so the owner's queue always keeps at least the other half
+ * (Hermes Sales vs TETRA on ramadan@tetraphoto.com).
+ * ponytail: per borrower — with two borrowers the shares would add up; split it then.
+ */
+export const BORROWER_QUOTA_SHARE = 0.5;
+
+/** New emails a borrowing workspace may send per day on an account of `quota`. */
+export function borrowerAllowance(cap: number | null | undefined, quota: number): number {
+  return Math.min(cap ?? Infinity, Math.floor(quota * BORROWER_QUOTA_SHARE));
+}
+
+/**
  * Quota the account owner must leave for borrowing workspaces today: their
  * approved, sendable drafts up to each one's daily_new_cap. Zero when they
  * have nothing waiting, so the owner's queue can use the whole quota.
@@ -38,6 +51,7 @@ export async function borrowerReserve(
   borrowerIds: string[],
   dayStartIso: string,
   todayWib: string,
+  quota: number,
 ): Promise<number> {
   const per = await Promise.all(
     borrowerIds.map(async (id) => {
@@ -56,7 +70,7 @@ export async function borrowerReserve(
           .or(`scheduled_for_date.is.null,scheduled_for_date.lte.${todayWib}`),
       ]);
       const cap = ws?.daily_new_cap as number | null | undefined;
-      const room = cap == null ? Infinity : Math.max(0, cap - (sent ?? 0));
+      const room = Math.max(0, borrowerAllowance(cap, quota) - (sent ?? 0));
       return Math.min(pending ?? 0, room);
     }),
   );

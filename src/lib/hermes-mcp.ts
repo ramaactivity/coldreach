@@ -6,7 +6,7 @@ import { effectiveWarmupQuota, describeWarmupStage } from "@/lib/warmup";
 import { startOfTodayWibIso } from "@/lib/quota-reset";
 import { addDaysWIB, todayWIB } from "@/lib/holidays-id";
 import { wibDate } from "@/lib/ooo";
-import { senderScope } from "@/lib/sender-account";
+import { borrowerAllowance, senderScope } from "@/lib/sender-account";
 
 /**
  * MCP server for the Hermes sales agent: plain JSON-RPC over one stateless
@@ -344,10 +344,14 @@ async function accountInfo(s: Scope) {
     fallbackQuota: acc.daily_quota as number,
   };
   const fresh = acc.quota_reset_at && acc.quota_reset_at >= startOfTodayWibIso();
+  const shared = accountWorkspaceId !== s.ws.id;
+  const quota = effectiveWarmupQuota(opts);
   return {
     acc,
-    shared: accountWorkspaceId !== s.ws.id,
-    quota: effectiveWarmupQuota(opts),
+    shared,
+    quota,
+    /** What queue-runner actually lets this workspace send as NEW emails today. */
+    newCap: shared ? borrowerAllowance(s.ws.daily_new_cap, quota) : s.ws.daily_new_cap,
     sentToday: fresh ? (acc.emails_sent_today as number) : 0,
     warmup: describeWarmupStage(opts),
   };
@@ -778,13 +782,19 @@ const TOOLS: Tool[] = [
           ? { email: info.acc.email, provider: info.acc.provider, kesehatan: info.acc.health_status }
           : null,
         ...(info?.shared
-          ? { catatan_kuota: "Kuota akun dipakai bersama workspace pemilik akun; draf Hermes yang disetujui didahulukan." }
+          ? {
+              catatan_kuota:
+                "Kuota akun dipakai bersama antrean TETRA. Hermes maksimal separuh kuota akun (dan tidak lebih dari batas workspace); draf Hermes yang disetujui didahulukan dalam jatah itu.",
+            }
           : {}),
         ...(info ? {} : { peringatan: "Belum ada akun pengirim terhubung; draf tidak akan terkirim." }),
         kuota_akun_hari_ini: info?.quota ?? 0,
         terpakai_akun_hari_ini: info?.sentToday ?? 0,
         warmup: info?.warmup ? { hari_ke: info.warmup.day, batas: info.warmup.cap } : null,
-        batas_email_baru_per_hari: s.ws.daily_new_cap,
+        // Effective limit (workspace cap ∩ half of the shared quota) — the
+        // number Bruno plans its daily drafts against.
+        batas_email_baru_per_hari: info ? info.newCap : s.ws.daily_new_cap,
+        batas_workspace: s.ws.daily_new_cap,
         email_baru_terkirim_hari_ini: newToday,
         mode_persetujuan: s.ws.approval_mode ?? "manual",
         antrean: {
@@ -810,7 +820,7 @@ async function estimate(s: Scope) {
     return { peringatan: "Belum ada akun pengirim terhubung; draf tidak akan terkirim sampai akun disambungkan." };
   }
   // ponytail: assumes follow-ups never crowd out first touches (they're capped at 50%).
-  const perDay = Math.max(1, Math.min(s.ws.daily_new_cap ?? Infinity, s.queue.daily_target, info.quota));
+  const perDay = Math.max(1, Math.min(info.newCap ?? Infinity, s.queue.daily_target, info.quota));
   let left = pending ?? 0;
   const days = await sendDays(s, Math.ceil(left / perDay) + 1);
   if (left === 0 || days.length === 0) return { dijadwalkan: left };

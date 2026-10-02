@@ -12,7 +12,7 @@ import {
 import { ensureDailyQuotaFresh, startOfTodayWibIso } from "@/lib/quota-reset";
 import type { SignatureData } from "@/lib/signature";
 import { wibDate } from "@/lib/ooo";
-import { borrowerReserve, senderScope } from "@/lib/sender-account";
+import { borrowerAllowance, borrowerReserve, senderScope } from "@/lib/sender-account";
 
 export type RunQueueResult = {
   queue_id: string;
@@ -210,7 +210,7 @@ export async function runQueue(
   // approved drafts (personal, hand-approved emails go first).
   const reserve =
     sender.accountWorkspaceId === queue.workspace_id && sender.sharingIds.length > 1
-      ? await borrowerReserve(admin, sender.sharingIds.slice(1), wibTodayStart, wibDate(Date.now()))
+      ? await borrowerReserve(admin, sender.sharingIds.slice(1), wibTodayStart, wibDate(Date.now()), effectiveDailyQuota)
       : 0;
   const remainingQuota = effectiveDailyQuota - account.emails_sent_today - reserve;
   if (remainingQuota <= 0) {
@@ -322,9 +322,15 @@ export async function runQueue(
 
   let limit = Math.min(batchSize, remainingQuota);
   // Optional per-workspace cap on NEW emails per WIB day (Hermes Sales: 15).
+  // A workspace borrowing another's account is also held to its share of
+  // that account's quota, so the owner's queue keeps running.
   // Follow-ups don't count here — they keep their own 50%-of-quota share.
-  const dailyNewCap = (workspaceRes.data as { daily_new_cap?: number | null } | null)
+  const ownCap = (workspaceRes.data as { daily_new_cap?: number | null } | null)
     ?.daily_new_cap;
+  const dailyNewCap =
+    sender.accountWorkspaceId !== queue.workspace_id
+      ? borrowerAllowance(ownCap, effectiveDailyQuota)
+      : ownCap;
   if (dailyNewCap != null) {
     const { count: newToday } = await admin
       .from("queue_recipients")
