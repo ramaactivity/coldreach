@@ -214,6 +214,12 @@ export function InboxRow({ item, stages, tab, slug, showWorkspace }: Props) {
             </span>
           </div>
 
+          {item.reply_snippet && (
+            <p className="mt-2 line-clamp-3 whitespace-pre-wrap border-l-2 border-border pl-3 text-[13px] leading-relaxed text-ink-secondary">
+              {item.reply_snippet}
+            </p>
+          )}
+
           {/* Stage selector + actions row */}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="w-[160px]">

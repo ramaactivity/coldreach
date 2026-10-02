@@ -6,6 +6,7 @@ import { todayWIB } from "@/lib/holidays-id";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DraftList, DraftSettings, type Draft } from "./drafts-client";
+import { SentList } from "./sent-list";
 
 export default async function DraftsPage({
   params,
@@ -63,18 +64,21 @@ export default async function DraftsPage({
         approvalMode={workspace.approval_mode}
         dailyNewCap={workspace.daily_new_cap}
       />
-      {drafts.length === 0 ? (
-        <EmptyState
-          icon={PenLine}
-          title="Tidak ada draf"
-          description="Draf baru dari Hermes muncul di sini sampai terkirim atau dibatalkan."
-        />
-      ) : (
-        <div className="space-y-10">
-          {waiting.length > 0 && <DraftList slug={slug} drafts={waiting} />}
-          {scheduled.length > 0 && <DraftList slug={slug} drafts={scheduled} />}
-        </div>
-      )}
+      <div className="space-y-10">
+        {drafts.length === 0 ? (
+          <EmptyState
+            icon={PenLine}
+            title="Tidak ada draf"
+            description="Draf baru dari Hermes muncul di sini sampai terkirim atau dibatalkan."
+          />
+        ) : (
+          <>
+            {waiting.length > 0 && <DraftList slug={slug} drafts={waiting} />}
+            {scheduled.length > 0 && <DraftList slug={slug} drafts={scheduled} />}
+          </>
+        )}
+        <SentList workspaceId={workspace.id} />
+      </div>
     </div>
   );
 }

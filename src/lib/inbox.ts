@@ -20,6 +20,7 @@ export type InboxItem = {
   workspace_color: string;
   lead_stage_id: string | null;
   reply_classification: string | null;
+  reply_snippet: string | null;
 };
 
 // Pending tab order: hottest first, then newest. A reply that says
@@ -51,6 +52,7 @@ type RawRow = {
   snoozed_until: string | null;
   workspace_id: string;
   reply_classification: string | null;
+  reply_snippet: string | null;
   contact:
     | {
         first_name: string | null;
@@ -87,7 +89,7 @@ function fullName(c: { first_name: string | null; last_name: string | null } | n
 }
 
 const SELECT_COLS = `id, contact_id, contact_email, gmail_thread_id, sent_at, replied_at,
-   handled_at, snoozed_until, workspace_id, reply_classification,
+   handled_at, snoozed_until, workspace_id, reply_classification, reply_snippet,
    contact:contacts(first_name, last_name, company, position),
    workspace:workspaces(name, slug, color_theme)`;
 
@@ -183,6 +185,7 @@ export async function getInboxReplies(
       lead_stage_id:
         stageMap.get(`${r.contact_id}:${r.workspace_id}`) ?? null,
       reply_classification: r.reply_classification,
+      reply_snippet: r.reply_snippet,
     };
   });
   if (tab === "pending") {
