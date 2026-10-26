@@ -7,9 +7,12 @@ import {
   todayWIB,
 } from "@/lib/holidays-id";
 
-// 10 followups max per queue × ~1–2s per Gmail send = ~20s worst case.
-// 30s ceiling keeps Provisioned Memory budget tight.
-export const maxDuration = 30;
+// Queues run sequentially (~3–5s of reads each) and SMTP sends are slower
+// than Gmail's API — at 30s the run was killed mid-send every hour, leaving
+// follow-ups stuck in 'sending' with no followup_history row.
+export const maxDuration = 60;
+// New sends stop here; leaves headroom for an in-flight SMTP send to finish.
+const RUN_BUDGET_MS = 45_000;
 
 /**
  * Cron-triggered follow-up sender. Runs every hour in production.
@@ -29,6 +32,7 @@ export async function GET(request: NextRequest) {
   }
 
   const admin = createAdminClient();
+  const sendDeadlineMs = Date.now() + RUN_BUDGET_MS;
 
   const holiday = await isTodayHolidayWIBAsync(admin);
   if (holiday) {
@@ -85,9 +89,10 @@ export async function GET(request: NextRequest) {
 
   const results = [];
   for (const q of queues) {
+    if (Date.now() > sendDeadlineMs) break;
     const id = (q as { id: string }).id;
     try {
-      const r = await runFollowupsForQueue(id);
+      const r = await runFollowupsForQueue(id, sendDeadlineMs);
       results.push(r);
     } catch (err) {
       // One queue's failure must not abort the whole cron run.
@@ -108,6 +113,7 @@ export async function GET(request: NextRequest) {
     triggered_at: new Date().toISOString(),
     queues_checked: results.length,
     total_sent: results.reduce((sum, r) => sum + r.sent, 0),
+    hit_time_budget: Date.now() > sendDeadlineMs,
     results,
   });
 }

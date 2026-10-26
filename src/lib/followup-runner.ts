@@ -80,6 +80,7 @@ function unwrap<T>(v: T | T[] | null): T | null {
  */
 export async function runFollowupsForQueue(
   queueId: string,
+  deadlineEpochMs: number | null = null,
 ): Promise<FollowupRunResult> {
   const admin = createAdminClient();
   const result: FollowupRunResult = {
@@ -431,6 +432,8 @@ export async function runFollowupsForQueue(
   }
 
   for (const c of eligible) {
+    // Stop cleanly before the function's hard timeout kills us mid-send.
+    if (deadlineEpochMs !== null && Date.now() > deadlineEpochMs) break;
     result.attempted++;
     const stepCfg = steps[c.next_step_index];
     const stepNumber = c.next_step_index + 1;
